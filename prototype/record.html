@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>บันทึกการผลิต — PD Monitor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <script src="assets/mock-data.js"></script>
+  <script src="assets/app.js"></script>
+  <script>
+    function jobOptions(sel) {
+      return DB.jobs.filter(j => j.status !== "FG")
+        .map(j => `<option value="${j.jobNo}" ${j.jobNo===sel?"selected":""}>${j.jobNo} · ${product(j.productId).name}</option>`).join("");
+    }
+    function stageOptions() { return SEED.stageFlow.map(s => `<option>${s}</option>`).join(""); }
+    function machineOptions() { return ['-'].concat(DB.machines.map(m=>m.name)).map(m=>`<option>${m}</option>`).join(""); }
+
+    function recentRows() {
+      // แสดงบันทึกล่าสุดจาก stage ที่ active/done ของทุก job (จำลอง)
+      const rows = [];
+      DB.jobs.forEach(j => j.stages.forEach(s => {
+        if (s.status !== "pending") rows.push({ jobNo:j.jobNo, name:product(j.productId).name, stage:s.name, mc:s.machine, out:s.qtyOut, ppl:s.people, hr:s.hours, st:s.status });
+      }));
+      return rows.slice(-8).reverse().map(r => `
+        <tr>
+          <td><b>${r.jobNo}</b><br><span class="muted" style="font-size:.8rem">${r.name}</span></td>
+          <td>${r.stage}</td><td>${r.mc}</td>
+          <td>${fmt(r.out)} กก.</td><td>${r.ppl} คน</td><td>${r.hr} ชม.</td>
+          <td>${r.st==="done"?'<span class="badge" style="background:#22c55e">เสร็จ</span>':'<span class="badge" style="background:#f59e0b">กำลังทำ</span>'}</td>
+        </tr>`).join("");
+    }
+
+    function render() {
+      const preset = qs("no") || DB.jobs[0].jobNo;
+      const content = `
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-head">✏️ บันทึกผลการผลิต</div>
+            <div class="card-body">
+              <form onsubmit="submitRecord(event)">
+                <div class="form-grid">
+                  <div class="field"><label>เลือก Job</label><select id="f_job">${jobOptions(preset)}</select></div>
+                  <div class="field"><label>ขั้นตอน (Station)</label><select id="f_stage">${stageOptions()}</select></div>
+                  <div class="field"><label>เครื่องที่ใช้</label><select id="f_mc">${machineOptions()}</select></div>
+                  <div class="field"><label>จำนวนเข้า (กก.)</label><input id="f_in" type="number" min="0" placeholder="เช่น 1000"></div>
+                  <div class="field"><label>จำนวนออก (กก.)</label><input id="f_out" type="number" min="0" placeholder="เช่น 500"></div>
+                  <div class="field"><label>จำนวนคน</label><input id="f_ppl" type="number" min="0" placeholder="เช่น 3"></div>
+                  <div class="field"><label>เวลาที่ใช้ (ชม.)</label><input id="f_hr" type="number" min="0" step="0.5" placeholder="เช่น 8"></div>
+                  <div class="field"><label>สถานะหลังบันทึก</label>
+                    <select id="f_done"><option value="active">กำลังทำ (ยังไม่จบขั้น)</option><option value="done">เสร็จขั้นนี้</option></select></div>
+                </div>
+                <div class="field" style="margin-top:16px"><label>หมายเหตุ</label><textarea id="f_note" rows="2" placeholder="เช่น เครื่องหยุด 30 นาที, รอ line clearance"></textarea></div>
+                <div class="flex" style="margin-top:18px">
+                  <button class="btn primary" type="submit">💾 บันทึก</button>
+                  <button class="btn" type="button" onclick="location.href='board.html'">ยกเลิก</button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head">🕑 บันทึกล่าสุด</div>
+            <div class="card-body" style="padding:0">
+              <table class="tbl">
+                <thead><tr><th>Job</th><th>ขั้น</th><th>เครื่อง</th><th>ออก</th><th>คน</th><th>เวลา</th><th>สถานะ</th></tr></thead>
+                <tbody id="recent">${recentRows()}</tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <p class="muted mt" style="font-size:.85rem">💡 Demo: การบันทึกจะอัปเดต Timeline ของ Job และความคืบหน้าบนบอร์ดทันที (เก็บในเครื่องนี้)</p>
+      `;
+      renderLayout({ active: "record.html", title: "บันทึกการผลิต", sub: "บันทึก in-out แต่ละ station", role: "ฝ่ายผลิต" }, content);
+    }
+
+    function submitRecord(e) {
+      e.preventDefault();
+      const no = document.getElementById("f_job").value;
+      const stageName = document.getElementById("f_stage").value;
+      const j = job(no);
+      const s = j.stages.find(x => x.name === stageName);
+      if (s) {
+        s.qtyIn  = +document.getElementById("f_in").value  || s.qtyIn;
+        s.qtyOut = +document.getElementById("f_out").value || s.qtyOut;
+        s.people = +document.getElementById("f_ppl").value || s.people;
+        s.hours  = +document.getElementById("f_hr").value  || s.hours;
+        s.machine = document.getElementById("f_mc").value;
+        s.note = document.getElementById("f_note").value;
+        s.status = document.getElementById("f_done").value;
+        // อัปเดต progress + สถานะ job คร่าว ๆ
+        const done = j.stages.filter(x => x.status === "done").length;
+        j.progressPct = Math.round((done / j.stages.length) * 100);
+        saveData(DB);
+      }
+      toast("✅ บันทึกเรียบร้อย — ข้อมูลอัปเดตทุกฝ่ายแล้ว");
+      document.getElementById("recent").innerHTML = recentRows();
+      e.target.reset();
+    }
+    render();
+  </script>
+</body>
+</html>

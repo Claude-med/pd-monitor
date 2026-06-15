@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>คู่มือเทคนิคโปรเจค — ระบบติดตามการผลิตยา (PD Monitor)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#0f2747; --blue:#1d4ed8; --blue2:#2563eb; --cyan:#0891b2;
+    --ink:#1e293b; --muted:#64748b; --line:#e2e8f0; --soft:#f1f5f9; --softblue:#eef4ff;
+    --green:#16a34a; --red:#dc2626; --amber:#d97706; --code-bg:#0f172a;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  body{ font-family:"Noto Sans Thai",sans-serif; color:var(--ink); line-height:1.5; font-size:9.5pt; background:#fff; }
+
+  .page{ width:210mm; min-height:296mm; padding:13mm 15mm; margin:0 auto; background:#fff; position:relative; page-break-after:always; }
+  .page:last-child{ page-break-after:auto; }
+  @page{ size:A4; margin:0; }
+  @media print{ .page{ margin:0; box-shadow:none; } }
+  @media screen{ body{ background:#e2e8f0; padding:20px 0; } .page{ box-shadow:0 4px 24px rgba(0,0,0,.12); margin-bottom:22px; } }
+
+  /* ปก */
+  .cover{ background:linear-gradient(155deg,#0f2747 0%, #1d4ed8 60%, #0891b2 100%); color:#fff; display:flex; flex-direction:column; }
+  .cover .logo{ width:74px;height:74px;border-radius:18px;background:rgba(255,255,255,.15);display:grid;place-items:center;font-size:38px; border:1px solid rgba(255,255,255,.25);}
+  .cover .tag{ display:inline-block; border:1px solid rgba(255,255,255,.4); padding:5px 16px; border-radius:99px; font-size:10pt; margin-bottom:auto; }
+  .cover h1{ font-size:32pt; font-weight:800; line-height:1.15; margin-top:16px; }
+  .cover .sub{ font-size:13pt; font-weight:300; opacity:.92; margin-top:13px; max-width:155mm; }
+  .cover .en{ font-size:10.5pt; opacity:.7; margin-top:6px; }
+  .cover .meta{ margin-top:auto; border-top:1px solid rgba(255,255,255,.25); padding-top:16px; display:flex; justify-content:space-between; font-size:9.5pt; opacity:.9; }
+  .cover-top{ display:flex; justify-content:space-between; align-items:flex-start; }
+  .cover .chips{ margin-top:18px; display:flex; flex-wrap:wrap; gap:7px; }
+  .cover .chips span{ background:rgba(255,255,255,.16); border:1px solid rgba(255,255,255,.25); padding:5px 12px; border-radius:8px; font-size:9pt; font-weight:600; }
+
+  .kicker{ color:var(--blue2); font-weight:700; font-size:10pt; letter-spacing:.07em; text-transform:uppercase; }
+  h2.sec{ font-size:16pt; font-weight:800; color:var(--navy); margin:3px 0; }
+  .sec-rule{ height:3px; width:50px; background:linear-gradient(90deg,var(--blue2),var(--cyan)); border-radius:9px; margin-bottom:11px; }
+  h3{ font-size:11.5pt; font-weight:700; color:var(--navy); margin:13px 0 6px; display:flex; align-items:center; gap:7px;}
+  p{ margin-bottom:8px; }
+  .lead{ font-size:10.5pt; color:#334155; }
+
+  .rhead{ display:flex; justify-content:space-between; align-items:center; font-size:8.5pt; color:var(--muted); border-bottom:1px solid var(--line); padding-bottom:7px; margin-bottom:14px; }
+  .rhead .d{ font-weight:700; color:var(--navy); }
+  .pfoot{ position:absolute; bottom:11mm; left:15mm; right:15mm; display:flex; justify-content:space-between; font-size:8pt; color:#94a3b8; border-top:1px solid var(--line); padding-top:7px; }
+
+  .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:11px; }
+  .box{ border:1px solid var(--line); border-radius:10px; padding:12px 13px; }
+  .box.soft{ background:var(--soft); } .box.blue{ background:var(--softblue); border-color:#cdddff; }
+  .box.green{ background:#f0fdf4; border-color:#bbf7d0; } .box.amber{ background:#fffbeb; border-color:#fde68a; }
+  .box h4{ font-size:10.5pt; margin-bottom:7px; }
+  ul.clean{ list-style:none; } ul.clean li{ padding-left:18px; position:relative; margin-bottom:5px; font-size:9.5pt; }
+  ul.clean li::before{ content:"›"; position:absolute; left:5px; color:var(--blue2); font-weight:800; }
+  ul.check li::before{ content:"✓"; color:var(--green); }
+
+  table{ width:100%; border-collapse:collapse; font-size:9.5pt; }
+  th,td{ text-align:left; padding:7px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th{ background:var(--navy); color:#fff; font-weight:600; font-size:9pt; }
+  th:first-child{ border-radius:7px 0 0 0; } th:last-child{ border-radius:0 7px 0 0; }
+  tr:nth-child(even) td{ background:#f8fafc; }
+  td code, p code, li code{ font-family:"JetBrains Mono",monospace; background:#eef2f7; color:#0f172a; padding:1px 6px; border-radius:5px; font-size:8.5pt; }
+
+  /* code block */
+  .code{ background:var(--code-bg); color:#e2e8f0; border-radius:10px; padding:13px 15px; font-family:"JetBrains Mono",monospace; font-size:8.5pt; line-height:1.7; overflow:hidden; margin:8px 0; }
+  .code .cm{ color:#64748b; } .code .pr{ color:#38bdf8; } .code .gn{ color:#4ade80; } .code .yl{ color:#fbbf24; }
+  .code b{ color:#fff; }
+
+  /* step */
+  .step{ display:flex; gap:13px; padding-bottom:11px; }
+  .step .num{ width:30px;height:30px;border-radius:9px; background:var(--blue2); color:#fff; font-weight:800; display:grid; place-items:center; flex-shrink:0; font-size:11pt; }
+  .step .num.done{ background:var(--green);}
+  .step .c{ flex:1; } .step .c .t{ font-weight:700; color:var(--navy); }
+  .step .c .ds{ font-size:9.5pt; color:#475569; }
+
+  .stack-item{ display:flex; gap:12px; align-items:flex-start; border:1px solid var(--line); border-radius:10px; padding:11px 13px; margin-bottom:9px; }
+  .stack-item .si{ width:38px;height:38px;border-radius:9px; display:grid; place-items:center; font-size:18px; flex-shrink:0; background:var(--softblue);}
+  .stack-item .st{ font-weight:700; color:var(--navy); font-size:10.5pt; }
+  .stack-item .sd{ font-size:9pt; color:var(--muted); }
+  .stack-item .lang{ margin-left:auto; font-family:"JetBrains Mono",monospace; font-size:8pt; background:#f1f5f9; padding:3px 8px; border-radius:6px; color:#475569; white-space:nowrap; }
+
+  .pill{ display:inline-block; padding:2px 9px; border-radius:99px; font-size:8pt; font-weight:700; }
+  .pill.g{ background:#dcfce7; color:#15803d; } .pill.b{ background:var(--softblue); color:var(--blue); } .pill.a{ background:#fef3c7; color:#92400e; }
+  .small{ font-size:8.5pt; color:var(--muted); }
+  .mt{ margin-top:10px; } .mb{ margin-bottom:10px; }
+  .tree{ font-family:"JetBrains Mono",monospace; font-size:8.5pt; line-height:1.75; background:var(--soft); border:1px solid var(--line); border-radius:10px; padding:13px 15px; color:#334155; }
+  .tree .c{ color:#94a3b8; } .tree .f{ color:var(--blue); font-weight:600;}
+  .callout{ background:linear-gradient(135deg,#0f2747,#1d4ed8); color:#fff; border-radius:12px; padding:14px 17px; }
+  .callout h4{ font-size:11pt; margin-bottom:5px;} .callout p{ opacity:.92; margin:0; font-size:9.5pt;}
+</style>
+</head>
+<body>
+
+<!-- ===== ปก ===== -->
+<section class="page cover">
+  <div class="cover-top">
+    <span class="tag">เอกสารสำหรับทีมพัฒนา · TECHNICAL GUIDE</span>
+    <div class="logo">⚙️</div>
+  </div>
+  <div style="margin-top:26px">
+    <div style="font-size:11pt;opacity:.8;letter-spacing:.05em">คู่มือเริ่มต้นโปรเจค (สำหรับน้อง ๆ ในทีม)</div>
+    <h1>ระบบติดตามการผลิตยา<br>คู่มือเทคนิค &amp; การเริ่มงาน</h1>
+    <div class="en">PD Monitor · Technical Onboarding Guide</div>
+    <div class="sub">เริ่มยังไง · ใช้ภาษาอะไร · เครื่องมืออะไร · โครงสร้างโปรเจค · ฐานข้อมูล ·
+       ขั้นตอนลงมือทำจริงทีละสเต็ป — อธิบายแบบเข้าใจง่ายสำหรับคนที่เพิ่งเริ่ม</div>
+    <div class="chips">
+      <span>TypeScript</span><span>Next.js (React)</span><span>Tailwind CSS</span>
+      <span>Supabase (PostgreSQL)</span><span>Vercel</span><span>Git / GitHub</span><span>Claude Code</span>
+    </div>
+  </div>
+  <div class="meta">
+    <div><b>ระดับผู้อ่าน:</b> ผู้เริ่มต้น–กลาง<br><b>ใช้สำหรับ:</b> สื่อสารและออนบอร์ดทีม</div>
+    <div style="text-align:right"><b>เวอร์ชัน:</b> 1.0<br><b>วันที่:</b> 15 มิถุนายน 2569</div>
+  </div>
+</section>
+
+<!-- ===== หน้า 2: โปรเจคนี้คืออะไร + แผนผังการทำงาน ===== -->
+<section class="page">
+  <div class="rhead"><span class="d">PD MONITOR · คู่มือเทคนิค</span><span>หน้า 2</span></div>
+
+  <div class="kicker">01 · ทำความเข้าใจ</div>
+  <h2 class="sec">โปรเจคนี้เราจะทำอะไร</h2>
+  <div class="sec-rule"></div>
+  <p class="lead">เราจะสร้าง <b>เว็บแอปพลิเคชัน</b> ให้โรงงานยาใช้บันทึกและติดตามงานผลิต แทนการจดลงกระดาษ
+  โดยทุกฝ่ายเข้ามาบันทึก/ดูข้อมูลผ่านเว็บเดียวกัน (เปิดบนคอมหรือมือถือก็ได้) ข้อมูลเก็บรวมศูนย์บนคลาวด์</p>
+
+  <div class="grid2 mt">
+    <div class="box blue">
+      <h4>🎯 สิ่งที่ต้องสร้าง (ฟีเจอร์หลัก)</h4>
+      <ul class="clean">
+        <li>บอร์ดติดตามคำสั่งผลิต (Pending Order Board)</li>
+        <li>ฟอร์มบันทึกการผลิตแต่ละขั้น (เข้า-ออก, เครื่อง, คน, เวลา)</li>
+        <li>รายงานประจำวัน (Daily Report)</li>
+        <li>แดชบอร์ด KPI สำหรับผู้บริหาร</li>
+        <li>ระบบล็อกอิน + แยกสิทธิ์ตามฝ่าย</li>
+      </ul>
+    </div>
+    <div class="box soft">
+      <h4>🧩 แนวคิดง่าย ๆ ของระบบ</h4>
+      <p class="small" style="margin:0">เว็บแอป = <b>3 ส่วนทำงานร่วมกัน</b><br>
+      <b>1) หน้าเว็บ (Frontend)</b> ที่ผู้ใช้เห็นและกด<br>
+      <b>2) ฐานข้อมูล (Database)</b> ที่เก็บข้อมูลทั้งหมด<br>
+      <b>3) ตัวกลาง (Backend/API)</b> ที่รับส่งข้อมูลระหว่างสองส่วนแรก<br>
+      โชคดีที่ stack ที่เราเลือกรวมส่วนเหล่านี้ให้แทบครบในที่เดียว ทำให้ทีมเล็กทำได้</p>
+    </div>
+  </div>
+
+  <h3>🔄 ภาพการทำงานของระบบ (Data Flow)</h3>
+  <div class="code">
+<span class="cm"># ผู้ใช้กดบันทึกงาน → ข้อมูลวิ่งไปเก็บ → ทุกคนเห็นพร้อมกัน</span>
+
+  [ ผู้ใช้: ฝ่ายผลิต/QC/QA ]
+            │  กรอกฟอร์มบนเว็บ (มือถือ/คอม)
+            ▼
+  [ <span class="pr">Next.js</span> หน้าเว็บ + API ]  <span class="cm">── โฮสต์บน Vercel</span>
+            │  ส่งคำสั่งบันทึก/ดึงข้อมูล
+            ▼
+  [ <span class="gn">Supabase</span> = ฐานข้อมูล PostgreSQL + Auth ]  <span class="cm">── คลาวด์</span>
+            │  อัปเดตเรียลไทม์
+            ▼
+  [ ทุกฝ่ายเห็นสถานะงานล่าสุดตรงกัน ]
+  </div>
+
+  <div class="callout mt">
+    <h4>💡 ข่าวดีสำหรับทีม</h4>
+    <p>เราใช้ <b>Claude Code</b> (AI ช่วยเขียนโค้ด) เป็นผู้ช่วยหลัก น้อง ๆ ไม่จำเป็นต้องเก่งโปรแกรมมาก่อน
+    หน้าที่หลักคือ <b>เข้าใจภาพรวม สั่งงานให้ชัด ทดสอบผล และตัดสินใจ</b> ส่วนการพิมพ์โค้ดให้ AI ช่วย แล้วเราตรวจทาน</p>
+  </div>
+
+  <div class="pfoot"><span>ระบบติดตามการผลิตยา (PD Monitor)</span><span>คู่มือเทคนิค v1.0</span></div>
+</section>
+
+<!-- ===== หน้า 3: Tech Stack + ภาษา ===== -->
+<section class="page">
+  <div class="rhead"><span class="d">PD MONITOR · คู่มือเทคนิค</span><span>หน้า 3</span></div>
+
+  <div class="kicker">02 · เทคโนโลยีที่ใช้</div>
+  <h2 class="sec">Tech Stack &amp; ภาษาที่ใช้เขียน</h2>
+  <div class="sec-rule"></div>
+  <p>นี่คือ “เครื่องมือทั้งชุด” ของโปรเจค พร้อมเหตุผลว่าทำไมถึงเลือก:</p>
+
+  <div class="stack-item"><div class="si">📘</div><div><div class="st">TypeScript — ภาษาหลักของโปรเจค</div><div class="sd">ภาษาหลักที่ใช้เขียนทั้งหน้าเว็บและตรรกะ เป็น JavaScript ที่เพิ่ม “ชนิดข้อมูล” ช่วยกันพิมพ์ผิดและจับ bug ได้ตั้งแต่ตอนเขียน</div></div><div class="lang">.ts / .tsx</div></div>
+
+  <div class="stack-item"><div class="si">⚛️</div><div><div class="st">Next.js (ใช้ React) — เฟรมเวิร์กหน้าเว็บ</div><div class="sd">สร้างหน้าเว็บและ API ในตัวเดียว ทำเว็บได้ทั้งเร็วและรองรับมือถือ เป็นมาตรฐานที่นิยมและเข้าได้กับ Vercel โดยตรง</div></div><div class="lang">React / JSX</div></div>
+
+  <div class="stack-item"><div class="si">🎨</div><div><div class="st">Tailwind CSS + shadcn/ui — งานหน้าตา (UI)</div><div class="sd">จัดรูปแบบหน้าเว็บด้วยคลาสสำเร็จรูป ทำให้สวยและเหมือนกันทั้งระบบเร็ว ส่วน shadcn/ui คือชุดปุ่ม/ตาราง/ฟอร์มสำเร็จรูปพร้อมใช้</div></div><div class="lang">CSS</div></div>
+
+  <div class="stack-item"><div class="si">🗄️</div><div><div class="st">Supabase — ฐานข้อมูล + ระบบผู้ใช้</div><div class="sd">ให้ฐานข้อมูล PostgreSQL, ระบบล็อกอิน, การอัปเดตเรียลไทม์ และระบบสิทธิ์ (RLS) ครบในที่เดียว เขียนน้อยแต่ได้เยอะ</div></div><div class="lang">SQL</div></div>
+
+  <div class="stack-item"><div class="si">▲</div><div><div class="st">Vercel — ที่โฮสต์เว็บ (Deploy)</div><div class="sd">เอาเว็บขึ้นออนไลน์ให้คนเข้าได้ เชื่อมกับ GitHub แล้วทุกครั้งที่ push โค้ด เว็บจะอัปเดตอัตโนมัติ</div></div><div class="lang">—</div></div>
+
+  <div class="stack-item"><div class="si">🐙</div><div><div class="st">Git + GitHub — เก็บโค้ด/ทำงานเป็นทีม</div><div class="sd">เก็บประวัติโค้ดทุกเวอร์ชัน ย้อนกลับได้ และให้หลายคนทำงานพร้อมกันโดยไม่ทับกัน</div></div><div class="lang">CLI</div></div>
+
+  <div class="stack-item"><div class="si">🤖</div><div><div class="st">Claude Code — AI ผู้ช่วยเขียนโค้ด</div><div class="sd">สั่งเป็นภาษาไทยได้ ช่วยเขียน/แก้/อธิบายโค้ดในเครื่องเราโดยตรง เป็นผู้ช่วยหลักของทีม</div></div><div class="lang">CLI</div></div>
+
+  <h3>🔤 สรุป: ในโปรเจคนี้เราเขียนภาษาอะไรบ้าง</h3>
+  <table>
+    <tr><th style="width:22%">ภาษา</th><th style="width:30%">ใช้ทำส่วนไหน</th><th>หมายเหตุ</th></tr>
+    <tr><td><b>TypeScript</b></td><td>หน้าเว็บ + ตรรกะ + API</td><td>ภาษาหลัก เขียนเยอะสุด (ไฟล์ <code>.ts</code>, <code>.tsx</code>)</td></tr>
+    <tr><td><b>HTML + JSX</b></td><td>โครงหน้าเว็บ</td><td>เขียนผสมอยู่ในไฟล์ <code>.tsx</code> ของ React</td></tr>
+    <tr><td><b>CSS (Tailwind)</b></td><td>จัดหน้าตา/สี/ระยะ</td><td>ส่วนใหญ่เขียนเป็นคลาสในแท็กโดยตรง</td></tr>
+    <tr><td><b>SQL</b></td><td>สร้าง/จัดการฐานข้อมูล</td><td>ใช้ใน Supabase สำหรับสร้างตารางและกฎสิทธิ์</td></tr>
+  </table>
+
+  <div class="pfoot"><span>ระบบติดตามการผลิตยา (PD Monitor)</span><span>คู่มือเทคนิค v1.0</span></div>
+</section>
+
+<!-- ===== หน้า 4: เตรียมเครื่อง + เริ่มโปรเจค ===== -->
+<section class="page">
+  <div class="rhead"><span class="d">PD MONITOR · คู่มือเทคนิค</span><span>หน้า 4</span></div>
+
+  <div class="kicker">03 · เตรียมตัว</div>
+  <h2 class="sec">สิ่งที่ต้องติดตั้ง &amp; บัญชีที่ต้องสมัคร</h2>
+  <div class="sec-rule"></div>
+
+  <table>
+    <tr><th style="width:26%">รายการ</th><th style="width:16%">ประเภท</th><th>ทำไมต้องมี</th></tr>
+    <tr><td><b>Node.js</b> (เวอร์ชัน LTS)</td><td>โปรแกรมในเครื่อง</td><td>ตัวรันโปรเจค JavaScript/TypeScript และเครื่องมือต่าง ๆ</td></tr>
+    <tr><td><b>VS Code</b></td><td>โปรแกรมในเครื่อง</td><td>โปรแกรมแก้ไขโค้ด (Editor) ที่นิยมที่สุด</td></tr>
+    <tr><td><b>Git</b></td><td>โปรแกรมในเครื่อง</td><td>เก็บประวัติโค้ดและเชื่อมกับ GitHub</td></tr>
+    <tr><td><b>Claude Code</b></td><td>โปรแกรมในเครื่อง</td><td>AI ผู้ช่วยเขียนโค้ด (ติดตั้งผ่าน npm)</td></tr>
+    <tr><td><b>บัญชี GitHub</b></td><td>สมัครออนไลน์ (ฟรี)</td><td>เก็บโค้ดบนคลาวด์ + เชื่อม Vercel</td></tr>
+    <tr><td><b>บัญชี Supabase</b></td><td>สมัครออนไลน์ (ฟรี)</td><td>สร้างฐานข้อมูลของโปรเจค</td></tr>
+    <tr><td><b>บัญชี Vercel</b></td><td>สมัครออนไลน์ (ฟรี)</td><td>เอาเว็บขึ้นออนไลน์</td></tr>
+  </table>
+
+  <h3 class="mt">⌨️ คำสั่งเริ่มต้น (รันใน Terminal ของ VS Code)</h3>
+  <div class="code">
+<span class="cm"># 1) สร้างโปรเจค Next.js + TypeScript + Tailwind (ตอบ Yes ตามค่าแนะนำ)</span>
+<span class="gn">npx</span> create-next-app@latest pd-monitor
+
+<span class="cm"># 2) เข้าไปในโฟลเดอร์โปรเจค</span>
+<span class="gn">cd</span> pd-monitor
+
+<span class="cm"># 3) ติดตั้งตัวเชื่อมฐานข้อมูล Supabase</span>
+<span class="gn">npm</span> install @supabase/supabase-js
+
+<span class="cm"># 4) ติดตั้งชุด UI สำเร็จรูป shadcn/ui</span>
+<span class="gn">npx</span> shadcn@latest init
+
+<span class="cm"># 5) ลองรันเว็บในเครื่อง → เปิด http://localhost:3000</span>
+<span class="gn">npm</span> run dev
+  </div>
+
+  <div class="box amber mt">
+    <h4>🔑 ไฟล์ลับ <code>.env.local</code> (ห้าม push ขึ้น GitHub)</h4>
+    <p class="small" style="margin:0">เก็บ “กุญแจ” เชื่อม Supabase ไว้ในไฟล์นี้ และต้องอยู่ใน <code>.gitignore</code> เสมอ:</p>
+    <div class="code" style="margin-bottom:0">
+NEXT_PUBLIC_SUPABASE_URL=<span class="yl">https://xxxxx.supabase.co</span>
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<span class="yl">eyxxxx...</span>
+    </div>
+  </div>
+
+  <p class="small mt">💡 จริง ๆ แล้วทุกขั้นตอนข้างบนนี้สั่ง <b>Claude Code</b> ทำให้ได้ทั้งหมด เช่นพิมพ์ว่า
+  “ช่วยตั้งโปรเจค Next.js + Supabase + Tailwind ให้หน่อย” แล้วตรวจผลตาม</p>
+
+  <div class="pfoot"><span>ระบบติดตามการผลิตยา (PD Monitor)</span><span>คู่มือเทคนิค v1.0</span></div>
+</section>
+
+<!-- ===== หน้า 5: โครงสร้างโปรเจค + ฐานข้อมูล ===== -->
+<section class="page">
+  <div class="rhead"><span class="d">PD MONITOR · คู่มือเทคนิค</span><span>หน้า 5</span></div>
+
+  <div class="kicker">04 · โครงสร้าง</div>
+  <h2 class="sec">โครงสร้างไฟล์ในโปรเจค</h2>
+  <div class="sec-rule"></div>
+  <div class="tree">
+pd-monitor/
+├── <span class="f">app/</span>                 <span class="c"># หน้าเว็บแต่ละหน้า (Next.js App Router)</span>
+│   ├── <span class="f">board/</span>           <span class="c"># หน้า Pending Order Board</span>
+│   ├── <span class="f">job/[id]/</span>        <span class="c"># หน้ารายละเอียด Job</span>
+│   ├── <span class="f">record/</span>          <span class="c"># หน้าบันทึกการผลิต</span>
+│   ├── <span class="f">daily/</span>           <span class="c"># หน้า Daily Report</span>
+│   ├── <span class="f">dashboard/</span>       <span class="c"># หน้า Dashboard/KPI</span>
+│   └── layout.tsx          <span class="c"># โครงร่วม (เมนู/หัวเว็บ)</span>
+├── <span class="f">components/</span>          <span class="c"># ชิ้นส่วน UI ที่ใช้ซ้ำ (ปุ่ม, การ์ด, ตาราง)</span>
+├── <span class="f">lib/</span>
+│   └── supabase.ts         <span class="c"># ตัวเชื่อมฐานข้อมูล</span>
+├── .env.local              <span class="c"># กุญแจลับ (ไม่ push)</span>
+├── package.json            <span class="c"># รายการ library ที่ใช้</span>
+└── tailwind.config.ts      <span class="c"># ตั้งค่าธีม/สี</span>
+  </div>
+  <p class="small">แต่ละโฟลเดอร์ใน <code>app/</code> = หนึ่งหน้าเว็บ ทำให้หาง่ายและเพิ่มหน้าใหม่ได้สะดวก</p>
+
+  <div class="kicker mt">05 · ฐานข้อมูล</div>
+  <h2 class="sec">ตารางในฐานข้อมูล (Database Schema)</h2>
+  <div class="sec-rule"></div>
+  <p>ข้อมูลทั้งหมดเก็บเป็น “ตาราง” ใน PostgreSQL ที่เชื่อมโยงกัน:</p>
+  <table>
+    <tr><th style="width:24%">ตาราง</th><th>เก็บอะไร</th></tr>
+    <tr><td><code>products</code></td><td>ข้อมูลยา: ชื่อ, สูตร, batch size, รูปแบบบรรจุ, ขนาด, STD time</td></tr>
+    <tr><td><code>machines</code></td><td>เครื่องจักรแต่ละตัว และอยู่สถานีไหน</td></tr>
+    <tr><td><code>users</code> / <code>roles</code></td><td>ผู้ใช้ และฝ่าย (ผลิต / QC / QA / คลัง / บัญชี / ผู้บริหาร)</td></tr>
+    <tr><td><code>orders</code></td><td>คำสั่งซื้อจากลูกค้า</td></tr>
+    <tr><td><code>jobs</code></td><td>งานผลิต: เลข job, ยา, lot, batch size, สถานะ, แผนเดือน</td></tr>
+    <tr><td><code>job_stages</code></td><td>แต่ละขั้นของ job (ผสม/ตอก/บรรจุ/QC/QA/FG) + สถานะ</td></tr>
+    <tr><td><code>production_records</code></td><td>บันทึกผลิต: เครื่อง, จำนวนเข้า-ออก, จำนวนคน, ชั่วโมง, เวลา</td></tr>
+    <tr><td><code>daily_reports</code></td><td>line clearance, set-up time, ETF ของแต่ละสถานี</td></tr>
+  </table>
+  <p class="small mt">🔗 ความสัมพันธ์: <code>orders</code> → มีหลาย <code>jobs</code> → แต่ละ job มีหลาย <code>job_stages</code> → แต่ละ stage มีหลาย <code>production_records</code></p>
+
+  <div class="pfoot"><span>ระบบติดตามการผลิตยา (PD Monitor)</span><span>คู่มือเทคนิค v1.0</span></div>
+</section>
+
+<!-- ===== หน้า 6: ขั้นตอนการทำทีละเฟส ===== -->
+<section class="page">
+  <div class="rhead"><span class="d">PD MONITOR · คู่มือเทคนิค</span><span>หน้า 6</span></div>
+
+  <div class="kicker">06 · ลงมือทำ</div>
+  <h2 class="sec">ขั้นตอนการทำทีละเฟส (Roadmap)</h2>
+  <div class="sec-rule"></div>
+  <p class="mb">ทำทีละก้อน จบแล้วทดสอบให้ใช้งานได้จริงก่อนไปก้อนถัดไป — ลดความสับสนและแก้ง่าย:</p>
+
+  <div class="step"><div class="num done">✓</div><div class="c"><div class="t">เฟส 0 · ต้นแบบสาธิต (Demo)</div><div class="ds">HTML prototype สำหรับโชว์ — <b>ทำเสร็จแล้ว</b> (อยู่ในโฟลเดอร์ <code>prototype/</code>)</div></div></div>
+  <div class="step"><div class="num">1</div><div class="c"><div class="t">เฟส 1 · ตั้งโปรเจค + ขึ้นออนไลน์เปล่า</div><div class="ds">create-next-app, เชื่อม GitHub, deploy ขึ้น Vercel ให้เปิดเว็บได้ (แม้ยังว่าง)</div></div></div>
+  <div class="step"><div class="num">2</div><div class="c"><div class="t">เฟส 2 · สร้างฐานข้อมูล + ข้อมูลตั้งต้น</div><div class="ds">สร้างตารางใน Supabase + ใส่ข้อมูลยาและเครื่องจักรตัวอย่าง</div></div></div>
+  <div class="step"><div class="num">3</div><div class="c"><div class="t">เฟส 3 · ระบบล็อกอิน + สิทธิ์ + เมนู</div><div class="ds">ผู้ใช้ล็อกอินได้ แยกฝ่าย และทำโครงเมนู/หน้าหลัก (responsive)</div></div></div>
+  <div class="step"><div class="num">4</div><div class="c"><div class="t">เฟส 4 · Board + สร้าง/แก้ Job</div><div class="ds">หน้าบอร์ดติดตามใช้งานจริง สร้างคำสั่งผลิตได้</div></div></div>
+  <div class="step"><div class="num">5</div><div class="c"><div class="t">เฟส 5 · บันทึกการผลิต</div><div class="ds">ฟอร์มบันทึกเข้า-ออกแต่ละสถานี เก็บลงฐานข้อมูลจริง</div></div></div>
+  <div class="step"><div class="num">6</div><div class="c"><div class="t">เฟส 6 · Daily Report + เฟส 7 · Dashboard/KPI</div><div class="ds">ทำรายงานและแดชบอร์ดที่ดึงตัวเลขจากข้อมูลจริง</div></div></div>
+  <div class="step"><div class="num">8</div><div class="c"><div class="t">เฟส 8–9 · ความปลอดภัย + ทดสอบ + เปิดใช้</div><div class="ds">ตั้งกฎสิทธิ์ (RLS), realtime, ทดสอบกับข้อมูลจริง แล้วเปิดใช้งาน</div></div></div>
+
+  <div class="callout mt">
+    <h4>📌 หลักการสำคัญเวลาทำกับ Claude Code</h4>
+    <p>เปิดงานทีละเฟส · สั่งให้ชัดว่าต้องการอะไร · ทดสอบผลทุกครั้งก่อนไปต่อ · ถ้าพังให้บอก AI ว่าเจอ error อะไร แล้วให้ช่วยแก้</p>
+  </div>
+
+  <div class="pfoot"><span>ระบบติดตามการผลิตยา (PD Monitor)</span><span>คู่มือเทคนิค v1.0</span></div>
+</section>
+
+<!-- ===== หน้า 7: วิธีทำงานร่วมกัน + คำศัพท์ ===== -->
+<section class="page">
+  <div class="rhead"><span class="d">PD MONITOR · คู่มือเทคนิค</span><span>หน้า 7</span></div>
+
+  <div class="kicker">07 · ทำงานเป็นทีม</div>
+  <h2 class="sec">ข้อตกลงการทำงาน (Conventions)</h2>
+  <div class="sec-rule"></div>
+
+  <div class="grid2">
+    <div class="box soft">
+      <h4>🐙 Git / GitHub</h4>
+      <ul class="clean">
+        <li>โค้ดหลักอยู่ที่ branch <code>main</code> — ห้าม commit ทับตรง ๆ</li>
+        <li>ทำงานใหม่ให้แตก branch เช่น <code>feature/board</code></li>
+        <li>เขียนข้อความ commit สั้นชัดว่าทำอะไร</li>
+        <li>เปิด Pull Request ให้เพื่อนช่วยรีวิวก่อน merge</li>
+      </ul>
+    </div>
+    <div class="box soft">
+      <h4>✍️ การตั้งชื่อ</h4>
+      <ul class="clean">
+        <li>ตัวแปร/ฟังก์ชัน: ภาษาอังกฤษ camelCase เช่น <code>jobList</code></li>
+        <li>ชื่อ component: ขึ้นต้นตัวใหญ่ เช่น <code>JobCard</code></li>
+        <li>ตารางฐานข้อมูล: ตัวเล็ก snake_case เช่น <code>production_records</code></li>
+        <li>ชื่อให้สื่อความหมาย อ่านแล้วเข้าใจ</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="box green mt">
+    <h4>✅ เช็กลิสต์ก่อนส่งงานแต่ละเฟส</h4>
+    <ul class="clean check">
+      <li>รันในเครื่อง (<code>npm run dev</code>) แล้วใช้งานได้จริง ไม่มี error</li>
+      <li>ลองบนมือถือ (ย่อจอ) ว่าหน้าตายังใช้ได้</li>
+      <li>push ขึ้น GitHub แล้ว Vercel deploy ผ่าน</li>
+      <li>ไม่มีกุญแจลับ (<code>.env.local</code>) หลุดขึ้น GitHub</li>
+    </ul>
+  </div>
+
+  <h3>📖 คำศัพท์ที่เจอบ่อย (อภิธานศัพท์)</h3>
+  <table>
+    <tr><th style="width:24%">คำ</th><th>ความหมายแบบเข้าใจง่าย</th></tr>
+    <tr><td><b>Frontend</b></td><td>ส่วนหน้าเว็บที่ผู้ใช้เห็นและกด</td></tr>
+    <tr><td><b>Backend / API</b></td><td>ส่วนเบื้องหลังที่รับส่งและประมวลผลข้อมูล</td></tr>
+    <tr><td><b>Database</b></td><td>ที่เก็บข้อมูลทั้งหมดอย่างเป็นระเบียบ</td></tr>
+    <tr><td><b>Deploy</b></td><td>การเอาเว็บขึ้นออนไลน์ให้คนเข้าใช้ได้</td></tr>
+    <tr><td><b>Component</b></td><td>ชิ้นส่วน UI ที่เขียนครั้งเดียวใช้ซ้ำได้ เช่น ปุ่ม การ์ด</td></tr>
+    <tr><td><b>RLS</b></td><td>กฎกำหนดว่าใครเห็น/แก้ข้อมูลแถวไหนได้บ้าง (ความปลอดภัย)</td></tr>
+    <tr><td><b>Realtime</b></td><td>ข้อมูลอัปเดตให้ทุกคนเห็นทันทีโดยไม่ต้องรีเฟรช</td></tr>
+    <tr><td><b>Repository (Repo)</b></td><td>ที่เก็บโค้ดของโปรเจคบน GitHub</td></tr>
+  </table>
+
+  <div class="box blue mt">
+    <h4>🔗 แหล่งเรียนรู้เพิ่มเติม</h4>
+    <p class="small" style="margin:0">Next.js: <code>nextjs.org/docs</code> · Supabase: <code>supabase.com/docs</code> ·
+    Tailwind: <code>tailwindcss.com/docs</code> · และถามตรง ๆ กับ Claude Code ได้ทุกเรื่อง (สั่งเป็นภาษาไทยได้)</p>
+  </div>
+
+  <div class="pfoot"><span>ระบบติดตามการผลิตยา (PD Monitor)</span><span>คู่มือเทคนิค v1.0</span></div>
+</section>
+
+</body>
+</html>

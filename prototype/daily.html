@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Daily Report — PD Monitor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <script src="assets/mock-data.js"></script>
+  <script src="assets/app.js"></script>
+  <script>
+    // สร้างแถวรายงานจาก stage ที่ active/done วันนี้ (จำลอง)
+    const REPORT = [
+      { station:"ผสม",        mc:"เครื่องผสม #1",  job:"JOB-2406-001", clr:"08:10", setup:25, run:6.5,  out:980,  etf:"15:30" },
+      { station:"ตอก",        mc:"เครื่องตอก #1",  job:"JOB-2406-004", clr:"08:00", setup:40, run:7.0,  out:1150, etf:"16:00" },
+      { station:"ตอก",        mc:"เครื่องตอก #2",  job:"JOB-2406-010", clr:"08:15", setup:35, run:5.5,  out:450,  etf:"14:00" },
+      { station:"บรรจุ",      mc:"เครื่อง Blister #1", job:"JOB-2406-001", clr:"09:00", setup:30, run:6.0, out:520, etf:"16:30" },
+      { station:"แคปซูล",     mc:"เครื่องแคปซูล #1", job:"JOB-2406-003", clr:"08:30", setup:20, run:4.0, out:280, etf:"13:30" },
+    ];
+
+    function render() {
+      const today = new Date().toLocaleDateString("th-TH", { weekday:"long", year:"numeric", month:"long", day:"numeric" });
+      const totalSetup = REPORT.reduce((a,r)=>a+r.setup,0);
+      const totalRun = REPORT.reduce((a,r)=>a+r.run,0);
+      const totalOut = REPORT.reduce((a,r)=>a+r.out,0);
+
+      const rows = REPORT.map(r => `
+        <tr>
+          <td><b>${r.station}</b></td>
+          <td>${r.mc}</td>
+          <td>${r.job}</td>
+          <td>${r.clr} <span class="badge" style="background:#22c55e;padding:1px 8px">ผ่าน</span></td>
+          <td>${r.setup} นาที</td>
+          <td>${r.run} ชม.</td>
+          <td><b>${fmt(r.out)}</b> กก.</td>
+          <td>${r.etf}</td>
+        </tr>`).join("");
+
+      const content = `
+        <div class="flex wrap mb" style="justify-content:space-between">
+          <div class="section-title" style="margin:0">รายงานประจำวัน · ${today}</div>
+          <div class="flex">
+            <input type="date" class="btn" style="font-weight:400" value="2026-06-15">
+            <button class="btn primary sm" onclick="toast('Demo: ส่งออก PDF จะทำในเวอร์ชันจริง')">⬇️ ส่งออก PDF</button>
+          </div>
+        </div>
+
+        <div class="kpi-grid">
+          <div class="kpi"><div class="bar" style="background:#dbeafe">🧹</div><div class="label">Line Clearance วันนี้</div><div class="value">${REPORT.length}<small> สถานี ผ่าน</small></div></div>
+          <div class="kpi"><div class="bar" style="background:#fef3c7">⚙️</div><div class="label">Set-up Time รวม</div><div class="value">${totalSetup}<small> นาที</small></div></div>
+          <div class="kpi"><div class="bar" style="background:#e0e7ff">⏱️</div><div class="label">เวลาเดินเครื่องรวม</div><div class="value">${totalRun}<small> ชม.</small></div></div>
+          <div class="kpi"><div class="bar" style="background:#dcfce7">📦</div><div class="label">ผลิตได้รวมวันนี้</div><div class="value">${fmt(totalOut)}<small> กก.</small></div></div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">📅 บันทึกรายสถานี (Washing / Line Clearance / Set-up / ETF)</div>
+          <div class="card-body" style="padding:0">
+            <table class="tbl">
+              <thead><tr><th>Station</th><th>เครื่อง</th><th>Job</th><th>Line Clearance</th><th>Set-up</th><th>เดินเครื่อง</th><th>ผลิตได้</th><th>ETF</th></tr></thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>
+        </div>
+        <p class="muted mt" style="font-size:.85rem">ETF = Expected Time to Finish (เวลาคาดว่าจะเสร็จของแต่ละสถานี) · Line Clearance = ตรวจความสะอาดสายก่อนเริ่มงาน</p>
+      `;
+      renderLayout({ active:"daily.html", title:"Daily Report", sub:"สรุปการผลิตรายวันแต่ละสถานี", role:"หัวหน้าฝ่ายผลิต" }, content);
+    }
+    render();
+  </script>
+</body>
+</html>

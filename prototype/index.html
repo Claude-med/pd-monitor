@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ระบบติดตามการผลิตยา — ภาพรวมโปรเจค</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/style.css">
+  <style>
+    body { background: #fff; }
+    .topnav { position:sticky; top:0; z-index:30; background:rgba(255,255,255,.9); backdrop-filter:blur(8px); border-bottom:1px solid var(--border); }
+    .topnav .inner { max-width:980px; margin:0 auto; padding:14px 20px; display:flex; align-items:center; gap:12px; }
+    .topnav .logo { width:36px; height:36px; border-radius:10px; background:linear-gradient(135deg,#3b82f6,#06b6d4); display:grid; place-items:center; font-size:20px; }
+    .topnav b { font-size:1.05rem; }
+  </style>
+</head>
+<body>
+  <div class="topnav">
+    <div class="inner">
+      <span class="logo">💊</span>
+      <b>PD Monitor</b>
+      <span class="muted" style="font-size:.85rem">ระบบติดตามการผลิตยา (Pending Order &amp; Production Monitoring)</span>
+      <span style="flex:1"></span>
+      <a href="board.html" class="btn primary sm">เข้าชม Demo →</a>
+    </div>
+  </div>
+
+  <div class="landing">
+    <!-- HERO -->
+    <section class="hero">
+      <span class="pill">ข้อเสนอระบบ · สำหรับนำเสนอผู้บริหาร</span>
+      <h1>เปลี่ยนการ "จดมือ" ทั้งโรงงาน<br>ให้เป็นระบบติดตามการผลิตออนไลน์</h1>
+      <p>ตั้งแต่ลูกค้าสั่งผลิต → วางแผน → ผลิตแต่ละขั้น → QC → QA → เข้าคลัง
+         ทุกฝ่ายบันทึกและดึงข้อมูลจาก <b>แหล่งเดียวกัน</b> เห็นสถานะงานแบบเรียลไทม์</p>
+      <div class="cta">
+        <a href="board.html" class="btn primary">🚀 ลองเล่น Demo</a>
+        <a href="dashboard.html" class="btn">📊 ดู Dashboard</a>
+      </div>
+    </section>
+
+    <!-- ปัญหา / ทางแก้ -->
+    <section class="section">
+      <h2>ปัญหาวันนี้ &amp; สิ่งที่ระบบช่วย</h2>
+      <p class="lead">สรุปจากที่คุยกับทีมงานและผังงานที่ได้รับมา</p>
+      <div class="grid-2">
+        <div class="card"><div class="card-body">
+          <h3 style="color:#dc2626">❌ ตอนนี้</h3>
+          <ul style="margin:12px 0 0 18px; color:var(--muted); display:flex; flex-direction:column; gap:8px;">
+            <li>จดงานลงกระดาษทุกวัน วันละ 20+ รายการต่อฝ่าย</li>
+            <li>ข้อมูลกระจัดกระจาย แต่ละฝ่ายมีของตัวเอง</li>
+            <li>ฐานข้อมูลใช้ Google Sheets ช้าและไม่ปลอดภัย</li>
+            <li>ตามสถานะงานยาก ไม่รู้ว่า job ไหนถึงขั้นไหน</li>
+            <li>คำนวณต้นทุน/KPI ทีหลัง ใช้เวลานาน</li>
+          </ul>
+        </div></div>
+        <div class="card"><div class="card-body">
+          <h3 style="color:#16a34a">✅ หลังมีระบบ</h3>
+          <ul style="margin:12px 0 0 18px; color:var(--muted); display:flex; flex-direction:column; gap:8px;">
+            <li>บันทึกผ่านคอม/มือถือ เลือกจากรายการ ไม่ต้องเขียนซ้ำ</li>
+            <li>ข้อมูลกลางชุดเดียว ทุกฝ่ายเห็นตรงกันแบบเรียลไทม์</li>
+            <li>ฐานข้อมูลบน Cloud ปลอดภัย รองรับผู้ใช้พร้อมกัน</li>
+            <li>เห็นสถานะทุก job บนบอร์ดเดียว (Pending Order)</li>
+            <li>Daily Report &amp; ต้นทุน/KPI สรุปอัตโนมัติ</li>
+          </ul>
+        </div></div>
+      </div>
+    </section>
+
+    <!-- Flow การผลิต -->
+    <section class="section">
+      <h2>Flow การผลิตที่ระบบครอบคลุม</h2>
+      <p class="lead">อิงผังงานจริงจากเอกสารที่ได้รับ</p>
+      <div class="flow">
+        <span class="node2">เตรียมยา</span><span class="arr">→</span>
+        <span class="node2">ผสม</span><span class="arr">→</span>
+        <span class="node2">ตอก / แคปซูล</span><span class="arr">→</span>
+        <span class="node2">บรรจุ (Blister/Strip/ซอง/ขวด)</span><span class="arr">→</span>
+        <span class="node2">QC</span><span class="arr">→</span>
+        <span class="node2">QA</span><span class="arr">→</span>
+        <span class="node2" style="background:#dcfce7;color:#15803d;border-color:#86efac">FG (คลังสำเร็จรูป)</span>
+      </div>
+    </section>
+
+    <!-- ฟีเจอร์ / module -->
+    <section class="section">
+      <h2>โมดูลหลักในระบบ</h2>
+      <p class="lead">กดที่การ์ดเพื่อเข้าไปดู demo แต่ละส่วน</p>
+      <div class="feature-grid">
+        <a class="feature" href="board.html"><div class="fi">📋</div><h3>Pending Order Board</h3><p>ติดตามทุก Job ตามสถานะบนบอร์ดเดียว รู้ทันทีว่างานถึงขั้นไหน</p></a>
+        <a class="feature" href="record.html"><div class="fi">✏️</div><h3>บันทึกการผลิต</h3><p>แต่ละฝ่ายบันทึก in-out, เครื่อง, จำนวน, คน, เวลา ของแต่ละ station</p></a>
+        <a class="feature" href="daily.html"><div class="fi">📅</div><h3>Daily Report</h3><p>สรุป line clearance, set-up time, ETF และการใช้เครื่องรายวัน</p></a>
+        <a class="feature" href="dashboard.html"><div class="fi">📊</div><h3>Dashboard / KPI</h3><p>ภาพรวมผู้บริหาร: จำนวนงานตามสถานะ, % on-plan, ต้นทุนแรงงาน (DL)</p></a>
+      </div>
+    </section>
+
+    <!-- Roadmap -->
+    <section class="section">
+      <h2>แผนการพัฒนา (Roadmap)</h2>
+      <p class="lead">แบ่งเป็นช่วง ทำทีละก้อน เห็นผลทุกขั้น</p>
+      <div class="grid-2">
+        <div class="road">
+          <div class="ritem"><span class="d">ช่วงที่ 1 · Demo</span><div>HTML prototype (หน้านี้) เพื่อเก็บ feedback จากผู้บริหาร — <b>ทำแล้ว</b></div></div>
+          <div class="ritem"><span class="d">ช่วงที่ 2 · วางโครง</span><div>ตั้งโปรเจค Next.js + เชื่อม Supabase + ขึ้น Vercel</div></div>
+          <div class="ritem"><span class="d">ช่วงที่ 3 · ฐานข้อมูล</span><div>สร้างตาราง + ข้อมูลหลัก (ยา, เครื่องจักร)</div></div>
+          <div class="ritem"><span class="d">ช่วงที่ 4 · ผู้ใช้</span><div>ระบบ login + สิทธิ์ตามฝ่าย (ผลิต/QC/QA/คลัง/บัญชี)</div></div>
+        </div>
+        <div class="road">
+          <div class="ritem"><span class="d">ช่วงที่ 5 · Board + Job</span><div>สร้าง/ติดตาม Pending Order ใช้งานจริง</div></div>
+          <div class="ritem"><span class="d">ช่วงที่ 6 · บันทึกผลิต</span><div>บันทึก in-out แต่ละ station ลงฐานข้อมูล</div></div>
+          <div class="ritem"><span class="d">ช่วงที่ 7 · รายงาน</span><div>Daily Report + Dashboard/KPI + ต้นทุน</div></div>
+          <div class="ritem"><span class="d">ช่วงที่ 8 · ใช้งานจริง</span><div>ทดสอบกับข้อมูลจริง + ปรับ + เปิดใช้</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ค่าใช้จ่าย -->
+    <section class="section">
+      <h2>ค่าใช้จ่าย &amp; ความเสี่ยง</h2>
+      <p class="lead">จุดเด่น: เริ่มต้นไม่มีค่า license รายปีแบบซื้อโปรแกรมสำเร็จรูป</p>
+      <div class="card"><div class="card-body" style="padding:0;">
+        <table class="cost-table">
+          <tr><th>รายการ</th><th>ช่วง Demo</th><th>ใช้งานจริง (ระยะแรก)</th></tr>
+          <tr><td>Hosting เว็บ (Vercel)</td><td>ฟรี</td><td>ฟรี (free tier)</td></tr>
+          <tr><td>ฐานข้อมูล (Supabase)</td><td>ไม่ต้องใช้</td><td>ฟรี จนกว่าข้อมูล/ผู้ใช้จะมาก</td></tr>
+          <tr><td>ค่า license รายปี</td><td>❌ ไม่มี</td><td>❌ ไม่มี (เป็นระบบของเราเอง)</td></tr>
+          <tr><td>ค่าดูแล/พัฒนาเพิ่ม</td><td>—</td><td>ปรับแก้เองได้ ไม่ต้องผูกกับเจ้าเดียว</td></tr>
+        </table>
+      </div></div>
+      <p class="muted" style="margin-top:14px; font-size:.9rem;">
+        💡 เมื่อผู้ใช้/ข้อมูลมากขึ้น อาจเสียค่า Cloud รายเดือนตามจริง (หลักร้อย–พันบาท/เดือน) ซึ่งยังถูกกว่าและยืดหยุ่นกว่าการซื้อโปรแกรมสำเร็จรูปที่ต้องจ่ายรายปีและแก้เองไม่ได้
+      </p>
+    </section>
+
+    <div class="hero" style="padding:20px 0 50px;">
+      <a href="board.html" class="btn primary">🚀 เริ่มชม Demo ที่ Pending Order Board</a>
+    </div>
+  </div>
+
+  <div class="foot-note">PD Monitor · Prototype สำหรับนำเสนอ · ข้อมูลในระบบเป็นข้อมูลตัวอย่างทั้งหมด</div>
+
+  <script src="assets/mock-data.js"></script>
+</body>
+</html>

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pending Order Board — PD Monitor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <script src="assets/mock-data.js"></script>
+  <script src="assets/app.js"></script>
+  <script>
+    function jobCard(j) {
+      const p = product(j.productId);
+      return `
+        <div class="job-card" onclick="location.href='job.html?no=${j.jobNo}'">
+          <div class="jno">${j.jobNo} · Lot ${j.lot}</div>
+          <div class="jname">${p.name}</div>
+          <div class="meta">
+            <span>🏭 ${fmt(j.batchKg)} กก.</span>
+            <span>👥 ${j.customer}</span>
+            ${j.planMonth ? `<span>🗓️ ${j.planMonth}</span>` : `<span class="muted">ยังไม่มีแผน</span>`}
+          </div>
+          <div class="progress"><span style="width:${j.progressPct}%"></span></div>
+          <div class="meta" style="margin-top:6px;justify-content:flex-end"><span>${j.progressPct}%</span></div>
+        </div>`;
+    }
+
+    function renderBoard() {
+      const cols = SEED.statuses.map(s => {
+        const list = DB.jobs.filter(j => j.status === s.key);
+        const cards = list.map(jobCard).join("") || `<div class="muted" style="text-align:center;padding:14px;font-size:.82rem">— ไม่มีงาน —</div>`;
+        return `
+          <div class="col">
+            <div class="col-head"><span class="dot" style="background:${s.color}"></span>${s.key}
+              <span class="count">${list.length}</span></div>
+            <div class="col-body">${cards}</div>
+          </div>`;
+      }).join("");
+
+      const total = DB.jobs.length;
+      const producing = DB.jobs.filter(j => j.status === "กำลังผลิต").length;
+      const done = DB.jobs.filter(j => j.status === "FG").length;
+      const noPlan = DB.jobs.filter(j => !j.planMonth).length;
+
+      const content = `
+        <div class="kpi-grid">
+          <div class="kpi"><div class="bar" style="background:#eff6ff">📦</div><div class="label">Job ทั้งหมด</div><div class="value">${total}</div></div>
+          <div class="kpi"><div class="bar" style="background:#fef3c7">🏭</div><div class="label">กำลังผลิต</div><div class="value">${producing}</div></div>
+          <div class="kpi"><div class="bar" style="background:#dcfce7">✅</div><div class="label">เข้าคลังแล้ว (FG)</div><div class="value">${done}</div></div>
+          <div class="kpi"><div class="bar" style="background:#fee2e2">⏳</div><div class="label">รอลงแผน</div><div class="value">${noPlan}</div></div>
+        </div>
+        <div class="flex wrap mb" style="justify-content:space-between">
+          <div class="section-title" style="margin:0">บอร์ดติดตามสถานะ — ลากสายตาดูได้ทุกขั้น</div>
+          <button class="btn primary sm" onclick="toast('Demo: ฟอร์มสร้าง Job จะเชื่อมฐานข้อมูลจริงในเวอร์ชันถัดไป')">+ สร้าง Job ใหม่</button>
+        </div>
+        <div class="board">${cols}</div>
+        <p class="muted" style="margin-top:16px;font-size:.85rem">💡 กดที่การ์ดงานเพื่อดูรายละเอียดและ timeline การผลิต</p>
+      `;
+
+      renderLayout({ active: "board.html", title: "Pending Order Board", sub: "ติดตามทุกคำสั่งผลิตตามสถานะ", role: "ฝ่ายวางแผน" }, content);
+    }
+    renderBoard();
+  </script>
+</body>
+</html>

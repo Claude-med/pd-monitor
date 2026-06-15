@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>บทสรุปผู้บริหาร — ระบบติดตามการผลิตยา (PD Monitor)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#0f2747; --blue:#1d4ed8; --blue2:#2563eb; --cyan:#0891b2;
+    --ink:#1e293b; --muted:#64748b; --line:#e2e8f0; --soft:#f1f5f9; --softblue:#eef4ff;
+    --green:#16a34a; --red:#dc2626; --amber:#d97706;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  body{
+    font-family:"Noto Sans Thai",sans-serif; color:var(--ink); line-height:1.5;
+    font-size:9.5pt; background:#fff;
+  }
+
+  /* ---- หน้า A4 ---- */
+  .page{
+    width:210mm; min-height:296mm; padding:13mm 15mm; margin:0 auto; background:#fff;
+    position:relative; page-break-after:always;
+  }
+  .page:last-child{ page-break-after:auto; }
+
+  @page{ size:A4; margin:0; }
+  @media print{ .page{ margin:0; box-shadow:none; } body{ background:#fff; } }
+  @media screen{
+    body{ background:#e2e8f0; padding:20px 0; }
+    .page{ box-shadow:0 4px 24px rgba(0,0,0,.12); margin-bottom:22px; }
+  }
+
+  /* ---- ปก ---- */
+  .cover{ background:linear-gradient(155deg,#0f2747 0%, #1d4ed8 65%, #0891b2 100%); color:#fff; display:flex; flex-direction:column; }
+  .cover .logo{ width:78px;height:78px;border-radius:20px;background:rgba(255,255,255,.15);display:grid;place-items:center;font-size:42px;backdrop-filter:blur(4px); border:1px solid rgba(255,255,255,.25);}
+  .cover .tag{ display:inline-block; border:1px solid rgba(255,255,255,.4); padding:5px 16px; border-radius:99px; font-size:10pt; letter-spacing:.04em; margin-bottom:auto; }
+  .cover h1{ font-size:34pt; font-weight:800; line-height:1.15; margin-top:18px; }
+  .cover .sub{ font-size:15pt; font-weight:300; opacity:.92; margin-top:14px; max-width:150mm; }
+  .cover .en{ font-size:11pt; opacity:.7; margin-top:6px; letter-spacing:.02em;}
+  .cover .meta{ margin-top:auto; border-top:1px solid rgba(255,255,255,.25); padding-top:18px; display:flex; justify-content:space-between; font-size:10pt; opacity:.9; }
+  .cover .meta b{ font-weight:600; }
+  .cover-top{ display:flex; justify-content:space-between; align-items:flex-start; }
+
+  /* ---- หัวเรื่องส่วน ---- */
+  .kicker{ color:var(--blue2); font-weight:700; font-size:10pt; letter-spacing:.08em; text-transform:uppercase; }
+  h2.sec{ font-size:16pt; font-weight:800; color:var(--navy); margin:3px 0 3px; }
+  .sec-rule{ height:3px; width:50px; background:linear-gradient(90deg,var(--blue2),var(--cyan)); border-radius:9px; margin-bottom:11px; }
+  h3{ font-size:11.5pt; font-weight:700; color:var(--navy); margin:13px 0 6px; }
+  p{ margin-bottom:8px; }
+  .lead{ font-size:10.5pt; color:#334155; }
+
+  /* ---- running header/footer ---- */
+  .rhead{ display:flex; justify-content:space-between; align-items:center; font-size:8.5pt; color:var(--muted); border-bottom:1px solid var(--line); padding-bottom:7px; margin-bottom:14px; }
+  .rhead .d{ font-weight:700; color:var(--navy); }
+  .pfoot{ position:absolute; bottom:12mm; left:18mm; right:18mm; display:flex; justify-content:space-between; font-size:8pt; color:#94a3b8; border-top:1px solid var(--line); padding-top:7px; }
+
+  /* ---- กล่อง/การ์ด ---- */
+  .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:11px; }
+  .grid3{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+  .box{ border:1px solid var(--line); border-radius:11px; padding:12px 13px; }
+  .box.soft{ background:var(--soft); }
+  .box.blue{ background:var(--softblue); border-color:#cdddff; }
+  .box.red{ background:#fef2f2; border-color:#fecaca; }
+  .box.green{ background:#f0fdf4; border-color:#bbf7d0; }
+  .box h4{ font-size:11pt; margin-bottom:8px; display:flex; align-items:center; gap:7px; }
+  ul.clean{ list-style:none; }
+  ul.clean li{ padding-left:20px; position:relative; margin-bottom:5px; font-size:9.5pt; }
+  ul.clean li::before{ content:"›"; position:absolute; left:6px; top:-1px; color:var(--blue2); font-weight:800; }
+  ul.check li::before{ content:"✓"; color:var(--green); font-weight:800; }
+  ul.cross li::before{ content:"✕"; color:var(--red); font-weight:800; }
+
+  /* ---- KPI strip ---- */
+  .stats{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin:6px 0 4px; }
+  .stat{ border:1px solid var(--line); border-radius:11px; padding:11px; text-align:center; background:#fff;}
+  .stat .n{ font-size:19pt; font-weight:800; color:var(--blue2); line-height:1; }
+  .stat .l{ font-size:8pt; color:var(--muted); margin-top:5px; }
+
+  /* ---- flow ---- */
+  .flow{ display:flex; flex-wrap:wrap; align-items:center; gap:6px; background:var(--soft); border:1px solid var(--line); border-radius:11px; padding:13px 12px; justify-content:center; }
+  .flow .n{ background:#fff; border:1px solid #cdddff; color:var(--blue); font-weight:700; font-size:9.5pt; padding:7px 12px; border-radius:9px; }
+  .flow .n.fg{ background:#dcfce7; border-color:#86efac; color:#15803d; }
+  .flow .a{ color:#94a3b8; font-weight:700; }
+
+  /* ---- table ---- */
+  table{ width:100%; border-collapse:collapse; font-size:10pt; }
+  th,td{ text-align:left; padding:7px 11px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th{ background:var(--navy); color:#fff; font-weight:600; font-size:9.5pt; }
+  th:first-child{ border-radius:8px 0 0 0; } th:last-child{ border-radius:0 8px 0 0; }
+  tr:nth-child(even) td{ background:#f8fafc; }
+  .tax td{ font-size:10pt; }
+
+  /* ---- timeline roadmap ---- */
+  .road{ position:relative; padding-left:8px; }
+  .ph{ display:flex; gap:12px; padding-bottom:10px; }
+  .ph .num{ width:30px;height:30px;border-radius:50%; background:var(--blue2); color:#fff; font-weight:800; display:grid; place-items:center; flex-shrink:0; font-size:10pt; }
+  .ph .num.done{ background:var(--green); }
+  .ph .c{ flex:1; }
+  .ph .c .t{ font-weight:700; color:var(--navy); }
+  .ph .c .dt{ font-size:9pt; color:var(--blue2); font-weight:600; }
+  .ph .c .ds{ font-size:10pt; color:#475569; }
+
+  /* ---- module card ---- */
+  .mod{ border:1px solid var(--line); border-radius:11px; padding:12px; }
+  .mod .ic{ width:34px;height:34px;border-radius:10px;background:var(--softblue); display:grid;place-items:center; font-size:17px; margin-bottom:7px;}
+  .mod .t{ font-weight:700; color:var(--navy); font-size:11pt; }
+  .mod .d{ font-size:9.5pt; color:var(--muted); margin-top:4px; }
+
+  .callout{ background:linear-gradient(135deg,#0f2747,#1d4ed8); color:#fff; border-radius:13px; padding:14px 18px; }
+  .callout h4{ font-size:11.5pt; margin-bottom:5px; }
+  .callout p{ opacity:.92; font-size:10.5pt; margin:0; }
+
+  .pill{ display:inline-block; padding:2px 10px; border-radius:99px; font-size:8.5pt; font-weight:700; }
+  .pill.g{ background:#dcfce7; color:#15803d; } .pill.b{ background:var(--softblue); color:var(--blue); }
+  .small{ font-size:8.5pt; color:var(--muted); }
+  .mt{ margin-top:10px; } .mb{ margin-bottom:10px; }
+</style>
+</head>
+<body>
+
+<!-- ============ ปก ============ -->
+<section class="page cover">
+  <div class="cover-top">
+    <span class="tag">เอกสารลับเฉพาะ · สำหรับผู้บริหาร</span>
+    <div class="logo">💊</div>
+  </div>
+  <div style="margin-top:30px">
+    <div style="font-size:12pt;opacity:.8;letter-spacing:.05em">บทสรุปผู้บริหาร · EXECUTIVE SUMMARY</div>
+    <h1>ระบบติดตามคำสั่งผลิต<br>และการผลิตยา</h1>
+    <div class="en">Pending Order &amp; Production (PD) Monitoring System</div>
+    <div class="sub">ยกระดับการบันทึกงานผลิตจาก “กระดาษ” สู่ระบบดิจิทัลกลางบนคลาวด์
+      เพื่อความถูกต้อง รวดเร็ว และตรวจสอบย้อนกลับได้ตลอดสายการผลิต</div>
+  </div>
+  <div class="meta">
+    <div><b>จัดทำเพื่อ:</b> คณะผู้บริหาร<br><b>ฝ่าย:</b> เทคโนโลยี / ปรับปรุงกระบวนการผลิต</div>
+    <div style="text-align:right"><b>วันที่:</b> 15 มิถุนายน 2569<br><b>สถานะ:</b> ข้อเสนอโครงการ + ต้นแบบสาธิต (Demo)</div>
+  </div>
+</section>
+
+<!-- ============ หน้า 2: บทสรุป + ปัญหา ============ -->
+<section class="page">
+  <div class="rhead"><span class="d">PD MONITOR · บทสรุปผู้บริหาร</span><span>หน้า 2</span></div>
+
+  <div class="kicker">01 · ภาพรวมโดยสรุป</div>
+  <h2 class="sec">สรุปสำหรับผู้บริหาร</h2>
+  <div class="sec-rule"></div>
+
+  <p class="lead">โครงการนี้คือการพัฒนา <b>เว็บแอปพลิเคชันกลาง</b> สำหรับติดตามคำสั่งผลิต (Pending Order)
+  และบันทึกการผลิตยาในทุกขั้นตอน — ตั้งแต่ลูกค้าสั่งผลิต ไปจนถึงสินค้าเข้าคลังสำเร็จรูป (FG)
+  โดยแทนที่การ “จดมือลงกระดาษ” ที่ใช้อยู่ในปัจจุบัน ด้วยระบบดิจิทัลที่ทุกฝ่ายใช้ข้อมูลชุดเดียวกันแบบเรียลไทม์</p>
+
+  <div class="stats">
+    <div class="stat"><div class="n">7</div><div class="l">ขั้นตอนการผลิตที่ติดตามครบ</div></div>
+    <div class="stat"><div class="n">6+</div><div class="l">ฝ่ายที่ใช้ข้อมูลร่วมกัน</div></div>
+    <div class="stat"><div class="n">฿0</div><div class="l">ค่าเริ่มต้น (ไม่มี license รายปี)</div></div>
+    <div class="stat"><div class="n">~9</div><div class="l">ช่วงพัฒนา (ทยอยทำ เห็นผลทุกขั้น)</div></div>
+  </div>
+
+  <div class="callout mt">
+    <h4>⭐ ใจความสำคัญ</h4>
+    <p>ระบบนี้ทำได้จริง ความเสี่ยงต่ำ และเริ่มต้นแทบไม่มีค่าใช้จ่าย เพราะใช้โครงสร้างพื้นฐานบนคลาวด์ที่ให้ใช้ฟรีในช่วงแรก
+    ที่สำคัญคือ <b>เป็นระบบของบริษัทเอง</b> — ปรับแก้และต่อยอดได้เอง ไม่ผูกขาดกับผู้ขายรายเดียว และไม่มีค่าลิขสิทธิ์รายปีเหมือนการซื้อโปรแกรมสำเร็จรูป</p>
+  </div>
+
+  <div class="kicker mt" style="margin-top:14px">02 · ปัญหาปัจจุบัน</div>
+  <h2 class="sec">ความท้าทายที่บริษัทเผชิญอยู่</h2>
+  <div class="sec-rule"></div>
+
+  <div class="grid2">
+    <div class="box red">
+      <h4>📝 การบันทึกด้วยมือ</h4>
+      <ul class="clean cross">
+        <li>แต่ละฝ่ายต้องเขียนงานลงกระดาษทุกวัน วันละหลายสิบรายการ</li>
+        <li>เสียเวลา เขียนข้อมูลซ้ำซ้อน และเกิดความผิดพลาดได้ง่าย</li>
+        <li>ตัวเลขผลิต (เข้า-ออก แต่ละ Lot) ไม่อัปเดตทันที</li>
+      </ul>
+    </div>
+    <div class="box red">
+      <h4>🗂️ ข้อมูลกระจัดกระจาย</h4>
+      <ul class="clean cross">
+        <li>แต่ละฝ่ายเก็บข้อมูลแยกกัน ไม่มีแหล่งกลาง</li>
+        <li>ฐานข้อมูลปัจจุบันใช้ Google Sheets ช้าและไม่ปลอดภัยพอ</li>
+        <li>ติดตามสถานะงานยาก ไม่รู้ว่างานไหนถึงขั้นตอนใด</li>
+      </ul>
+    </div>
+  </div>
+  <p class="mt small">ที่มา: การสัมภาษณ์ทีมงานและผังกระบวนการผลิตที่ได้รับ — ระบบที่เสนอออกแบบมาเพื่อแก้ปัญหาเหล่านี้โดยตรง</p>
+
+  <div class="pfoot"><span>ระบบติดตามการผลิตยา (PD Monitor)</span><span>เอกสารภายใน · มิถุนายน 2569</span></div>
+</section>
+
+<!-- ============ หน้า 3: ทางแก้ + ขอบเขต ============ -->
+<section class="page">
+  <div class="rhead"><span class="d">PD MONITOR · บทสรุปผู้บริหาร</span><span>หน้า 3</span></div>
+
+  <div class="kicker">03 · ทางออกที่นำเสนอ</div>
+  <h2 class="sec">ระบบใหม่ช่วยอะไรได้บ้าง</h2>
+  <div class="sec-rule"></div>
+
+  <div class="grid2 mb">
+    <div class="box green">
+      <h4>✅ บันทึกง่าย รวดเร็ว</h4>
+      <ul class="clean check">
+        <li>บันทึกผ่านคอมพิวเตอร์หรือมือถือ เลือกจากรายการ ไม่ต้องเขียนซ้ำ</li>
+        <li>ระบุเครื่องจักร, Lot, จำนวนเข้า-ออก, จำนวนคน, เวลาที่ใช้ ได้ในไม่กี่คลิก</li>
+      </ul>
+    </div>
+    <div class="box green">
+      <h4>✅ ข้อมูลกลางเรียลไทม์</h4>
+      <ul class="clean check">
+        <li>ทุกฝ่ายเห็นข้อมูลชุดเดียวกัน อัปเดตทันทีที่มีการบันทึก</li>
+        <li>ฐานข้อมูลบนคลาวด์ ปลอดภัย รองรับผู้ใช้พร้อมกันหลายคน</li>
+      </ul>
+    </div>
+    <div class="box green">
+      <h4>✅ ติดตามสถานะทุกงาน</h4>
+      <ul class="clean check">
+        <li>เห็นทุกคำสั่งผลิตบนบอร์ดเดียว รู้ทันทีว่างานถึงขั้นตอนใด</li>
+        <li>วางแผนการผลิตรายเดือนและจัดลำดับงานได้ชัดเจน</li>
+      </ul>
+    </div>
+    <div class="box green">
+      <h4>✅ รายงานอัตโนมัติ</h4>
+      <ul class="clean check">
+        <li>Daily Report, KPI และต้นทุนแรงงานสรุปให้อัตโนมัติ</li>
+        <li>ลดงานเอกสาร ลดเวลาจัดทำรายงานของหัวหน้าฝ่าย</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="kicker mt">04 · ขอบเขตระบบ</div>
+  <h2 class="sec">กระบวนการผลิตที่ครอบคลุม</h2>
+  <div class="sec-rule"></div>
+  <p>ระบบติดตามครบทั้งสายการผลิต อ้างอิงตามผังงานจริงของโรงงาน:</p>
+  <div class="flow mt">
+    <span class="n">เตรียมยา</span><span class="a">→</span>
+    <span class="n">ผสม</span><span class="a">→</span>
+    <span class="n">ตอก / แคปซูล</span><span class="a">→</span>
+    <span class="n">บรรจุ</span><span class="a">→</span>
+    <span class="n">QC</span><span class="a">→</span>
+    <span class="n">QA</span><span class="a">→</span>
+    <span class="n fg">FG (คลังสำเร็จรูป)</span>
+  </div>
+  <p class="mt small">การบรรจุครอบคลุมทุกรูปแบบ: Blister · Strip · ซอง · ขวด — และระบบบันทึกข้อมูลสำคัญ เช่น เครื่องที่ใช้, Batch Size,
+  จำนวนที่ทำได้ต่อวัน, Line Clearance และ Set-up Time ของแต่ละสถานี</p>
+
+  <h3>ฝ่ายที่ได้ประโยชน์จากข้อมูลร่วมกัน</h3>
+  <div class="grid3">
+    <div class="box soft"><b>ฝ่ายผลิต</b><div class="small">บันทึกงานแต่ละขั้น เห็นแผนและคิวงาน</div></div>
+    <div class="box soft"><b>QC / QA</b><div class="small">ตรวจสอบและออกผลโดยดึงข้อมูลชุดเดียวกัน</div></div>
+    <div class="box soft"><b>คลัง RM/PM &amp; FG</b><div class="small">เบิกวัตถุดิบ / รับสินค้าเข้าคลัง</div></div>
+    <div class="box soft"><b>บัญชี</b><div class="small">คำนวณต้นทุนแรงงาน (DL Cost) อัตโนมัติ</div></div>
+    <div class="box soft"><b>ผู้บริหาร</b><div class="small">ดู KPI และภาพรวมการผลิตแบบเรียลไทม์</div></div>
+    <div class="box soft"><b>การตลาด</b><div class="small">เชื่อมข้อมูลคำสั่งซื้อและสถานะส่งมอบ</div></div>
+  </div>
+
+  <div class="pfoot"><span>ระบบติดตามการผลิตยา (PD Monitor)</span><span>เอกสารภายใน · มิถุนายน 2569</span></div>
+</section>
+
+<!-- ============ หน้า 4: โมดูล + สถาปัตยกรรม ============ -->
+<section class="page">
+  <div class="rhead"><span class="d">PD MONITOR · บทสรุปผู้บริหาร</span><span>หน้า 4</span></div>
+
+  <div class="kicker">05 · ความสามารถหลัก</div>
+  <h2 class="sec">โมดูลหลักของระบบ</h2>
+  <div class="sec-rule"></div>
+
+  <div class="grid2">
+    <div class="mod"><div class="ic">📋</div><div class="t">Pending Order Board</div><div class="d">บอร์ดติดตามทุกคำสั่งผลิตตามสถานะ (รอแจ้งผลิต → มีแผน → กำลังผลิต → QC → QA → FG) เห็นภาพรวมงานทั้งหมดในหน้าจอเดียว</div></div>
+    <div class="mod"><div class="ic">✏️</div><div class="t">บันทึกการผลิต</div><div class="d">ฟอร์มให้แต่ละฝ่ายบันทึกผลงานแต่ละสถานี: เครื่องจักร, จำนวนเข้า-ออก, จำนวนคน, เวลาที่ใช้ และหมายเหตุ</div></div>
+    <div class="mod"><div class="ic">📅</div><div class="t">Daily Report</div><div class="d">สรุปการผลิตรายวันแต่ละสถานี: Line Clearance, Set-up Time, เวลาเดินเครื่อง และ ETF (เวลาคาดว่าจะเสร็จ)</div></div>
+    <div class="mod"><div class="ic">📊</div><div class="t">Dashboard / KPI</div><div class="d">ภาพรวมสำหรับผู้บริหาร: จำนวนงานตามสถานะ, % งานที่มีแผน, ปริมาณผลิตรวม และต้นทุนแรงงาน (DL Cost)</div></div>
+  </div>
+
+  <div class="callout mt">
+    <h4>🖥️ มีต้นแบบสาธิต (Demo) ให้ทดลองใช้แล้ว</h4>
+    <p>ได้จัดทำต้นแบบที่ “กดใช้งานได้จริง” ครบทั้ง 4 โมดูล รองรับทั้งคอมพิวเตอร์และมือถือ
+    เพื่อให้ผู้บริหารเห็นภาพและให้ความเห็นก่อนพัฒนาระบบจริง</p>
+  </div>
+
+  <div class="kicker mt" style="margin-top:14px">06 · เทคโนโลยี</div>
+  <h2 class="sec">สถาปัตยกรรมระบบ (อธิบายแบบเข้าใจง่าย)</h2>
+  <div class="sec-rule"></div>
+
+  <table class="mt">
+    <tr><th style="width:26%">ส่วนประกอบ</th><th style="width:30%">เทคโนโลยีที่ใช้</th><th>อธิบายแบบเข้าใจง่าย</th></tr>
+    <tr><td><b>หน้าจอผู้ใช้</b></td><td>Next.js + Vercel</td><td>เว็บที่เปิดได้ทั้งคอมและมือถือ เร็วและทันสมัย โฮสต์ฟรีในช่วงแรก</td></tr>
+    <tr><td><b>ฐานข้อมูล</b></td><td>Supabase (PostgreSQL)</td><td>“ตู้เก็บข้อมูลกลาง” บนคลาวด์ที่ปลอดภัย รองรับผู้ใช้พร้อมกัน และอัปเดตเรียลไทม์</td></tr>
+    <tr><td><b>ระบบผู้ใช้/สิทธิ์</b></td><td>Supabase Auth</td><td>ล็อกอินแยกตามฝ่าย กำหนดได้ว่าใครเห็น/แก้อะไรได้บ้าง</td></tr>
+    <tr><td><b>การติดตั้ง</b></td><td>คลาวด์ (ออนไลน์)</td><td>ใช้งานผ่านอินเทอร์เน็ต ไม่ต้องลงเครื่องทีละตัว อัปเดตทีเดียวใช้ได้ทุกคน</td></tr>
+  </table>
+  <p class="mt small">หมายเหตุ: ระบบออกแบบให้อยู่บนคลาวด์ตามความต้องการ และสามารถย้ายไปไว้บนเซิร์ฟเวอร์ของบริษัทในอนาคตได้หากต้องการ</p>
+
+  <div class="pfoot"><span>ระบบติดตามการผลิตยา (PD Monitor)</span><span>เอกสารภายใน · มิถุนายน 2569</span></div>
+</section>
+
+<!-- ============ หน้า 5: ต้นทุน + Roadmap ============ -->
+<section class="page">
+  <div class="rhead"><span class="d">PD MONITOR · บทสรุปผู้บริหาร</span><span>หน้า 5</span></div>
+
+  <div class="kicker">07 · การลงทุน</div>
+  <h2 class="sec">ต้นทุนและความคุ้มค่า</h2>
+  <div class="sec-rule"></div>
+
+  <table class="tax">
+    <tr><th>รายการ</th><th>ช่วงสาธิต (Demo)</th><th>ใช้งานจริง — ระยะแรก</th><th>เมื่อขยายเต็มรูปแบบ</th></tr>
+    <tr><td><b>โฮสต์เว็บ (Vercel)</b></td><td>ฟรี</td><td>ฟรี</td><td>หลักร้อย–พันบาท/เดือน (ตามการใช้งาน)</td></tr>
+    <tr><td><b>ฐานข้อมูล (Supabase)</b></td><td>ไม่ต้องใช้</td><td>ฟรี (free tier)</td><td>เริ่มราว $25/เดือน เมื่อข้อมูล/ผู้ใช้มาก</td></tr>
+    <tr><td><b>ค่าลิขสิทธิ์รายปี</b></td><td>ไม่มี</td><td>ไม่มี</td><td>ไม่มี (เป็นระบบของบริษัทเอง)</td></tr>
+    <tr><td><b>การปรับแก้/ต่อยอด</b></td><td>—</td><td colspan="2">ทำได้เอง ไม่ผูกขาดกับผู้ขายรายเดียว</td></tr>
+  </table>
+
+  <div class="grid2 mt">
+    <div class="box blue">
+      <h4>💡 เทียบกับการซื้อโปรแกรมสำเร็จรูป</h4>
+      <ul class="clean">
+        <li>โปรแกรมสำเร็จรูปมักมีค่าลิขสิทธิ์รายปีต่อเนื่อง</li>
+        <li>แก้ไขเองไม่ได้ ต้องรอผู้ขายและจ่ายเพิ่มทุกครั้ง</li>
+        <li>หากผู้ขายเลิกsupport ระบบอาจใช้ต่อไม่ได้</li>
+      </ul>
+    </div>
+    <div class="box green">
+      <h4>✅ ข้อได้เปรียบของระบบนี้</h4>
+      <ul class="clean check">
+        <li>เริ่มต้นแทบไม่มีค่าใช้จ่าย จ่ายตามการใช้งานจริง</li>
+        <li>เป็นทรัพย์สินของบริษัท ปรับแต่งได้ตามต้องการ</li>
+        <li>ค่อย ๆ ขยายความสามารถได้ในอนาคต</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="kicker mt" style="margin-top:14px">08 · แผนงาน</div>
+  <h2 class="sec">แผนการพัฒนา (Roadmap)</h2>
+  <div class="sec-rule"></div>
+  <p class="mb">แบ่งงานเป็นช่วงย่อย ทยอยทำและเห็นผลลัพธ์ที่จับต้องได้ทุกช่วง ลดความเสี่ยงและปรับแก้ได้ระหว่างทาง:</p>
+
+  <div class="road grid2" style="display:grid;gap:0 28px">
+    <div>
+      <div class="ph"><div class="num done">✓</div><div class="c"><span class="dt">ช่วงที่ 1</span><div class="t">ต้นแบบสาธิต (Demo)</div><div class="ds">นำเสนอผู้บริหาร เก็บความเห็น — เสร็จแล้ว</div></div></div>
+      <div class="ph"><div class="num">2</div><div class="c"><span class="dt">ช่วงที่ 2</span><div class="t">วางโครงระบบ</div><div class="ds">ตั้งโปรเจค เชื่อมฐานข้อมูล ขึ้นคลาวด์</div></div></div>
+      <div class="ph"><div class="num">3</div><div class="c"><span class="dt">ช่วงที่ 3</span><div class="t">ฐานข้อมูลหลัก</div><div class="ds">ตารางยา เครื่องจักร และข้อมูลตั้งต้น</div></div></div>
+      <div class="ph"><div class="num">4</div><div class="c"><span class="dt">ช่วงที่ 4</span><div class="t">ระบบผู้ใช้ &amp; สิทธิ์</div><div class="ds">ล็อกอินแยกตามฝ่าย</div></div></div>
+    </div>
+    <div>
+      <div class="ph"><div class="num">5</div><div class="c"><span class="dt">ช่วงที่ 5</span><div class="t">Board + คำสั่งผลิต</div><div class="ds">สร้างและติดตาม Pending Order จริง</div></div></div>
+      <div class="ph"><div class="num">6</div><div class="c"><span class="dt">ช่วงที่ 6</span><div class="t">บันทึกการผลิต</div><div class="ds">บันทึกเข้า-ออกแต่ละสถานีลงฐานข้อมูล</div></div></div>
+      <div class="ph"><div class="num">7</div><div class="c"><span class="dt">ช่วงที่ 7</span><div class="t">รายงาน &amp; KPI</div><div class="ds">Daily Report, Dashboard, ต้นทุน</div></div></div>
+      <div class="ph"><div class="num">8</div><div class="c"><span class="dt">ช่วงที่ 8–9</span><div class="t">ทดสอบ &amp; เปิดใช้จริง</div><div class="ds">ใช้กับข้อมูลจริง ปรับแก้ และเปิดใช้งาน</div></div></div>
+    </div>
+  </div>
+
+  <div class="pfoot"><span>ระบบติดตามการผลิตยา (PD Monitor)</span><span>เอกสารภายใน · มิถุนายน 2569</span></div>
+</section>
+
+<!-- ============ หน้า 6: ความเสี่ยง + ข้อเสนอแนะ ============ -->
+<section class="page">
+  <div class="rhead"><span class="d">PD MONITOR · บทสรุปผู้บริหาร</span><span>หน้า 6</span></div>
+
+  <div class="kicker">09 · การประเมิน</div>
+  <h2 class="sec">ความเป็นไปได้และความเสี่ยง</h2>
+  <div class="sec-rule"></div>
+
+  <table>
+    <tr><th style="width:30%">ประเด็น</th><th style="width:18%">ระดับ</th><th>คำอธิบาย / แนวทางจัดการ</th></tr>
+    <tr><td><b>ความเป็นไปได้ทางเทคนิค</b></td><td><span class="pill g">สูง</span></td><td>เป็นระบบบันทึกข้อมูลและรายงานมาตรฐาน ไม่มีส่วนที่เกินความสามารถของเทคโนโลยีปัจจุบัน</td></tr>
+    <tr><td><b>ความซับซ้อน</b></td><td><span class="pill b">ปานกลาง</span></td><td>จุดที่ต้องใส่ใจคือการออกแบบฐานข้อมูลให้ตรงกระบวนการจริง และความถูกต้องของตัวเลขสะสมแต่ละ Lot</td></tr>
+    <tr><td><b>การลงทุนเริ่มต้น</b></td><td><span class="pill g">ต่ำมาก</span></td><td>เริ่มได้ด้วยบริการคลาวด์ฟรี จ่ายเพิ่มเมื่อใช้งานจริงเยอะขึ้นเท่านั้น</td></tr>
+    <tr><td><b>การยอมรับของผู้ใช้</b></td><td><span class="pill b">ปานกลาง</span></td><td>ออกแบบให้ใช้ง่ายกว่าการเขียนมือ + มีต้นแบบให้ทดลองก่อน เพื่อปรับตามความเห็นพนักงานจริง</td></tr>
+    <tr><td><b>การพึ่งพาผู้พัฒนา</b></td><td><span class="pill g">ต่ำ</span></td><td>เป็นระบบของบริษัทเอง โค้ดและข้อมูลอยู่กับบริษัท ปรับแก้/หาผู้ดูแลต่อได้</td></tr>
+  </table>
+
+  <div class="kicker mt" style="margin-top:14px">10 · ข้อเสนอแนะ</div>
+  <h2 class="sec">ข้อเสนอแนะและขั้นตอนถัดไป</h2>
+  <div class="sec-rule"></div>
+
+  <div class="box blue mb">
+    <h4>📌 ข้อเสนอแนะ</h4>
+    <p style="margin:0">แนะนำให้ <b>เริ่มจากต้นแบบสาธิต</b> เพื่อพิสูจน์แนวคิดและเก็บความเห็นจากผู้ใช้จริง
+    จากนั้นพัฒนาระบบจริงแบบทยอยทำตาม Roadmap โดยใช้บริการคลาวด์ฟรีในช่วงแรก
+    ซึ่งทำให้ความเสี่ยงและการลงทุนเริ่มต้นอยู่ในระดับต่ำมาก เหมาะกับการ “ลองทำจริง” ก่อนตัดสินใจขยายเต็มรูปแบบ</p>
+  </div>
+
+  <h3>ขั้นตอนถัดไปที่ขออนุมัติ/ตัดสินใจ</h3>
+  <div class="road">
+    <div class="ph"><div class="num">1</div><div class="c"><div class="t">พิจารณาต้นแบบสาธิต (Demo)</div><div class="ds">ทดลองใช้และให้ความเห็นเรื่องหน้าจอ/ฟังก์ชันที่ต้องการเพิ่มหรือปรับ</div></div></div>
+    <div class="ph"><div class="num">2</div><div class="c"><div class="t">ยืนยันขอบเขตเฟสแรก</div><div class="ds">เลือกฝ่าย/สายการผลิตที่จะเริ่มนำร่องก่อน เพื่อให้เห็นผลเร็ว</div></div></div>
+    <div class="ph"><div class="num">3</div><div class="c"><div class="t">เริ่มพัฒนาระบบจริง</div><div class="ds">ดำเนินการตาม Roadmap ช่วงที่ 2 เป็นต้นไป โดยมีการรายงานความคืบหน้าเป็นช่วง</div></div></div>
+  </div>
+
+  <div class="callout mt" style="margin-top:14px">
+    <h4>สรุป</h4>
+    <p>โครงการนี้ <b>เป็นไปได้จริง ความเสี่ยงต่ำ และคุ้มค่า</b> — เปลี่ยนการทำงานด้วยกระดาษให้เป็นระบบดิจิทัลที่แม่นยำและตรวจสอบได้
+    พร้อมเป็นรากฐานสำหรับการพัฒนาต่อยอดของบริษัทในระยะยาว</p>
+  </div>
+
+  <div class="pfoot"><span>ระบบติดตามการผลิตยา (PD Monitor)</span><span>เอกสารภายใน · มิถุนายน 2569</span></div>
+</section>
+
+</body>
+</html>

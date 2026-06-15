@@ -1,0 +1,22 @@
+# ความลับ — ห้ามขึ้น GitHub เด็ดขาด
+.env
+.env.local
+.env*.local
+
+# Vercel
+.vercel/
+
+# Node
+node_modules/
+
+# ไฟล์เสียงต้นฉบับขนาดใหญ่ (เก็บไว้ในเครื่องพอ ไม่ต้องขึ้น GitHub)
+asset/*.wav
+asset/*.aac
+
+# ไฟล์ชั่วคราว / ภาพทดสอบ
+_*.png
+*.tmp
+
+# ระบบปฏิบัติการ
+.DS_Store
+Thumbs.db

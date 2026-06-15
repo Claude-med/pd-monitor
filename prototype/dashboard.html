@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard / KPI — PD Monitor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <script src="assets/mock-data.js"></script>
+  <script src="assets/app.js"></script>
+  <script>
+    function render() {
+      const total = DB.jobs.length;
+      const byStatus = SEED.statuses.map(s => ({ key:s.key, color:s.color, n: DB.jobs.filter(j=>j.status===s.key).length }));
+      const withPlan = DB.jobs.filter(j=>j.planMonth).length;
+      const onPlanPct = Math.round((withPlan/total)*100);
+
+      // DL cost จำลอง: รวม (คน × ชม.) ทุก stage ที่ทำแล้ว × ค่าแรง 60 บ./ชม.
+      const RATE = 60;
+      let manHours = 0;
+      DB.jobs.forEach(j => j.stages.forEach(s => { if (s.status!=="pending") manHours += s.people * s.hours; }));
+      const dlCost = manHours * RATE;
+      const totalKg = DB.jobs.reduce((a,j)=>a+j.batchKg,0);
+
+      // กราฟ: จำนวน job ตามสถานะ
+      const maxN = Math.max(...byStatus.map(b=>b.n), 1);
+      const bars = byStatus.map(b => `
+        <div class="bcol">
+          <div class="val">${b.n}</div>
+          <div class="bar2" style="height:${(b.n/maxN)*100}%; background:linear-gradient(180deg,${b.color},${b.color}aa)"></div>
+          <div class="lab">${b.key}</div>
+        </div>`).join("");
+
+      // สรุปรายผลิตภัณฑ์
+      const prodRows = DB.products.map(p => {
+        const js = DB.jobs.filter(j=>j.productId===p.id);
+        const kg = js.reduce((a,j)=>a+j.batchKg,0);
+        return js.length ? `<tr><td><b>${p.name}</b></td><td>${js.length} job</td><td>${fmt(kg)} กก.</td><td>${p.packType}</td></tr>` : "";
+      }).join("");
+
+      const content = `
+        <div class="kpi-grid">
+          <div class="kpi"><div class="bar" style="background:#eff6ff">📦</div><div class="label">Job ทั้งหมด</div><div class="value">${total}</div><div class="delta up">▲ เดือนนี้ ${DB.jobs.filter(j=>j.planMonth==='2026-06').length} job</div></div>
+          <div class="kpi"><div class="bar" style="background:#dcfce7">🎯</div><div class="label">มีแผนผลิตแล้ว</div><div class="value">${onPlanPct}<small>%</small></div><div class="delta up">▲ ${withPlan}/${total} job</div></div>
+          <div class="kpi"><div class="bar" style="background:#fef3c7">⚖️</div><div class="label">ปริมาณผลิตรวม</div><div class="value">${fmt(totalKg)}<small> กก.</small></div></div>
+          <div class="kpi"><div class="bar" style="background:#f1f5f9">💰</div><div class="label">ต้นทุนแรงงาน (DL)</div><div class="value">฿${fmt(dlCost)}</div><div class="delta">${fmt(manHours)} man-hours</div></div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-head">📊 จำนวน Job แยกตามสถานะ</div>
+            <div class="card-body"><div class="barchart">${bars}</div></div>
+          </div>
+          <div class="card">
+            <div class="card-head">🥧 สัดส่วนความคืบหน้า</div>
+            <div class="card-body">
+              ${byStatus.map(b => `
+                <div style="margin-bottom:12px">
+                  <div class="flex" style="justify-content:space-between;font-size:.88rem">
+                    <span><span class="dot" style="background:${b.color}"></span> ${b.key}</span>
+                    <b>${b.n} job</b>
+                  </div>
+                  <div class="progress" style="margin-top:5px"><span style="width:${(b.n/total)*100}%;background:${b.color}"></span></div>
+                </div>`).join("")}
+            </div>
+          </div>
+        </div>
+
+        <div class="card mt">
+          <div class="card-head">💊 สรุปตามผลิตภัณฑ์</div>
+          <div class="card-body" style="padding:0">
+            <table class="tbl">
+              <thead><tr><th>ผลิตภัณฑ์</th><th>จำนวนงาน</th><th>ปริมาณรวม</th><th>รูปแบบบรรจุ</th></tr></thead>
+              <tbody>${prodRows}</tbody>
+            </table>
+          </div>
+        </div>
+        <p class="muted mt" style="font-size:.85rem">💡 ตัวเลขทั้งหมดคำนวณจากข้อมูลใน demo · ในระบบจริงจะอัปเดตอัตโนมัติจากการบันทึกของแต่ละฝ่าย</p>
+      `;
+      renderLayout({ active:"dashboard.html", title:"Dashboard / KPI", sub:"ภาพรวมสำหรับผู้บริหาร", role:"ผู้บริหาร" }, content);
+    }
+    render();
+  </script>
+</body>
+</html>

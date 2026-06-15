@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>รายละเอียด Job — PD Monitor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <script src="assets/mock-data.js"></script>
+  <script src="assets/app.js"></script>
+  <script>
+    function timelineStep(s) {
+      const node = s.status === "done" ? "node-done" : s.status === "active" ? "node-active" : "node-pending";
+      const icon = s.status === "done" ? "✓" : s.status === "active" ? "●" : "";
+      const meta = s.status === "pending"
+        ? `<span class="muted">ยังไม่เริ่ม</span>`
+        : `<span>เครื่อง: ${s.machine}</span>
+           <span>เข้า: ${fmt(s.qtyIn)} กก.</span>
+           <span>ออก: ${fmt(s.qtyOut)} กก.</span>
+           <span>👥 ${s.people} คน · ⏱️ ${s.hours} ชม.</span>`;
+      const tag = s.status === "done" ? badge("FG").replace("FG","เสร็จ").replace(statusMeta("FG").color,"#22c55e")
+                : s.status === "active" ? `<span class="badge" style="background:#f59e0b">กำลังทำ</span>` : "";
+      return `
+        <div class="tl-step">
+          <div class="tl-rail"><div class="tl-node ${node}">${icon}</div><div class="tl-line"></div></div>
+          <div class="tl-body">
+            <div class="flex" style="justify-content:space-between">
+              <span class="t-name">${s.name}</span> ${tag}
+            </div>
+            <div class="t-meta">${meta}</div>
+          </div>
+        </div>`;
+    }
+
+    function render() {
+      const no = qs("no");
+      const j = job(no);
+      if (!j) { renderLayout({active:"board.html",title:"ไม่พบงาน"}, `<p>ไม่พบ Job <a href="board.html">← กลับบอร์ด</a></p>`); return; }
+      const p = product(j.productId);
+
+      const totalOut = j.stages.reduce((a,s)=>a+ (s.name==="บรรจุ"? s.qtyOut:0),0);
+      const content = `
+        <a href="board.html" class="muted" style="font-size:.88rem">← กลับ Pending Order Board</a>
+        <div class="flex wrap mb mt" style="justify-content:space-between">
+          <div>
+            <div class="section-title" style="margin:0">${p.name}</div>
+            <div class="muted">${j.jobNo} · Lot ${j.lot} · ลูกค้า ${j.customer}</div>
+          </div>
+          <div class="flex">${badge(j.status)}
+            <a href="record.html?no=${j.jobNo}" class="btn primary sm">✏️ บันทึกการผลิต</a></div>
+        </div>
+
+        <div class="kpi-grid">
+          <div class="kpi"><div class="label">Batch Size</div><div class="value">${fmt(j.batchKg)} <small>กก.</small></div></div>
+          <div class="kpi"><div class="label">สูตร</div><div class="value" style="font-size:1.3rem">${p.formula}</div></div>
+          <div class="kpi"><div class="label">รูปแบบบรรจุ</div><div class="value" style="font-size:1.3rem">${p.packType} · ${p.size}</div></div>
+          <div class="kpi"><div class="label">ความคืบหน้า</div><div class="value">${j.progressPct}<small>%</small></div>
+            <div class="progress"><span style="width:${j.progressPct}%"></span></div></div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-head">🏭 Timeline การผลิต</div>
+            <div class="card-body"><div class="timeline">${j.stages.map(timelineStep).join("")}</div></div>
+          </div>
+          <div>
+            <div class="card mb">
+              <div class="card-head">📄 ข้อมูล Job</div>
+              <div class="card-body">
+                <table class="tbl">
+                  <tr><td class="muted">เลข Job</td><td><b>${j.jobNo}</b></td></tr>
+                  <tr><td class="muted">Lot</td><td>${j.lot}</td></tr>
+                  <tr><td class="muted">ลูกค้า</td><td>${j.customer}</td></tr>
+                  <tr><td class="muted">แผนผลิต</td><td>${j.planMonth || "ยังไม่มีแผน"}</td></tr>
+                  <tr><td class="muted">STD Time</td><td>${p.stdTimeHr} ชม./batch</td></tr>
+                  <tr><td class="muted">บรรจุได้แล้ว</td><td><b>${fmt(totalOut)}</b> กก.</td></tr>
+                </table>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-head">🔗 ใช้ข้อมูลร่วมกับฝ่ายอื่น</div>
+              <div class="card-body">
+                <p class="muted" style="font-size:.9rem;margin-bottom:10px">ข้อมูล Job นี้ถูกดึงไปใช้ต่อโดย:</p>
+                <div class="flex wrap">
+                  <span class="badge" style="background:#0ea5e9">QC</span>
+                  <span class="badge" style="background:#a855f7">QA</span>
+                  <span class="badge" style="background:#0891b2">คลัง RM/PM</span>
+                  <span class="badge" style="background:#22c55e">คลัง FG</span>
+                  <span class="badge" style="background:#64748b">บัญชี (DL Cost)</span>
+                  <span class="badge" style="background:#f97316">KPI</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      renderLayout({ active: "board.html", title: "รายละเอียด Job", sub: j.jobNo, role: "ฝ่ายผลิต" }, content);
+    }
+    render();
+  </script>
+</body>
+</html>
