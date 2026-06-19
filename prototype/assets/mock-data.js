@@ -29,22 +29,29 @@ const SEED = {
   // ลำดับ station มาตรฐานของ job ผลิตยาเม็ด
   stageFlow: ["เตรียมยา", "ผสม", "ตอก/แคปซูล", "บรรจุ", "QC", "QA", "FG"],
 
-  // คอลัมน์บนบอร์ด + สี
+  // คอลัมน์บนบอร์ด + สี (คอนทราสต์อ่านง่าย)
   statuses: [
-    { key: "รอแจ้งผลิต", color: "#94a3b8" },
+    { key: "รอแจ้งผลิต", color: "#64748b" },
     { key: "มีแผนแล้ว",  color: "#6366f1" },
     { key: "กำลังผลิต",  color: "#f59e0b" },
     { key: "QC",         color: "#0ea5e9" },
     { key: "QA",         color: "#a855f7" },
-    { key: "FG",         color: "#22c55e" },
+    { key: "FG",         color: "#16a34a" },
+  ],
+
+  // ป้ายปัญหา (flag) — แยกจากสถานะ ใช้เน้นงานที่ต้องรีบจัดการ (ทีมข้อ 3)
+  flags: [
+    { key: "ปกติ",     color: "#16a34a", icon: "🟢" },
+    { key: "ล่าช้า",   color: "#f97316", icon: "🟠" },
+    { key: "ติดปัญหา", color: "#ef4444", icon: "🔴" },
   ],
 
   // ---------- Jobs ----------
   jobs: [
-    mkJob("JOB-2406-001", "P-001", "รพ.ศิริราช",        "L-24A-001", 1000, "กำลังผลิต", "2026-06", 3),
+    mkJob("JOB-2406-001", "P-001", "รพ.ศิริราช",        "L-24A-001", 1000, "กำลังผลิต", "2026-06", 3, "ติดปัญหา"),
     mkJob("JOB-2406-002", "P-002", "ร้านขายยา ฟ้าใส",   "L-24A-002", 800,  "QC",        "2026-06", 4),
     mkJob("JOB-2406-003", "P-003", "บ.เฮลท์พลัส",        "L-24A-003", 500,  "มีแผนแล้ว", "2026-06", 1),
-    mkJob("JOB-2406-004", "P-005", "รพ.บำรุงราษฎร์",     "L-24A-004", 1200, "กำลังผลิต", "2026-06", 2),
+    mkJob("JOB-2406-004", "P-005", "รพ.บำรุงราษฎร์",     "L-24A-004", 1200, "กำลังผลิต", "2026-06", 2, "ล่าช้า"),
     mkJob("JOB-2406-005", "P-004", "ร้านยา สุขภาพดี",    "L-24A-005", 300,  "รอแจ้งผลิต","2026-07", 0),
     mkJob("JOB-2406-006", "P-006", "บ.เนเชอรัล",         "L-24A-006", 600,  "QA",        "2026-06", 5),
     mkJob("JOB-2406-007", "P-001", "รพ.จุฬาฯ",           "L-24A-007", 1500, "FG",        "2026-06", 6),
@@ -52,12 +59,12 @@ const SEED = {
     mkJob("JOB-2406-009", "P-003", "ร้านยา เภสัชกร",     "L-24A-009", 400,  "รอแจ้งผลิต","",        0),
     mkJob("JOB-2406-010", "P-005", "รพ.รามาธิบดี",       "L-24A-010", 900,  "กำลังผลิต", "2026-06", 2),
     mkJob("JOB-2406-011", "P-006", "บ.ไทยเฮิร์บ",        "L-24A-011", 550,  "FG",        "2026-06", 6),
-    mkJob("JOB-2406-012", "P-004", "ร้านยา 24 ชม.",      "L-24A-012", 250,  "QC",        "2026-06", 4),
+    mkJob("JOB-2406-012", "P-004", "ร้านยา 24 ชม.",      "L-24A-012", 250,  "QC",        "2026-06", 4, "ล่าช้า"),
   ],
 };
 
 /* สร้าง job 1 ใบ พร้อม stage timeline ตาม progress (stageDone = จำนวน stage ที่เสร็จแล้ว) */
-function mkJob(jobNo, productId, customer, lot, batchKg, status, planMonth, stageDone) {
+function mkJob(jobNo, productId, customer, lot, batchKg, status, planMonth, stageDone, flag) {
   const flow = ["เตรียมยา", "ผสม", "ตอก/แคปซูล", "บรรจุ", "QC", "QA", "FG"];
   const totalKg = batchKg;
   const stages = flow.map((name, i) => {
@@ -81,7 +88,11 @@ function mkJob(jobNo, productId, customer, lot, batchKg, status, planMonth, stag
     };
   });
   const progressPct = Math.round((stageDone / flow.length) * 100);
-  return { jobNo, productId, customer, lot, batchKg, status, planMonth, stages, progressPct };
+  // batch traceability (เบา) — มีวันผลิตเมื่อเริ่มผลิตแล้ว, หมดอายุ +2 ปี
+  const mfgDate = stageDone >= 2 ? "2026-06-12" : "";
+  const expDate = stageDone >= 2 ? "2028-06-11" : "";
+  return { jobNo, productId, customer, lot, batchKg, status, planMonth, stages, progressPct,
+           flag: flag || "ปกติ", mfgDate, expDate };
 }
 
 function pickMachine(stage) {

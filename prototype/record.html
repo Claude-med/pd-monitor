@@ -41,14 +41,15 @@
           <div class="card">
             <div class="card-head">✏️ บันทึกผลการผลิต</div>
             <div class="card-body">
-              <form onsubmit="submitRecord(event)">
+              <form id="recordForm" onsubmit="submitRecord(event)">
+                <div id="formMsg"></div>
                 <div class="form-grid">
                   <div class="field"><label>เลือก Job</label><select id="f_job">${jobOptions(preset)}</select></div>
                   <div class="field"><label>ขั้นตอน (Station)</label><select id="f_stage">${stageOptions()}</select></div>
                   <div class="field"><label>เครื่องที่ใช้</label><select id="f_mc">${machineOptions()}</select></div>
-                  <div class="field"><label>จำนวนเข้า (กก.)</label><input id="f_in" type="number" min="0" placeholder="เช่น 1000"></div>
-                  <div class="field"><label>จำนวนออก (กก.)</label><input id="f_out" type="number" min="0" placeholder="เช่น 500"></div>
-                  <div class="field"><label>จำนวนคน</label><input id="f_ppl" type="number" min="0" placeholder="เช่น 3"></div>
+                  <div class="field"><label>จำนวนเข้า (กก.) <span class="muted">— ทศนิยมได้</span></label><input id="f_in" type="number" min="0" step="0.01" placeholder="เช่น 1000.50"></div>
+                  <div class="field"><label>จำนวนออก (กก.) <span class="muted">— ต้อง ≤ เข้า</span></label><input id="f_out" type="number" min="0" step="0.01" placeholder="เช่น 980.25"></div>
+                  <div class="field"><label>จำนวนคน</label><input id="f_ppl" type="number" min="0" step="1" placeholder="เช่น 3"></div>
                   <div class="field"><label>เวลาที่ใช้ (ชม.)</label><input id="f_hr" type="number" min="0" step="0.5" placeholder="เช่น 8"></div>
                   <div class="field"><label>สถานะหลังบันทึก</label>
                     <select id="f_done"><option value="active">กำลังทำ (ยังไม่จบขั้น)</option><option value="done">เสร็จขั้นนี้</option></select></div>
@@ -77,25 +78,57 @@
       renderLayout({ active: "record.html", title: "บันทึกการผลิต", sub: "บันทึก in-out แต่ละ station", role: "ฝ่ายผลิต" }, content);
     }
 
+    function showErr(errs) {
+      document.getElementById("formMsg").innerHTML =
+        `<div class="alert err"><b>⚠️ กรอกข้อมูลไม่ถูกต้อง:</b><ul>${errs.map(e=>`<li>${e}</li>`).join("")}</ul></div>`;
+    }
+    function showWarn(msg) {
+      document.getElementById("formMsg").innerHTML =
+        `<div class="alert warn">${msg}
+           <div style="margin-top:10px"><button type="button" class="btn sm" onclick="forceSubmit()">ยืนยันบันทึกต่อ (รับทราบว่าทำผิดลำดับ)</button></div>
+         </div>`;
+    }
+    function forceSubmit() {
+      window.__flowOverride = true;
+      submitRecord({ preventDefault(){}, target: document.getElementById("recordForm") });
+    }
+
     function submitRecord(e) {
       e.preventDefault();
+      document.getElementById("formMsg").innerHTML = "";
       const no = document.getElementById("f_job").value;
       const stageName = document.getElementById("f_stage").value;
       const j = job(no);
       const s = j.stages.find(x => x.name === stageName);
-      if (s) {
-        s.qtyIn  = +document.getElementById("f_in").value  || s.qtyIn;
-        s.qtyOut = +document.getElementById("f_out").value || s.qtyOut;
-        s.people = +document.getElementById("f_ppl").value || s.people;
-        s.hours  = +document.getElementById("f_hr").value  || s.hours;
-        s.machine = document.getElementById("f_mc").value;
-        s.note = document.getElementById("f_note").value;
-        s.status = document.getElementById("f_done").value;
-        // อัปเดต progress + สถานะ job คร่าว ๆ
-        const done = j.stages.filter(x => x.status === "done").length;
-        j.progressPct = Math.round((done / j.stages.length) * 100);
-        saveData(DB);
+      if (!s) { showErr(["ไม่พบขั้นตอนใน Job นี้"]); return; }
+
+      // 1) ตรวจความถูกต้องของตัวเลข (ทีมข้อ 9 / rec C2)
+      const qtyIn  = numOrNull(document.getElementById("f_in").value);
+      const qtyOut = numOrNull(document.getElementById("f_out").value);
+      const people = numOrNull(document.getElementById("f_ppl").value);
+      const hours  = numOrNull(document.getElementById("f_hr").value);
+      const errs = validateRecord({ qtyIn, qtyOut, people, hours });
+      if (errs.length) { showErr(errs); return; }
+
+      // 2) flow guard — เตือนถ้าขั้นก่อนหน้ายังไม่เริ่ม (ทีมข้อ 2,4 / rec A5)
+      const idx = j.stages.findIndex(x => x.name === stageName);
+      const prev = idx > 0 ? j.stages[idx - 1] : null;
+      if (prev && prev.status === "pending" && !window.__flowOverride) {
+        showWarn(`⚠️ ขั้น "<b>${prev.name}</b>" ยังไม่เสร็จ — ตามลำดับการผลิตควรทำขั้นก่อนหน้าให้เสร็จก่อนบันทึกขั้น "<b>${stageName}</b>"`);
+        return;
       }
+      window.__flowOverride = false;
+
+      // 3) บันทึก + ลง activity log (จำลอง audit — ทีมข้อ 5)
+      s.qtyIn = qtyIn; s.qtyOut = qtyOut; s.people = people; s.hours = hours;
+      s.machine = document.getElementById("f_mc").value;
+      s.note = document.getElementById("f_note").value;
+      s.status = document.getElementById("f_done").value;
+      const done = j.stages.filter(x => x.status === "done").length;
+      j.progressPct = Math.round((done / j.stages.length) * 100);
+      saveData(DB);
+      logActivity(`บันทึกผลิตขั้น "${stageName}" · เข้า ${fmt(qtyIn)} / ออก ${fmt(qtyOut)} กก.`, no, "ฝ่ายผลิต");
+
       toast("✅ บันทึกเรียบร้อย — ข้อมูลอัปเดตทุกฝ่ายแล้ว");
       document.getElementById("recent").innerHTML = recentRows();
       e.target.reset();

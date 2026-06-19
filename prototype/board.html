@@ -14,9 +14,13 @@
   <script>
     function jobCard(j) {
       const p = product(j.productId);
+      const fb = flagBadge(j.flag);
       return `
-        <div class="job-card" onclick="location.href='job.html?no=${j.jobNo}'">
-          <div class="jno">${j.jobNo} · Lot ${j.lot}</div>
+        <div class="job-card ${j.flag && j.flag !== "ปกติ" ? "has-flag" : ""}" onclick="location.href='job.html?no=${j.jobNo}'">
+          <div class="jcard-top">
+            <span class="jno">${j.jobNo} · Lot ${j.lot}</span>
+            ${fb}
+          </div>
           <div class="jname">${p.name}</div>
           <div class="meta">
             <span>🏭 ${fmt(j.batchKg)} กก.</span>
@@ -28,9 +32,25 @@
         </div>`;
     }
 
-    function renderBoard() {
-      const cols = SEED.statuses.map(s => {
-        const list = DB.jobs.filter(j => j.status === s.key);
+    /* กรอง job ตามช่องค้นหา + สถานะ + ปุ่มเฉพาะงานมีปัญหา (ทีมข้อ 7) */
+    function filteredJobs() {
+      const q = (document.getElementById("f_search")?.value || "").trim().toLowerCase();
+      const st = document.getElementById("f_status")?.value || "";
+      const probOnly = document.getElementById("f_prob")?.classList.contains("on");
+      return DB.jobs.filter(j => {
+        if (st && j.status !== st) return false;
+        if (probOnly && (!j.flag || j.flag === "ปกติ")) return false;
+        if (q) {
+          const hay = `${j.jobNo} ${j.lot} ${j.customer} ${product(j.productId).name}`.toLowerCase();
+          if (!hay.includes(q)) return false;
+        }
+        return true;
+      });
+    }
+
+    function renderColumns(jobs) {
+      return SEED.statuses.map(s => {
+        const list = jobs.filter(j => j.status === s.key);
         const cards = list.map(jobCard).join("") || `<div class="muted" style="text-align:center;padding:14px;font-size:.82rem">— ไม่มีงาน —</div>`;
         return `
           <div class="col">
@@ -39,28 +59,50 @@
             <div class="col-body">${cards}</div>
           </div>`;
       }).join("");
+    }
 
+    function applyFilter() {
+      const jobs = filteredJobs();
+      document.getElementById("boardWrap").innerHTML = renderColumns(jobs);
+      document.getElementById("fcount").textContent = jobs.length;
+    }
+    function toggleProb() {
+      document.getElementById("f_prob").classList.toggle("on");
+      applyFilter();
+    }
+
+    function renderBoard() {
       const total = DB.jobs.length;
       const producing = DB.jobs.filter(j => j.status === "กำลังผลิต").length;
       const done = DB.jobs.filter(j => j.status === "FG").length;
-      const noPlan = DB.jobs.filter(j => !j.planMonth).length;
+      const problem = DB.jobs.filter(j => j.flag && j.flag !== "ปกติ").length;
+
+      const statusOpts = ['<option value="">ทุกสถานะ</option>']
+        .concat(SEED.statuses.map(s => `<option value="${s.key}">${s.key}</option>`)).join("");
 
       const content = `
         <div class="kpi-grid">
           <div class="kpi"><div class="bar" style="background:#eff6ff">📦</div><div class="label">Job ทั้งหมด</div><div class="value">${total}</div></div>
           <div class="kpi"><div class="bar" style="background:#fef3c7">🏭</div><div class="label">กำลังผลิต</div><div class="value">${producing}</div></div>
           <div class="kpi"><div class="bar" style="background:#dcfce7">✅</div><div class="label">เข้าคลังแล้ว (FG)</div><div class="value">${done}</div></div>
-          <div class="kpi"><div class="bar" style="background:#fee2e2">⏳</div><div class="label">รอลงแผน</div><div class="value">${noPlan}</div></div>
+          <div class="kpi"><div class="bar" style="background:#fee2e2">⚠️</div><div class="label">งานมีปัญหา/ล่าช้า</div><div class="value">${problem}</div></div>
         </div>
         <div class="flex wrap mb" style="justify-content:space-between">
           <div class="section-title" style="margin:0">บอร์ดติดตามสถานะ — ลากสายตาดูได้ทุกขั้น</div>
           <button class="btn primary sm" onclick="toast('Demo: ฟอร์มสร้าง Job จะเชื่อมฐานข้อมูลจริงในเวอร์ชันถัดไป')">+ สร้าง Job ใหม่</button>
         </div>
-        <div class="board">${cols}</div>
+        <div class="filter-bar">
+          <input id="f_search" type="search" placeholder="🔍 ค้นหา Job / Lot / ลูกค้า / ชื่อยา" oninput="applyFilter()">
+          <select id="f_status" onchange="applyFilter()">${statusOpts}</select>
+          <button id="f_prob" class="chip" onclick="toggleProb()">🔴 เฉพาะงานมีปัญหา/ล่าช้า</button>
+          <span class="muted" style="font-size:.85rem;margin-left:auto">พบ <b id="fcount">0</b> งาน</span>
+        </div>
+        <div class="board" id="boardWrap"></div>
         <p class="muted" style="margin-top:16px;font-size:.85rem">💡 กดที่การ์ดงานเพื่อดูรายละเอียดและ timeline การผลิต</p>
       `;
 
       renderLayout({ active: "board.html", title: "Pending Order Board", sub: "ติดตามทุกคำสั่งผลิตตามสถานะ", role: "ฝ่ายวางแผน" }, content);
+      applyFilter();
     }
     renderBoard();
   </script>

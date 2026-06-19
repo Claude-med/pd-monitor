@@ -42,6 +42,36 @@
       const p = product(j.productId);
 
       const totalOut = j.stages.reduce((a,s)=>a+ (s.name==="บรรจุ"? s.qtyOut:0),0);
+
+      // แผงอนุมัติ QC/QA (ทีมข้อ 6 / rec A3 — จำลอง e-signature/approval)
+      const approvalCard = (j.status === "QC" || j.status === "QA") ? `
+        <div class="card mb approval-card">
+          <div class="card-body flex wrap" style="justify-content:space-between;gap:12px">
+            <div>
+              <b>🔍 รออนุมัติขั้น ${j.status}</b>
+              <div class="muted" style="font-size:.88rem">ฝ่าย ${j.status} ตรวจสอบแล้วกด "อนุมัติผ่าน" เพื่อส่งต่อขั้นถัดไป หรือ "ตีกลับ" พร้อมเหตุผล</div>
+            </div>
+            <div class="flex">
+              <button class="btn approve" onclick="approveJob('${j.jobNo}')">✓ อนุมัติผ่าน</button>
+              <button class="btn reject" onclick="rejectJob('${j.jobNo}')">✕ ตีกลับ</button>
+            </div>
+          </div>
+        </div>` : "";
+
+      // Activity Log (ทีมข้อ 5 / rec A1 — จำลอง audit trail)
+      const acts = getActivities(j.jobNo);
+      const actItems = acts.length
+        ? acts.slice().reverse().map(a => `
+            <li><span class="a-time">${fmtTime(a.ts)}</span>
+                <span class="a-who">${a.who}</span>
+                <span class="a-act">${a.action}</span></li>`).join("")
+        : `<li class="muted" style="padding:14px">— ยังไม่มีประวัติ —</li>`;
+      const activityCard = `
+        <div class="card mt">
+          <div class="card-head">📜 ประวัติการทำงาน (Activity Log)</div>
+          <div class="card-body" style="padding:0"><ul class="activity">${actItems}</ul></div>
+        </div>`;
+
       const content = `
         <a href="board.html" class="muted" style="font-size:.88rem">← กลับ Pending Order Board</a>
         <div class="flex wrap mb mt" style="justify-content:space-between">
@@ -49,9 +79,10 @@
             <div class="section-title" style="margin:0">${p.name}</div>
             <div class="muted">${j.jobNo} · Lot ${j.lot} · ลูกค้า ${j.customer}</div>
           </div>
-          <div class="flex">${badge(j.status)}
+          <div class="flex">${flagBadge(j.flag)} ${badge(j.status)}
             <a href="record.html?no=${j.jobNo}" class="btn primary sm">✏️ บันทึกการผลิต</a></div>
         </div>
+        ${approvalCard}
 
         <div class="kpi-grid">
           <div class="kpi"><div class="label">Batch Size</div><div class="value">${fmt(j.batchKg)} <small>กก.</small></div></div>
@@ -76,6 +107,8 @@
                   <tr><td class="muted">ลูกค้า</td><td>${j.customer}</td></tr>
                   <tr><td class="muted">แผนผลิต</td><td>${j.planMonth || "ยังไม่มีแผน"}</td></tr>
                   <tr><td class="muted">STD Time</td><td>${p.stdTimeHr} ชม./batch</td></tr>
+                  <tr><td class="muted">วันผลิต (Mfg)</td><td>${j.mfgDate || "—"}</td></tr>
+                  <tr><td class="muted">วันหมดอายุ (Exp)</td><td>${j.expDate || "—"}</td></tr>
                   <tr><td class="muted">บรรจุได้แล้ว</td><td><b>${fmt(totalOut)}</b> กก.</td></tr>
                 </table>
               </div>
@@ -94,10 +127,35 @@
                 </div>
               </div>
             </div>
+            ${activityCard}
           </div>
         </div>
       `;
       renderLayout({ active: "board.html", title: "รายละเอียด Job", sub: j.jobNo, role: "ฝ่ายผลิต" }, content);
+    }
+
+    /* อนุมัติ / ตีกลับ ขั้น QC-QA (จำลอง approval flow + audit) */
+    const APPROVE_NEXT = { "QC": "QA", "QA": "FG" };
+    const REJECT_BACK  = { "QC": "กำลังผลิต", "QA": "QC" };
+    function approveJob(no) {
+      const j = job(no); if (!j) return;
+      const from = j.status, to = APPROVE_NEXT[from]; if (!to) return;
+      j.status = to;
+      saveData(DB);
+      logActivity(`อนุมัติผ่านขั้น ${from} → ส่งต่อ ${to}`, no, "ฝ่าย " + from);
+      toast(`✅ อนุมัติผ่าน ${from} แล้ว — ส่งต่อ ${to}`);
+      render();
+    }
+    function rejectJob(no) {
+      const j = job(no); if (!j) return;
+      const from = j.status, to = REJECT_BACK[from]; if (!to) return;
+      const reason = (prompt(`เหตุผลที่ตีกลับขั้น ${from} (จำเป็นต้องระบุ):`) || "").trim();
+      if (!reason) { toast("⚠️ ต้องระบุเหตุผลก่อนตีกลับ"); return; }
+      j.status = to;
+      saveData(DB);
+      logActivity(`ตีกลับจากขั้น ${from} → ${to} (เหตุผล: ${reason})`, no, "ฝ่าย " + from);
+      toast(`↩️ ตีกลับขั้น ${from} แล้ว`);
+      render();
     }
     render();
   </script>
