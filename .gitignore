@@ -6,8 +6,17 @@
 # Vercel
 .vercel/
 
+# Claude Code — permission เฉพาะเครื่อง ไม่ต้องขึ้น GitHub (แต่ skill ใน .claude/skills/ ขึ้นได้)
+.claude/settings.local.json
+
 # Node
 node_modules/
+
+# Next.js (เฟส 1 — แอปจริงในโฟลเดอร์ web/)
+.next/
+next-env.d.ts
+*.tsbuildinfo
+/web/node_modules/
 
 # ไฟล์เสียงต้นฉบับขนาดใหญ่ (เก็บไว้ในเครื่องพอ ไม่ต้องขึ้น GitHub)
 asset/*.wav
