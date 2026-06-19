@@ -1,5 +1,8 @@
 # Requirements จาก Notion (ทีมรวบรวม)
 
+> 📌 เอกสารนี้ใช้เป็น **URS (User Requirement Spec) ตั้งต้น** ของโปรเจค (ตามที่ GMP แนะนำให้เขียน URS เอง)
+> มาตรฐานคุณภาพ/วิธี implement ดูคู่กับ [`recommendations.md`](./recommendations.md)
+>
 > Snapshot จากหน้า Notion ของทีม (อ่านเร็ว ไม่ต้องเรียก MCP ทุกครั้ง) — **ของจริงล่าสุดอยู่ใน Notion เสมอ**
 > ก่อนเริ่มเฟสใหม่ ควร fetch หน้า Notion เช็กว่ามี requirement ใหม่จากทีมเพิ่มไหม
 > อัปเดต snapshot นี้ล่าสุด: 19 มิ.ย. 2569

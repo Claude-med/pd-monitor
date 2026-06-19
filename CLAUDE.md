@@ -36,6 +36,7 @@ web app/
 - 📝 Lean PRD — `38092ef2-c18f-8027-8ce8-d160e4a4b931`
 - ➕ demo-feature-suggestions (10 ฟีเจอร์ที่ทีมเสนอ) — `38292ef2-c18f-80d0-acbe-e8f91a874c1c`
 - snapshot ในเครื่อง (อ่านเร็ว ไม่ต้องเรียก MCP) → `docs/requirements-from-notion.md`
+- **ก่อนออกแบบ schema / เริ่มเฟสใหม่ อ่าน `docs/recommendations.md`** (มาตรฐานคุณภาพ GMP-aligned + roadmap ที่ปรับแล้ว)
 > โพสต์อะไรกลับ Notion (workspace ทีม) = ถามผู้ใช้ยืนยันก่อนทุกครั้ง
 
 ## ลิงก์/ไฟล์อ้างอิง
