@@ -29,3 +29,5 @@ _*.png
 # ระบบปฏิบัติการ
 .DS_Store
 Thumbs.db
+
+.vercel
