@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getDailyReport } from "@/lib/data/daily";
 import { STATION_LABEL, STATION_ICON } from "@/lib/data/station-constants";
+import { RealtimeRefresh } from "@/components/realtime-refresh";
 
 function fmt(n: number | null): string {
   return n == null ? "—" : n.toLocaleString("th-TH");
@@ -25,6 +26,7 @@ export default async function DailyReportPage({
 
   return (
     <div className="space-y-6">
+      <RealtimeRefresh tables={["production_records"]} />
       <div>
         <h1 className="text-2xl font-bold tracking-tight">รายงานประจำวัน</h1>
         <p className="mt-1 text-sm text-muted-foreground">

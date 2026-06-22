@@ -16,6 +16,7 @@ import {
 } from "@/lib/data/station-constants";
 import { getApprovalsForJob } from "@/lib/data/approvals";
 import { getProfile } from "@/lib/auth/dal";
+import { RealtimeRefresh } from "@/components/realtime-refresh";
 import { JobActions } from "./job-actions";
 import { RecordForm } from "./record-form";
 
@@ -54,6 +55,7 @@ export default async function JobDetailPage({
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
+      <RealtimeRefresh tables={["jobs", "production_records", "approvals"]} />
       <Link
         href="/board"
         className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"

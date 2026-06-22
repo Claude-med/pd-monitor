@@ -4,6 +4,7 @@ import {
   DEFAULT_LABOR_RATE,
 } from "@/lib/data/dashboard";
 import { STATION_LABEL, STATION_ICON } from "@/lib/data/station-constants";
+import { RealtimeRefresh } from "@/components/realtime-refresh";
 
 const STATUS_LABELS: Record<string, string> = {
   pending_announce: "รอแจ้งผลิต",
@@ -69,6 +70,7 @@ export default async function DashboardPage({
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
+      <RealtimeRefresh tables={["jobs", "production_records"]} />
       <div>
         <h1 className="text-2xl font-bold tracking-tight">
           สวัสดี {profile?.full_name ?? ""}
