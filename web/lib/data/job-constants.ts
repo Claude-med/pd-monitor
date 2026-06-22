@@ -44,16 +44,20 @@ export type Transition = {
   label: string;
   roles: AppRole[];
   kind: "forward" | "reject";
+  /** การตัดสินคุณภาพ QC/QA → ต้องลงนาม (ยืนยันรหัสผ่านซ้ำ) ตาม A3 */
+  esign?: boolean;
+  /** ขั้นที่ลงนาม (qc/qa) — ใช้ส่งให้ rpc sign_job_decision */
+  stage?: "qc" | "qa";
 };
 
 export const TRANSITIONS: Transition[] = [
   { from: "pending_announce", to: "planned", label: "ยืนยันแผนผลิต", roles: ["manager"], kind: "forward" },
   { from: "planned", to: "in_production", label: "เริ่มผลิต", roles: ["production", "manager"], kind: "forward" },
   { from: "in_production", to: "qc", label: "ส่งตรวจ QC", roles: ["production"], kind: "forward" },
-  { from: "qc", to: "qa", label: "QC ผ่าน → ส่ง QA", roles: ["qc"], kind: "forward" },
-  { from: "qc", to: "in_production", label: "QC ตีกลับ", roles: ["qc"], kind: "reject" },
-  { from: "qa", to: "finished_goods", label: "QA ปล่อยผ่าน → FG", roles: ["qa"], kind: "forward" },
-  { from: "qa", to: "in_production", label: "QA ตีกลับ", roles: ["qa"], kind: "reject" },
+  { from: "qc", to: "qa", label: "QC ผ่าน → ส่ง QA", roles: ["qc"], kind: "forward", esign: true, stage: "qc" },
+  { from: "qc", to: "in_production", label: "QC ตีกลับ", roles: ["qc"], kind: "reject", esign: true, stage: "qc" },
+  { from: "qa", to: "finished_goods", label: "QA ปล่อยผ่าน → FG", roles: ["qa"], kind: "forward", esign: true, stage: "qa" },
+  { from: "qa", to: "in_production", label: "QA ตีกลับ", roles: ["qa"], kind: "reject", esign: true, stage: "qa" },
 ];
 
 /** การเปลี่ยนสถานะที่ผู้ใช้ (role ชุดนี้) ทำได้จากสถานะปัจจุบัน */

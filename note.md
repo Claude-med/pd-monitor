@@ -4,7 +4,39 @@
 
 ---
 
-## 📅 บันทึกวันที่ 22 มิถุนายน 2569 — เฟส 5 / D5 (ล่าสุด)
+## 📅 บันทึกวันที่ 22 มิถุนายน 2569 — เฟส 6 / D6 ส่วน 1: E-signature (ล่าสุด)
+
+### ✅ วันนี้ทำอะไรไปบ้าง — ลายเซ็นอิเล็กทรอนิกส์ (lite) ของ QC/QA 🖊️
+> ผู้ใช้เลือกทำ D6 เป็น 2 ก้อน: **(1) E-signature ก่อน** ← ทำก้อนนี้ · (2) Daily Report ทีหลัง
+1. **เช็ก Notion ก่อนเริ่ม** — fetch Lean PRD + demo-feature-suggestions: ไม่มี requirement ใหม่
+   (หมายเหตุ: ปุ่ม QC/QA อนุมัติ/ตีกลับ ทำไปแล้วใน D4 · D6 = เพิ่มชั้น "ลงนามยืนยันรหัส" + เก็บ approvals ตาม A3)
+2. **DB (ไฟล์ `web/supabase/migrations/0008_approvals.sql`)** — ⏳ รอ paste:
+   - ตาราง `approvals` (job/ผู้ลงนาม/stage qc-qa/decision approve-reject/reason/signed_at + ALCOA cols)
+     + meta trigger + audit trigger + RLS (อ่านได้ authenticated, เขียนผ่านฟังก์ชันเท่านั้น)
+   - ฟังก์ชัน `sign_job_decision(job, stage, decision, reason)` (security definer):
+     ตรวจ role ตาม stage · reject ต้องมีเหตุผล · เช็กงานอยู่ขั้นนั้นจริง · บันทึกลายเซ็น
+     **แล้วเรียก `advance_job_status()` ขยับสถานะในธุรกรรมเดียว (atomic)** — ใช้ด่านเดิมเป็น gatekeeper
+3. **แอป (`web/`)** — build ผ่าน:
+   - `board/actions.ts` เพิ่ม `signDecision()` — **ยืนยันรหัสผ่านซ้ำ** ผ่าน verifier client แยก
+     (`@supabase/supabase-js` publishable key, persistSession:false → ไม่แตะ session ที่ล็อกอิน) ก่อนเรียก rpc
+   - `job-constants.ts` — mark `esign:true` + `stage` บน transition qc/qa ทั้ง 4
+   - `job-actions.tsx` — ปุ่ม QC/QA (🖊️) เปิดแผงลงนาม: ช่องรหัสผ่าน (+เหตุผลถ้าตีกลับ) · ปุ่มอื่นทำงานเหมือนเดิม
+   - `lib/data/approvals.ts` (`getApprovalsForJob`) + แสดงรายการลายเซ็นในหน้า `board/[jobNo]`
+     (เขียว=อนุมัติ/แดง=ตีกลับ + เหตุผล + เวลา)
+4. **ทดสอบ:** `npm run build` ผ่าน (TypeScript เคลียร์)
+
+### ⚠️ ขั้นที่ผู้ใช้ต้องทำเอง
+- **paste `0008_approvals.sql`** ลง Supabase SQL Editor (ต่อจาก 0001–0007)
+- ทดสอบ: login เป็น **qc** เปิดงานสถานะ QC (เช่น JOB-002) → กด "🖊️ QC ผ่าน → ส่ง QA"
+  → ใส่รหัสผิดดูว่าปฏิเสธ · ใส่รหัสถูกดูว่าสถานะขยับเป็น QA + ลายเซ็นโผล่ในหน้า
+
+### ▶️ ขั้นถัดไป (D6 ส่วน 2)
+- **Daily Report** — หน้าสรุปบันทึกผลผลิตรายวัน (รวมทุกงาน กรองตามวันที่/สถานี) + เพิ่มเมนู
+  (ข้อมูลมีแล้วจาก D5 · เหลือทำหน้า report view)
+
+---
+
+## 📅 บันทึกวันที่ 22 มิถุนายน 2569 — เฟส 5 / D5
 
 ### ✅ วันนี้ทำอะไรไปบ้าง — ฟอร์มบันทึกผลผลิตรายวัน + validation ฝั่ง server + audit 🎉
 1. **เช็ก Notion ก่อนเริ่ม** — fetch หน้า demo-feature-suggestions: เป็น 10 ฟีเจอร์เดิม ไม่มี requirement ใหม่

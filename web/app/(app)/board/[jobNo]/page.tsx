@@ -14,6 +14,7 @@ import {
   STATION_ICON,
   RECORDABLE_STATUSES,
 } from "@/lib/data/station-constants";
+import { getApprovalsForJob } from "@/lib/data/approvals";
 import { getProfile } from "@/lib/auth/dal";
 import { JobActions } from "./job-actions";
 import { RecordForm } from "./record-form";
@@ -46,6 +47,7 @@ export default async function JobDetailPage({
   const flag = job.problem ? PROBLEM_FLAGS[job.problem] : null;
 
   const records = await getRecordsForJob(job.id);
+  const approvals = await getApprovalsForJob(job.id);
   const canRecord =
     (roles.includes("production") || roles.includes("manager")) &&
     RECORDABLE_STATUSES.has(job.status);
@@ -207,6 +209,41 @@ export default async function JobDetailPage({
           )}
         </div>
       </div>
+
+      {/* ลายเซ็นอนุมัติคุณภาพ (QC/QA e-signature) */}
+      {approvals.length > 0 && (
+        <div className="rounded-xl border bg-card p-5">
+          <h2 className="mb-3 font-semibold">ลายเซ็นอนุมัติคุณภาพ (QC / QA)</h2>
+          <ul className="space-y-2">
+            {approvals.map((a) => {
+              const ok = a.decision === "approve";
+              return (
+                <li
+                  key={a.id}
+                  className="flex flex-wrap items-start gap-2 rounded-md border border-l-4 bg-card p-3 text-sm"
+                  style={{ borderLeftColor: ok ? "#16a34a" : "#ef4444" }}
+                >
+                  <span
+                    className="rounded-full px-2 py-0.5 text-xs font-medium text-white"
+                    style={{ backgroundColor: ok ? "#16a34a" : "#ef4444" }}
+                  >
+                    {a.stage.toUpperCase()} {ok ? "อนุมัติ" : "ตีกลับ"}
+                  </span>
+                  <span className="font-medium">{a.signer_name ?? "—"}</span>
+                  <span className="text-muted-foreground">
+                    {new Date(a.signed_at).toLocaleString("th-TH")}
+                  </span>
+                  {a.reason && (
+                    <span className="w-full text-muted-foreground">
+                      เหตุผล: {a.reason}
+                    </span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
