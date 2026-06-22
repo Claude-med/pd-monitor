@@ -11,12 +11,7 @@ export type NavItem = {
 export const NAV_ITEMS: NavItem[] = [
   { href: "/", label: "แดชบอร์ด", roles: "all", ready: true },
   { href: "/board", label: "บอร์ดงาน", roles: "all", ready: true },
-  {
-    href: "/production",
-    label: "บันทึกการผลิต",
-    roles: ["production", "manager"],
-    ready: false,
-  },
+  { href: "/daily", label: "รายงานประจำวัน", roles: "all", ready: true },
   {
     href: "/quality",
     label: "ตรวจ QC / QA",
