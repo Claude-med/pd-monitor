@@ -10,7 +10,7 @@ export type NavItem = {
 /** เมนูหลัก — กรองตาม role ของผู้ใช้ก่อนแสดง */
 export const NAV_ITEMS: NavItem[] = [
   { href: "/", label: "แดชบอร์ด", roles: "all", ready: true },
-  { href: "/board", label: "บอร์ดงาน", roles: "all", ready: false },
+  { href: "/board", label: "บอร์ดงาน", roles: "all", ready: true },
   {
     href: "/production",
     label: "บันทึกการผลิต",

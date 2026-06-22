@@ -16,6 +16,7 @@
    | 3 | `migrations/0003_rls.sql` | เปิด RLS (ความปลอดภัย) ทุกตาราง |
    | 4 | `seed.sql` | ข้อมูลตัวอย่างไว้ทดสอบ (ไม่ใส่ก็ได้ ถ้าจะใส่ข้อมูลจริงเอง) |
    | 5 | `migrations/0005_fix_auth_roles_meta.sql` | **(D3)** เชื่อม Auth↔profiles + helper สิทธิ์ + RLS แยก role (รวมแก้บั๊ก trigger) |
+   | 6 | `migrations/0006_job_transitions.sql` | **(D4)** ฟังก์ชันบังคับลำดับสถานะงาน (กันข้ามขั้น) + บันทึก audit |
 
    > แต่ละไฟล์รันแยกกัน เห็น "Success. No rows returned" = ผ่าน
    >
