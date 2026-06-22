@@ -8,8 +8,19 @@ import {
   STATUS_COLOR,
   PROBLEM_FLAGS,
 } from "@/lib/data/job-constants";
+import { getRecordsForJob } from "@/lib/data/production";
+import {
+  STATION_LABEL,
+  STATION_ICON,
+  RECORDABLE_STATUSES,
+} from "@/lib/data/station-constants";
 import { getProfile } from "@/lib/auth/dal";
 import { JobActions } from "./job-actions";
+import { RecordForm } from "./record-form";
+
+function fmtQty(n: number | null): string {
+  return n == null ? "—" : n.toLocaleString("th-TH");
+}
 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -33,6 +44,11 @@ export default async function JobDetailPage({
   const roles = profile?.roles ?? [];
   const curIdx = STATUS_INDEX[job.status] ?? 0;
   const flag = job.problem ? PROBLEM_FLAGS[job.problem] : null;
+
+  const records = await getRecordsForJob(job.id);
+  const canRecord =
+    (roles.includes("production") || roles.includes("manager")) &&
+    RECORDABLE_STATUSES.has(job.status);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -131,6 +147,65 @@ export default async function JobDetailPage({
           status={job.status}
           roles={roles}
         />
+      </div>
+
+      {/* บันทึกผลผลิตรายวัน */}
+      <div className="rounded-xl border bg-card p-5">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-semibold">บันทึกผลผลิตรายวัน</h2>
+          <span className="text-xs text-muted-foreground">
+            {records.length} รายการ
+          </span>
+        </div>
+
+        {records.length > 0 ? (
+          <div className="-mx-2 overflow-x-auto">
+            <table className="w-full min-w-[640px] text-sm">
+              <thead>
+                <tr className="border-b text-left text-xs text-muted-foreground">
+                  <th className="px-2 py-2 font-medium">วันที่</th>
+                  <th className="px-2 py-2 font-medium">สถานี</th>
+                  <th className="px-2 py-2 text-right font-medium">ตั้งต้น</th>
+                  <th className="px-2 py-2 text-right font-medium">ผลิตได้</th>
+                  <th className="px-2 py-2 text-right font-medium">ของเสีย</th>
+                  <th className="px-2 py-2 text-right font-medium">ชม.</th>
+                  <th className="px-2 py-2 font-medium">ผู้บันทึก</th>
+                </tr>
+              </thead>
+              <tbody>
+                {records.map((r) => (
+                  <tr key={r.id} className="border-b last:border-0 align-top">
+                    <td className="whitespace-nowrap px-2 py-2">{r.record_date}</td>
+                    <td className="whitespace-nowrap px-2 py-2">
+                      {STATION_ICON[r.station]} {STATION_LABEL[r.station] ?? r.station}
+                    </td>
+                    <td className="px-2 py-2 text-right tabular-nums">{fmtQty(r.input_qty)}</td>
+                    <td className="px-2 py-2 text-right tabular-nums">{fmtQty(r.output_qty)}</td>
+                    <td className="px-2 py-2 text-right tabular-nums">{fmtQty(r.loss_qty)}</td>
+                    <td className="px-2 py-2 text-right tabular-nums">{r.hours ?? "—"}</td>
+                    <td className="whitespace-nowrap px-2 py-2 text-muted-foreground">
+                      {r.operator_name ?? "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">ยังไม่มีการบันทึกผลผลิต</p>
+        )}
+
+        <div className="mt-4">
+          {canRecord ? (
+            <RecordForm jobId={job.id} jobNo={job.job_no} />
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              {roles.includes("production") || roles.includes("manager")
+                ? "บันทึกผลผลิตได้เฉพาะงานที่เริ่มผลิตแล้ว (ยังไม่ถึง/เลยขั้นผลิต)"
+                : "เฉพาะฝ่ายผลิต/ผู้บริหารบันทึกผลผลิตได้"}
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );
