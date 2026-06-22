@@ -32,8 +32,15 @@
 3. เปิด https://pd-monitor.vercel.app → ล็อกอิน → เห็นเมนูตามสิทธิ์
 
 ### ▶️ ขั้นถัดไป (D4)
-- หลัง login ใช้ได้ → เริ่ม **D4**: หน้า board + job · สถานะปัญหา/สี/search/filter · **state-machine guard** (กันข้ามสถานะ)
+- เริ่ม **D4**: หน้า board + job · สถานะปัญหา/สี/search/filter · **state-machine guard** (กันข้ามสถานะ)
   (อ่าน `docs/recommendations.md` C3 + fetch Notion เช็ก requirement ใหม่ก่อน)
+
+### 💡 Backlog / ค้างไว้คุยต่อ (เกิดจากคำถามผู้ใช้ 22 มิ.ย.)
+- **หน้า admin จัดการผู้ใช้** (เสริม นอก roadmap D1–D9) — สร้างบัญชี + กำหนด role + **รีเซ็ตรหัสผ่าน**
+  ในแอปเอง ไม่ต้องเข้า Supabase dashboard · ใช้ `lib/supabase/admin.ts` (secret key) +
+  `auth.admin.updateUserById()` · เหมาะกับโรงงาน (คนงานหน้าไลน์มักไม่มีอีเมลจริง → admin รีเซ็ตให้)
+  → ยังไม่ตัดสินใจว่าจะแทรกเฟสไหน (ถามผู้ใช้ก่อน)
+- หมายเหตุความปลอดภัยที่อธิบายผู้ใช้แล้ว: รหัสผ่านเก็บแบบ hash ดูย้อนหลังไม่ได้ — admin "ตั้งใหม่" ได้ ไม่ใช่ "อ่านของเดิม"
 
 ---
 
