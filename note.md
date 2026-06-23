@@ -23,7 +23,37 @@
 
 ---
 
-## 📅 บันทึกวันที่ 23 มิถุนายน 2569 — เฟส 9 / D9 (ก้อน 2): Checklist UAT (ล่าสุด)
+## 📅 บันทึกวันที่ 23 มิถุนายน 2569 — เฟส 10 / D10 (ก้อน 1): หน้า Admin จัดการผู้ใช้ + role admin (ล่าสุด)
+
+### ✅ วันนี้ทำอะไรไปบ้าง — ปลดคอขวด go-live: จัดการบัญชี/สิทธิ์ในแอปเอง 👤🔑
+> เริ่ม D10 ตาม Roadmap หลัง D9 (Notion) ข้อ A0 · ผู้ใช้เลือกทำ A0 ก่อน + ขอเพิ่ม role `admin` ทำได้ทุกอย่าง
+1. **หน้า `/admin/users`** (เห็นเฉพาะ manager/admin) — `page.tsx` (guard) + `users-admin.tsx` (UI) + `actions.ts`:
+   - สร้างบัญชี (อีเมล+รหัส+ชื่อ+แผนก+role) · แก้ role · แก้ชื่อ/แผนก · **รีเซ็ตรหัสผ่าน** · **ระงับ/เปิดบัญชี**
+   - **Auth ops** (createUser/updateUserById/ban) → admin client (secret key, server-only)
+   - **เขียน profiles/roles** → RPC security definer (auth.uid ทำงาน → audit เก็บ "ใครทำ")
+   - สร้างบัญชี `email_confirm:true` (ล็อกอินได้ทันที) · ระงับ = ban auth ~100 ปี (บล็อกล็อกอินจริง)
+   - บัญชี seed เดิม (มีอีเมล ยังไม่ผูก auth) → สร้างด้วยอีเมลเดิม trigger `handle_new_user` ผูกให้อัตโนมัติ
+2. **เพิ่ม role `admin` = ทำได้ทุกอย่าง** — แก้ครั้งเดียวครอบทุกที่:
+   - DB `has_role()` เพิ่มเงื่อนไข "หรือเป็น admin" → guard RPC ทุกตัว + RLS ทุก policy ผ่านอัตโนมัติ
+   - แอป `lib/auth/roles.ts` (ใหม่) `hasRole`/`hasAnyRole` (admin ผ่านเสมอ) แทน `.includes("manager")` ทั่วแอป
+     (nav · ปุ่มสร้างงาน · DL cost · เปลี่ยนสถานะงาน · บันทึกผลผลิต · หน้า admin)
+   - กัน lockout: บัญชีตัวเองต้องคงสิทธิ์ manager หรือ admin ไว้
+3. **DB (paste แล้ว):** `0012_admin_users.sql` (RPC: admin_set_roles/admin_update_profile/admin_set_active)
+   + `0013_admin_role.sql` (เพิ่ม enum `admin` + has_role ใหม่ + lockout)
+4. **ทดสอบ:** `npm run build` ผ่าน (TypeScript เคลียร์)
+
+### ✅ verified แล้ว (23 มิ.ย. 69)
+- ผู้ใช้ paste 0012 + 0013 บน Supabase แล้ว · Claude เช็กผ่าน REST:
+  `has_role('admin')`=false (enum admin มีจริง + ฟังก์ชันคอมไพล์ผ่าน) · admin_set_roles/update_profile/set_active
+  มีอยู่ + guard ทำงาน (ปฏิเสธ session ที่ไม่ถูกต้อง) ✅ · commit+push แล้ว (`f62a75b`) → Vercel auto-deploy
+
+### ▶️ ขั้นถัดไป (เหลือทดสอบ UI จริง + D10 ก้อนต่อไป)
+- **เหลือ:** ผู้ใช้ทดสอบบน UI จริง (login manager → ตั้ง admin → admin เห็น/ทำได้ทุกอย่าง · รีเซ็ตรหัส/ระงับบัญชี · กัน lockout)
+- D10 ก้อนถัดไปตาม roadmap: A1 เครื่องจักร · A2 เบิกวัตถุดิบ · A3 line clearance · A5 จำนวนคน/auto job no
+
+---
+
+## 📅 บันทึกวันที่ 23 มิถุนายน 2569 — เฟส 9 / D9 (ก้อน 2): Checklist UAT
 
 ### ✅ วันนี้ทำอะไรไปบ้าง — เครื่องมือให้ทีมไล่ทดสอบก่อนเปิดใช้จริง 📋
 1. **`docs/uat-checklist.md` (ใหม่)** — checklist ภาษาไทย ติ๊กได้ สำหรับทีม:
