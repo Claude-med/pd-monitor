@@ -47,29 +47,28 @@ begin
   -- ========== 1) role ไหนผูกบัญชี auth แล้วบ้าง ==========
   foreach r in array v_roles loop
     v_uid := case r when 'production' then v_uid_prod when 'qc' then v_uid_qc when 'qa' then v_uid_qa when 'warehouse' then v_uid_wh else v_uid_mgr end;
-    a_scn := a_scn || format('ตั้งต้น: role %s ผูกบัญชี auth?', r);
-    a_exp := a_exp || 'ผูกแล้ว';
-    a_act := a_act || case when v_uid is null then 'ยังไม่ผูก ⚠️' else 'ผูกแล้ว' end;
-    a_pass := a_pass || (v_uid is not null);
+    a_scn  := array_append(a_scn,  format('ตั้งต้น: role %s ผูกบัญชี auth?', r));
+    a_exp  := array_append(a_exp,  'ผูกแล้ว'::text);
+    a_act  := array_append(a_act,  (case when v_uid is null then 'ยังไม่ผูก ⚠️' else 'ผูกแล้ว' end)::text);
+    a_pass := array_append(a_pass, (v_uid is not null));
   end loop;
 
   -- ========== 2) ตรรกะ write policy ผ่าน has_role() (แม่น ไม่ขึ้นกับ grant) ==========
-  -- production = production จริง, ไม่ใช่ manager
   perform set_config('request.jwt.claims', json_build_object('sub', v_uid_prod, 'role','authenticated')::text, false);
   select public.has_role('production') into v_b;
-  a_scn := a_scn || 'has_role: production คือ production'; a_exp := a_exp || 'true';  a_act := a_act || v_b::text; a_pass := a_pass || (v_b = true);
+  a_scn := array_append(a_scn,'has_role: production คือ production'::text); a_exp := array_append(a_exp,'true'::text);  a_act := array_append(a_act, v_b::text); a_pass := array_append(a_pass, v_b = true);
   select public.has_role('manager') into v_b;
-  a_scn := a_scn || 'has_role: production ไม่ใช่ manager (ห้ามแก้ products/orders)'; a_exp := a_exp || 'false'; a_act := a_act || v_b::text; a_pass := a_pass || (v_b = false);
-  -- warehouse ไม่ใช่ production และไม่ใช่ manager
+  a_scn := array_append(a_scn,'has_role: production ไม่ใช่ manager (ห้ามแก้ products/orders)'::text); a_exp := array_append(a_exp,'false'::text); a_act := array_append(a_act, v_b::text); a_pass := array_append(a_pass, v_b = false);
+
   perform set_config('request.jwt.claims', json_build_object('sub', v_uid_wh, 'role','authenticated')::text, false);
   select public.has_role('production') into v_b;
-  a_scn := a_scn || 'has_role: warehouse ไม่ใช่ production (ห้ามแก้ jobs/batches)'; a_exp := a_exp || 'false'; a_act := a_act || v_b::text; a_pass := a_pass || (v_b = false);
+  a_scn := array_append(a_scn,'has_role: warehouse ไม่ใช่ production (ห้ามแก้ jobs/batches)'::text); a_exp := array_append(a_exp,'false'::text); a_act := array_append(a_act, v_b::text); a_pass := array_append(a_pass, v_b = false);
   select public.has_role('manager') into v_b;
-  a_scn := a_scn || 'has_role: warehouse ไม่ใช่ manager'; a_exp := a_exp || 'false'; a_act := a_act || v_b::text; a_pass := a_pass || (v_b = false);
-  -- manager = manager
+  a_scn := array_append(a_scn,'has_role: warehouse ไม่ใช่ manager'::text); a_exp := array_append(a_exp,'false'::text); a_act := array_append(a_act, v_b::text); a_pass := array_append(a_pass, v_b = false);
+
   perform set_config('request.jwt.claims', json_build_object('sub', v_uid_mgr, 'role','authenticated')::text, false);
   select public.has_role('manager') into v_b;
-  a_scn := a_scn || 'has_role: manager คือ manager'; a_exp := a_exp || 'true'; a_act := a_act || v_b::text; a_pass := a_pass || (v_b = true);
+  a_scn := array_append(a_scn,'has_role: manager คือ manager'::text); a_exp := array_append(a_exp,'true'::text); a_act := array_append(a_act, v_b::text); a_pass := array_append(a_pass, v_b = true);
 
   -- ========== 3) อ่าน jobs — ทุก role เห็น · anon ไม่เห็น ==========
   foreach r in array v_roles loop
@@ -78,19 +77,26 @@ begin
     execute 'set role authenticated';
     select count(*) into v_cnt from public.jobs;
     execute 'reset role';
-    a_scn := a_scn || format('อ่าน jobs เป็น %s', r); a_exp := a_exp || 'เห็น (>0)'; a_act := a_act || v_cnt::text; a_pass := a_pass || (v_cnt > 0);
+    a_scn := array_append(a_scn, format('อ่าน jobs เป็น %s', r)); a_exp := array_append(a_exp,'เห็น (>0)'::text); a_act := array_append(a_act, v_cnt::text); a_pass := array_append(a_pass, v_cnt > 0);
   end loop;
-  -- anon (ยังไม่ login)
+  -- anon (ยังไม่ login) — ถ้าไม่มีแม้แต่ SELECT grant จะ throw → ถือว่า "ไม่เห็น" (ผ่าน)
   perform set_config('request.jwt.claims', '', false);
-  execute 'set role anon';
-  select count(*) into v_cnt from public.jobs;
-  execute 'reset role';
-  a_scn := a_scn || 'อ่าน jobs เป็น anon (ยังไม่ login)'; a_exp := a_exp || 'ไม่เห็น (0)'; a_act := a_act || v_cnt::text; a_pass := a_pass || (v_cnt = 0);
-  perform set_config('request.jwt.claims', '', false);
-  execute 'set role anon';
-  select count(*) into v_cnt from public.products;
-  execute 'reset role';
-  a_scn := a_scn || 'อ่าน products เป็น anon'; a_exp := a_exp || 'ไม่เห็น (0)'; a_act := a_act || v_cnt::text; a_pass := a_pass || (v_cnt = 0);
+  v_cnt := 0;
+  begin
+    execute 'set role anon';
+    select count(*) into v_cnt from public.jobs;
+    execute 'reset role';
+  exception when others then execute 'reset role'; v_cnt := 0;
+  end;
+  a_scn := array_append(a_scn,'อ่าน jobs เป็น anon (ยังไม่ login)'::text); a_exp := array_append(a_exp,'ไม่เห็น (0)'::text); a_act := array_append(a_act, v_cnt::text); a_pass := array_append(a_pass, v_cnt = 0);
+  v_cnt := 0;
+  begin
+    execute 'set role anon';
+    select count(*) into v_cnt from public.products;
+    execute 'reset role';
+  exception when others then execute 'reset role'; v_cnt := 0;
+  end;
+  a_scn := array_append(a_scn,'อ่าน products เป็น anon'::text); a_exp := array_append(a_exp,'ไม่เห็น (0)'::text); a_act := array_append(a_act, v_cnt::text); a_pass := array_append(a_pass, v_cnt = 0);
 
   -- ========== 4) อ่าน audit_log — เห็นเฉพาะ manager/qa (เคส "ว่างเงียบ" คลาสสิก) ==========
   foreach r in array v_roles loop
@@ -100,10 +106,10 @@ begin
     select count(*) into v_cnt from public.audit_log;
     execute 'reset role';
     v_should := r in ('manager','qa');
-    a_scn := a_scn || format('อ่าน audit_log เป็น %s', r);
-    a_exp := a_exp || case when v_should then 'เห็น (>0)' else 'ไม่เห็น (0)' end;
-    a_act := a_act || v_cnt::text;
-    a_pass := a_pass || case when v_should then v_cnt > 0 else v_cnt = 0 end;
+    a_scn  := array_append(a_scn, format('อ่าน audit_log เป็น %s', r));
+    a_exp  := array_append(a_exp, (case when v_should then 'เห็น (>0)' else 'ไม่เห็น (0)' end)::text);
+    a_act  := array_append(a_act, v_cnt::text);
+    a_pass := array_append(a_pass, case when v_should then v_cnt > 0 else v_cnt = 0 end);
   end loop;
 
   -- ========== 5–7) เขียน/แก้ตาม write_* + audit append-only ==========
@@ -174,7 +180,10 @@ begin
       v_pass := not (v_cat = 'OK' and v_rows > 0);
     end if;
 
-    a_scn := a_scn || w_scn[i]; a_exp := a_exp || v_exp; a_act := a_act || v_actual; a_pass := a_pass || v_pass;
+    a_scn  := array_append(a_scn,  w_scn[i]);
+    a_exp  := array_append(a_exp,  v_exp);
+    a_act  := array_append(a_act,  v_actual);
+    a_pass := array_append(a_pass, v_pass);
   end loop;
 
   -- เผื่อหลุด: คืน role + claims ให้ปกติ
