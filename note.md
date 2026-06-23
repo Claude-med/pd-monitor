@@ -23,7 +23,26 @@
 
 ---
 
-## 📅 บันทึกวันที่ 23 มิถุนายน 2569 — เฟส 10 / D10 (ก้อน 1): หน้า Admin จัดการผู้ใช้ + role admin (ล่าสุด)
+## 📅 บันทึกวันที่ 23 มิถุนายน 2569 — เฟส 10 / D10 เสร็จครบ (A0·A1·A2·A3·A5) (ล่าสุด)
+
+### ✅ D10 = เติม brief CEO รอบแรก — เสร็จครบ 5 ก้อน 🎉 (migration 0012–0019 paste+verify หมดแล้ว)
+> ทุกก้อน: เขียนผ่าน RPC security definer + RLS + audit + realtime ตามแพตเทิร์นเดิม · build ผ่าน · paste + verify REST + ผู้ใช้ทดสอบ UI ผ่าน · push ขึ้น Vercel แล้ว
+- **A0 จัดการผู้ใช้ + role admin** (0012–0013) — หน้า `/admin/users` · admin = has_role ผ่านทุก role · `lib/auth/roles.ts`
+- **A1 เครื่องจักร** (3 ก้อน · 0014–0015) — หน้า `/machines` (ทะเบียน+สถานะ+เตือนซ่อม/สอบเทียบ) · เลือกเครื่องตอนบันทึกผลผลิต (กันเครื่องซ่อม) · รายงานการใช้เครื่อง (`machine-usage.ts`)
+- **A2 วัตถุดิบ/คลัง + เบิก** (3 ก้อน · 0016–0017) — หน้า `/materials` (`materials`+`material_lots`) · ใบเบิก `material_requisitions` ในหน้างาน (request→issue ตัดสต็อก atomic, กันไม่ผ่าน/หมดอายุ/ไม่พอ) · แถบเตือนงานยังไม่เบิก
+- **A3 Line Clearance** (0018) — ตาราง `line_clearances` + สองลายเซ็น (perform≠check) · **GATE ใน `advance_job_status`: มีแผน→กำลังผลิต ต้องผ่าน clearance ก่อน**
+- **A5 จำนวนคน + auto เลขงาน** (0019) — `headcount` ใน production_records (ค่าแรง=คน-ชม.×อัตรา ในแดชบอร์ด) · sequence `job_no_seq` ออก `JOB-YYYY-NNNN` ถ้าเว้นว่าง
+- เมนูใหม่: จัดการผู้ใช้ · เครื่องจักร · วัตถุดิบ/คลัง · commit ล่าสุด `df1fdb1`
+
+### ▶️ ขั้นถัดไป — D11 (รอบ 2 ตาม Roadmap Notion)
+- **A4** สูตรการผลิต (recipe/BOM) + สถานีย่อยจริง + รูปแบบบรรจุ (Blister/Strip/ซอง/ขวด)
+- **A6** คลัง FG + in-process QC + จุดเก็บ sample (QA)
+- (+ เริ่ม B3 deviation · B4 notification ตามลำดับ)
+> หมายเหตุ go-live: A3 ทำให้งานสถานะ "มีแผนแล้ว" เดิม ต้องทำ Line Clearance ก่อนเริ่มผลิต — แจ้งทีมกันงง
+
+---
+
+## 📅 บันทึกวันที่ 23 มิถุนายน 2569 — เฟส 10 / D10 (ก้อน 1): หน้า Admin จัดการผู้ใช้ + role admin
 
 ### ✅ วันนี้ทำอะไรไปบ้าง — ปลดคอขวด go-live: จัดการบัญชี/สิทธิ์ในแอปเอง 👤🔑
 > เริ่ม D10 ตาม Roadmap หลัง D9 (Notion) ข้อ A0 · ผู้ใช้เลือกทำ A0 ก่อน + ขอเพิ่ม role `admin` ทำได้ทุกอย่าง
