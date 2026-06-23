@@ -128,3 +128,35 @@
     @apply font-sans;
   }
 }
+
+/* ============================================================
+   ขัดเกลามือถือ (D8 ส่วน 2) — recommendations.md C1
+   ============================================================ */
+
+/* กันบั๊ก iOS Safari: ช่องกรอกที่ฟอนต์ < 16px จะถูกซูมเองตอนแตะ
+   (น่ารำคาญมากบนมือถือคนหน้าไลน์) → บังคับ 16px เฉพาะจอเล็ก */
+@media (max-width: 640px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+/* อุปกรณ์สัมผัส (มือถือ/แท็บเล็ต): ปุ่ม/ช่องกรอกสูงพอให้นิ้วแตะสะดวก (~44px)
+   ไม่กระทบเดสก์ท็อปที่ใช้เมาส์ (pointer: fine) */
+@media (pointer: coarse) {
+  button,
+  [role="button"],
+  input,
+  select,
+  textarea {
+    min-height: 44px;
+  }
+  a,
+  button,
+  [role="button"] {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+}

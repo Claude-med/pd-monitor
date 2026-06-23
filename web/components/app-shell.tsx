@@ -38,7 +38,7 @@ export function AppShell({
               closeMenu();
             }}
             className={[
-              "flex items-center justify-between rounded-md px-3 py-2 text-sm transition-colors",
+              "flex items-center justify-between rounded-md px-3 py-2.5 text-sm transition-colors",
               active
                 ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
                 : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60",
@@ -90,7 +90,7 @@ export function AppShell({
         <form action={logout} className="mt-3">
           <button
             type="submit"
-            className="w-full rounded-md border px-3 py-1.5 text-sm hover:bg-accent"
+            className="w-full rounded-md border px-3 py-2 text-sm hover:bg-accent"
           >
             ออกจากระบบ
           </button>
