@@ -27,6 +27,7 @@ function StatusBadge({ status }: { status: string }) {
 export function Requisitions({
   jobId,
   jobNo,
+  jobStatus,
   requisitions,
   lots,
   canRequest,
@@ -35,6 +36,7 @@ export function Requisitions({
 }: {
   jobId: string;
   jobNo: string;
+  jobStatus: string;
   requisitions: RequisitionRow[];
   lots: SelectableLot[];
   canRequest: boolean;
@@ -74,6 +76,24 @@ export function Requisitions({
     });
   }
 
+  // เตือนช่วงที่ควรมีวัตถุดิบแล้ว (มีแผน/กำลังผลิต) แต่ยังไม่ได้เบิก/จ่าย
+  const issuedCount = requisitions.filter((r) => r.status === "issued").length;
+  const requestedCount = requisitions.filter((r) => r.status === "requested").length;
+  const shouldHaveMaterials = jobStatus === "planned" || jobStatus === "in_production";
+  let warn: { tone: "warn" | "info"; text: string } | null = null;
+  if (shouldHaveMaterials && issuedCount === 0) {
+    warn =
+      requestedCount > 0
+        ? {
+            tone: "info",
+            text: `มีใบเบิกรอฝ่ายคลังจ่าย ${requestedCount} รายการ — ยังไม่ได้จ่ายจริง (สต็อกยังไม่ถูกตัด)`,
+          }
+        : {
+            tone: "warn",
+            text: "⚠️ ยังไม่ได้เบิกวัตถุดิบสำหรับงานนี้ — ควรเบิกก่อน/ระหว่างเริ่มผลิต",
+          };
+  }
+
   return (
     <div className="rounded-xl border bg-card p-5">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -82,6 +102,19 @@ export function Requisitions({
           {requisitions.length} รายการ
         </span>
       </div>
+
+      {warn && (
+        <div
+          className={[
+            "mb-3 rounded-md px-3 py-2 text-sm",
+            warn.tone === "warn"
+              ? "border border-amber-300 bg-amber-50 text-amber-900 dark:bg-amber-950/20 dark:text-amber-300"
+              : "border bg-muted/40 text-muted-foreground",
+          ].join(" ")}
+        >
+          {warn.text}
+        </div>
+      )}
 
       {requisitions.length > 0 ? (
         <div className="-mx-2 overflow-x-auto">

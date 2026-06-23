@@ -234,6 +234,7 @@ export default async function JobDetailPage({
       <Requisitions
         jobId={job.id}
         jobNo={job.job_no}
+        jobStatus={job.status}
         requisitions={requisitions}
         lots={selectableLots}
         canRequest={canRequestMat}
