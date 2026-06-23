@@ -2,271 +2,207 @@
 -- PD Monitor — D8 ส่วน 2 / tests/rls_impersonation_test.sql
 -- เทส RLS ด้วย impersonation (recommendations.md B4)
 --
--- ⚠️ ทำไมต้องเทสแบบนี้: RLS ที่ตั้งผิด "ไม่ throw error" — มันแค่คืนแถวว่าง (0 แถว) เงียบ ๆ
---    ดังนั้นต้องเทส "ที่ผลลัพธ์จริง" โดยสวมรอย (impersonate) เป็นผู้ใช้แต่ละ role
---    แล้วเช็กว่า อ่านเห็น/ไม่เห็น และ เขียนได้/ถูกปฏิเสธ ตรงตามที่ออกแบบไว้
+-- ⚠️ ทำไมต้องเทสแบบนี้: RLS ที่ตั้งผิด "ไม่ขึ้น error" — มันแค่คืน "0 แถวเงียบ ๆ"
+--    → ต้องเทส "ที่ผลลัพธ์จริง" โดยสวมรอย (impersonate) เป็นผู้ใช้แต่ละ role
 --
--- ✅ ปลอดภัย 100%: ทั้งสคริปต์รันใน transaction เดียว แล้ว ROLLBACK ปลายทาง
---    → ไม่มีการแก้ข้อมูลจริงค้างไว้ · รันซ้ำได้ไม่จำกัด
+-- ✅ ปลอดภัย: ทุก insert/update ทดสอบจะถูก "ย้อนกลับ" (raise undo ในบล็อกย่อย)
+--    → ไม่มีข้อมูลทดสอบค้างใน DB · ไม่ใช้ temp table · รันซ้ำได้
+--    (ออกแบบให้ทนกับ Supabase SQL Editor ที่ commit ทีละ statement)
 --
--- 📋 วิธีใช้: paste ทั้งไฟล์ลง Supabase SQL Editor แล้วรัน → ดูตารางผลลัพธ์
---    แถวไหน result = ❌ คือ RLS ไม่เป็นไปตามที่ออกแบบ ต้องไปตรวจ policy
+-- 📋 วิธีใช้: paste ทั้งไฟล์แล้วกด Run → ดูตารางผลลัพธ์ (คอลัมน์ result)
+--    ทุกแถวควรเป็น ✅ · ถ้าเจอ ❌ = RLS ไม่ตรงดีไซน์ → ไปตรวจ policy ตารางนั้น
+--
+-- ต้องรันหลังลง 0001–0009 + seed + ผูกบัญชี Auth กับ profiles ครบแล้ว (อิง uid จริง)
 --
 -- หมายเหตุสถาปัตยกรรม: แอปจริง "เขียน" ผ่าน RPC (security definer) / server action (service key)
---    → policy write_* บนตารางเป็นชั้นกันพลาด (defense-in-depth) ไม่ใช่ทางเขียนหลัก
---    สคริปต์นี้จึงเทส "ตรรกะของ policy" ผ่าน has_role() เป็นหลัก (แม่นยำ ไม่ขึ้นกับ grant)
---    + ลองเขียนตรงจริงเสริม (แยกแยะ "RLS บล็อก" ออกจาก "ไม่มี grant ตาราง")
---
--- ต้องรันหลังลง 0001–0009 + seed + สร้างบัญชี Auth ผูก profiles ครบแล้ว
+--   → policy write_* เป็นชั้นกันพลาด (defense-in-depth) สคริปต์จึงแยกแยะ
+--     "ถูก RLS บล็อก" ออกจาก "ไม่มีสิทธิ์ตาราง (grant)" เพื่อไม่ให้ผลหลอกตา
 -- ============================================================
 
-begin;  -- << ทุกอย่างอยู่ในนี้ และจะถูก ROLLBACK ตอนจบ (ไม่แตะข้อมูลจริง)
-
--- ------------------------------------------------------------
--- 0) เตรียม: เก็บ auth uid + profile id ของแต่ละ role (จาก DB จริง ไม่ hardcode)
--- ------------------------------------------------------------
-create temp table _tu (role text primary key, uid uuid, pid uuid) on commit drop;
-insert into _tu(role, uid, pid)
-select distinct on (ur.role) ur.role::text, p.auth_user_id, p.id
-  from public.user_roles ur
-  join public.profiles p on p.id = ur.profile_id
- where p.auth_user_id is not null
- order by ur.role, p.id;
-
-create temp table _r (
-  n serial, scenario text, expected text, actual text, pass boolean
-) on commit drop;
-
--- helper (pure) ดึง uid/pid ของ role
-create function pg_temp.uid(p_role text) returns uuid
-  language sql stable as $$ select uid from _tu where role = p_role $$;
-create function pg_temp.pid(p_role text) returns uuid
-  language sql stable as $$ select pid from _tu where role = p_role $$;
-
--- สวมรอยเป็น role (ตั้ง JWT sub + สลับ SQL role = authenticated เพื่อให้ RLS มีผล)
-create function pg_temp.login(p_role text) returns void language plpgsql as $$
+create or replace function pg_temp.rls_test()
+returns table(n int, scenario text, expected text, actual text, result text)
+language plpgsql
+as $fn$
+declare
+  v_uid_prod uuid; v_uid_qc uuid; v_uid_qa uuid; v_uid_wh uuid; v_uid_mgr uuid;
+  v_pid_mgr  uuid;
+  a_scn  text[]    := '{}';
+  a_exp  text[]    := '{}';
+  a_act  text[]    := '{}';
+  a_pass boolean[] := '{}';
+  v_roles text[] := array['production','qc','qa','warehouse','manager'];
+  r text; v_uid uuid; v_cnt int; v_should boolean; v_b boolean;
+  -- write/update specs
+  w_role  text[]; w_scn text[]; w_sql text[]; w_allow boolean[];
+  i int; v_rows int; v_cat text; v_msg text; v_actual text; v_exp text; v_pass boolean;
 begin
-  perform set_config('request.jwt.claims',
-    json_build_object('sub', pg_temp.uid(p_role), 'role','authenticated')::text, true);
-  execute 'set local role authenticated';
-end $$;
+  -- ---------- โหลด uid/pid (ทำในฐานะ owner ก่อนสวมรอย) ----------
+  select p.auth_user_id into v_uid_prod from public.profiles p join public.user_roles ur on ur.profile_id=p.id where ur.role='production' and p.auth_user_id is not null limit 1;
+  select p.auth_user_id into v_uid_qc   from public.profiles p join public.user_roles ur on ur.profile_id=p.id where ur.role='qc'         and p.auth_user_id is not null limit 1;
+  select p.auth_user_id into v_uid_qa   from public.profiles p join public.user_roles ur on ur.profile_id=p.id where ur.role='qa'         and p.auth_user_id is not null limit 1;
+  select p.auth_user_id into v_uid_wh   from public.profiles p join public.user_roles ur on ur.profile_id=p.id where ur.role='warehouse'  and p.auth_user_id is not null limit 1;
+  select p.auth_user_id into v_uid_mgr  from public.profiles p join public.user_roles ur on ur.profile_id=p.id where ur.role='manager'    and p.auth_user_id is not null limit 1;
+  select p.id           into v_pid_mgr  from public.profiles p join public.user_roles ur on ur.profile_id=p.id where ur.role='manager' limit 1;
 
--- helper เทส "เขียน (insert)" — แยกแยะ RLS / ไม่มี grant / สำเร็จ
-create function pg_temp.t_write(p_role text, p_scenario text, p_allow boolean, p_sql text)
-returns void language plpgsql as $$
-declare v_msg text; v_cat text; v_actual text; v_pass boolean;
-begin
-  perform pg_temp.login(p_role);
-  begin
-    execute p_sql; v_cat := 'OK';
-  exception when others then
-    v_msg := sqlerrm;
-    v_cat := case
-      when v_msg ilike '%row-level security%' then 'RLS'
-      when v_msg ilike '%permission denied%'  then 'GRANT'
-      else 'OTHER' end;
-  end;
-  execute 'reset role';
-  v_actual := case v_cat
-    when 'OK'    then 'เขียนได้'
-    when 'RLS'   then 'ปฏิเสธโดย RLS'
-    when 'GRANT' then 'ปฏิเสธ (ไม่มีสิทธิ์ตาราง — ปกติ: แอปเขียนผ่าน service key)'
-    else 'ผิดพลาด: '||coalesce(v_msg,'') end;
-  if p_allow then v_pass := v_cat in ('OK','GRANT');   -- ต้องไม่ถูก RLS บล็อก
-  else            v_pass := v_cat <> 'OK';              -- ต้องเขียนไม่สำเร็จ
-  end if;
-  insert into _r(scenario, expected, actual, pass) values (
-    p_scenario,
-    case when p_allow then 'เขียนได้ (RLS ไม่บล็อก)' else 'ถูกปฏิเสธ' end,
-    v_actual, v_pass
-  );
-end $$;
-
--- helper เทส "แก้ไข (update)" — deny แบบเงียบ = 0 แถว (ไม่ throw) → วัด row_count
-create function pg_temp.t_update(p_role text, p_scenario text, p_allow boolean, p_sql text)
-returns void language plpgsql as $$
-declare v_rows int := 0; v_msg text; v_cat text; v_actual text; v_pass boolean;
-begin
-  perform pg_temp.login(p_role);
-  begin
-    execute p_sql; get diagnostics v_rows = row_count; v_cat := 'OK';
-  exception when others then
-    v_msg := sqlerrm;
-    v_cat := case
-      when v_msg ilike '%row-level security%' then 'RLS'
-      when v_msg ilike '%permission denied%'  then 'GRANT'
-      else 'OTHER' end;
-  end;
-  execute 'reset role';
-  v_actual := case v_cat
-    when 'OK'    then v_rows::text||' แถว'
-    when 'RLS'   then 'ปฏิเสธโดย RLS'
-    when 'GRANT' then 'ปฏิเสธ (ไม่มีสิทธิ์ตาราง)'
-    else 'ผิดพลาด: '||coalesce(v_msg,'') end;
-  if p_allow then v_pass := (v_cat = 'OK' and v_rows > 0) or v_cat = 'GRANT';
-  else            v_pass := not (v_cat = 'OK' and v_rows > 0);   -- 0 แถว หรือ ถูกปฏิเสธ = ผ่าน
-  end if;
-  insert into _r(scenario, expected, actual, pass) values (
-    p_scenario,
-    case when p_allow then 'แก้ได้ (>0 แถว)' else 'ปฏิเสธ (0 แถว/เงียบ)' end,
-    v_actual, v_pass
-  );
-end $$;
-
--- ------------------------------------------------------------
--- 1) ตั้งต้น: role ไหนผูกบัญชี auth แล้วบ้าง (เทสที่อิง has_role ต้องมี uid)
--- ------------------------------------------------------------
-do $$
-declare r text;
-begin
-  foreach r in array array['production','qc','qa','warehouse','manager'] loop
-    insert into _r(scenario, expected, actual, pass) values (
-      format('ตั้งต้น: role %s ผูกบัญชี auth?', r), 'ผูกแล้ว',
-      case when pg_temp.uid(r) is null then 'ยังไม่ผูก ⚠️' else 'ผูกแล้ว' end,
-      pg_temp.uid(r) is not null
-    );
+  -- ========== 1) role ไหนผูกบัญชี auth แล้วบ้าง ==========
+  foreach r in array v_roles loop
+    v_uid := case r when 'production' then v_uid_prod when 'qc' then v_uid_qc when 'qa' then v_uid_qa when 'warehouse' then v_uid_wh else v_uid_mgr end;
+    a_scn := a_scn || format('ตั้งต้น: role %s ผูกบัญชี auth?', r);
+    a_exp := a_exp || 'ผูกแล้ว';
+    a_act := a_act || case when v_uid is null then 'ยังไม่ผูก ⚠️' else 'ผูกแล้ว' end;
+    a_pass := a_pass || (v_uid is not null);
   end loop;
-end $$;
 
--- ------------------------------------------------------------
--- 2) ตรรกะ write policy ผ่าน has_role() (แม่นยำ ไม่ขึ้นกับ grant)
---    write_jobs: production/qc/qa/manager · write_products|orders: manager เท่านั้น
---    write_batches|production_records: production/manager
--- ------------------------------------------------------------
-do $$
-declare v boolean;
-begin
-  -- production: เป็น production จริง, ไม่ใช่ manager
-  perform set_config('request.jwt.claims',
-    json_build_object('sub', pg_temp.uid('production'), 'role','authenticated')::text, true);
-  select public.has_role('production') into v;
-  insert into _r(scenario,expected,actual,pass) values
-    ('has_role: production คือ production', 'true', v::text, v = true);
-  select public.has_role('manager') into v;
-  insert into _r(scenario,expected,actual,pass) values
-    ('has_role: production ไม่ใช่ manager (ห้ามแก้ products/orders)', 'false', v::text, v = false);
+  -- ========== 2) ตรรกะ write policy ผ่าน has_role() (แม่น ไม่ขึ้นกับ grant) ==========
+  -- production = production จริง, ไม่ใช่ manager
+  perform set_config('request.jwt.claims', json_build_object('sub', v_uid_prod, 'role','authenticated')::text, false);
+  select public.has_role('production') into v_b;
+  a_scn := a_scn || 'has_role: production คือ production'; a_exp := a_exp || 'true';  a_act := a_act || v_b::text; a_pass := a_pass || (v_b = true);
+  select public.has_role('manager') into v_b;
+  a_scn := a_scn || 'has_role: production ไม่ใช่ manager (ห้ามแก้ products/orders)'; a_exp := a_exp || 'false'; a_act := a_act || v_b::text; a_pass := a_pass || (v_b = false);
+  -- warehouse ไม่ใช่ production และไม่ใช่ manager
+  perform set_config('request.jwt.claims', json_build_object('sub', v_uid_wh, 'role','authenticated')::text, false);
+  select public.has_role('production') into v_b;
+  a_scn := a_scn || 'has_role: warehouse ไม่ใช่ production (ห้ามแก้ jobs/batches)'; a_exp := a_exp || 'false'; a_act := a_act || v_b::text; a_pass := a_pass || (v_b = false);
+  select public.has_role('manager') into v_b;
+  a_scn := a_scn || 'has_role: warehouse ไม่ใช่ manager'; a_exp := a_exp || 'false'; a_act := a_act || v_b::text; a_pass := a_pass || (v_b = false);
+  -- manager = manager
+  perform set_config('request.jwt.claims', json_build_object('sub', v_uid_mgr, 'role','authenticated')::text, false);
+  select public.has_role('manager') into v_b;
+  a_scn := a_scn || 'has_role: manager คือ manager'; a_exp := a_exp || 'true'; a_act := a_act || v_b::text; a_pass := a_pass || (v_b = true);
 
-  -- warehouse: ไม่ใช่ production (ห้ามแก้ jobs/batches/records) และไม่ใช่ manager
-  perform set_config('request.jwt.claims',
-    json_build_object('sub', pg_temp.uid('warehouse'), 'role','authenticated')::text, true);
-  select public.has_role('production') into v;
-  insert into _r(scenario,expected,actual,pass) values
-    ('has_role: warehouse ไม่ใช่ production', 'false', v::text, v = false);
-  select public.has_role('manager') into v;
-  insert into _r(scenario,expected,actual,pass) values
-    ('has_role: warehouse ไม่ใช่ manager', 'false', v::text, v = false);
-
-  -- manager: เป็น manager
-  perform set_config('request.jwt.claims',
-    json_build_object('sub', pg_temp.uid('manager'), 'role','authenticated')::text, true);
-  select public.has_role('manager') into v;
-  insert into _r(scenario,expected,actual,pass) values
-    ('has_role: manager คือ manager', 'true', v::text, v = true);
-end $$;
-
--- ------------------------------------------------------------
--- 3) อ่าน jobs — ทุก role ที่ login ควร "เห็น" · anon (ไม่ login) ควร "ไม่เห็น"
--- ------------------------------------------------------------
-do $$
-declare r text; v int;
-begin
-  foreach r in array array['production','qc','qa','warehouse','manager'] loop
-    perform pg_temp.login(r);
-    select count(*) into v from public.jobs;
+  -- ========== 3) อ่าน jobs — ทุก role เห็น · anon ไม่เห็น ==========
+  foreach r in array v_roles loop
+    v_uid := case r when 'production' then v_uid_prod when 'qc' then v_uid_qc when 'qa' then v_uid_qa when 'warehouse' then v_uid_wh else v_uid_mgr end;
+    perform set_config('request.jwt.claims', json_build_object('sub', v_uid, 'role','authenticated')::text, false);
+    execute 'set role authenticated';
+    select count(*) into v_cnt from public.jobs;
     execute 'reset role';
-    insert into _r(scenario, expected, actual, pass)
-      values (format('อ่าน jobs เป็น %s', r), 'เห็น (>0)', v::text, v > 0);
+    a_scn := a_scn || format('อ่าน jobs เป็น %s', r); a_exp := a_exp || 'เห็น (>0)'; a_act := a_act || v_cnt::text; a_pass := a_pass || (v_cnt > 0);
   end loop;
-
-  -- anon = ยังไม่ login (ไม่มี policy to anon → ต้องได้ 0 แถว)
-  perform set_config('request.jwt.claims', '', true);
-  execute 'set local role anon';
-  select count(*) into v from public.jobs;
+  -- anon (ยังไม่ login)
+  perform set_config('request.jwt.claims', '', false);
+  execute 'set role anon';
+  select count(*) into v_cnt from public.jobs;
   execute 'reset role';
-  insert into _r(scenario, expected, actual, pass)
-    values ('อ่าน jobs เป็น anon (ยังไม่ login)', 'ไม่เห็น (0)', v::text, v = 0);
-
-  perform set_config('request.jwt.claims', '', true);
-  execute 'set local role anon';
-  select count(*) into v from public.products;
+  a_scn := a_scn || 'อ่าน jobs เป็น anon (ยังไม่ login)'; a_exp := a_exp || 'ไม่เห็น (0)'; a_act := a_act || v_cnt::text; a_pass := a_pass || (v_cnt = 0);
+  perform set_config('request.jwt.claims', '', false);
+  execute 'set role anon';
+  select count(*) into v_cnt from public.products;
   execute 'reset role';
-  insert into _r(scenario, expected, actual, pass)
-    values ('อ่าน products เป็น anon', 'ไม่เห็น (0)', v::text, v = 0);
-end $$;
+  a_scn := a_scn || 'อ่าน products เป็น anon'; a_exp := a_exp || 'ไม่เห็น (0)'; a_act := a_act || v_cnt::text; a_pass := a_pass || (v_cnt = 0);
 
--- ------------------------------------------------------------
--- 4) อ่าน audit_log — เห็นเฉพาะ manager/qa (อ่อนไหว) · ที่เหลือ "0 แถวเงียบ ๆ"
---    ← นี่คือเคส "RLS คืนค่าว่างเงียบ" ตัวอย่างคลาสสิกของ B4
--- ------------------------------------------------------------
-do $$
-declare r text; v int; should boolean;
-begin
-  foreach r in array array['production','qc','qa','warehouse','manager'] loop
-    perform pg_temp.login(r);
-    select count(*) into v from public.audit_log;
+  -- ========== 4) อ่าน audit_log — เห็นเฉพาะ manager/qa (เคส "ว่างเงียบ" คลาสสิก) ==========
+  foreach r in array v_roles loop
+    v_uid := case r when 'production' then v_uid_prod when 'qc' then v_uid_qc when 'qa' then v_uid_qa when 'warehouse' then v_uid_wh else v_uid_mgr end;
+    perform set_config('request.jwt.claims', json_build_object('sub', v_uid, 'role','authenticated')::text, false);
+    execute 'set role authenticated';
+    select count(*) into v_cnt from public.audit_log;
     execute 'reset role';
-    should := r in ('manager','qa');
-    insert into _r(scenario, expected, actual, pass) values (
-      format('อ่าน audit_log เป็น %s', r),
-      case when should then 'เห็น (>0)' else 'ไม่เห็น (0)' end,
-      v::text, case when should then v > 0 else v = 0 end
-    );
+    v_should := r in ('manager','qa');
+    a_scn := a_scn || format('อ่าน audit_log เป็น %s', r);
+    a_exp := a_exp || case when v_should then 'เห็น (>0)' else 'ไม่เห็น (0)' end;
+    a_act := a_act || v_cnt::text;
+    a_pass := a_pass || case when v_should then v_cnt > 0 else v_cnt = 0 end;
   end loop;
-end $$;
 
--- ------------------------------------------------------------
--- 5) เขียนตรง (insert) เสริม — เทียบกับ policy write_*
--- ------------------------------------------------------------
-select pg_temp.t_write('manager', 'manager เพิ่ม products', true,
-  $$insert into public.products(code,name,dosage_form,standard_time_hours)
-    values ('TEST-RLS-PM','ทดสอบ RLS','เม็ด',1)$$);
-select pg_temp.t_write('qc', 'qc เพิ่ม products (ห้าม)', false,
-  $$insert into public.products(code,name,dosage_form,standard_time_hours)
-    values ('TEST-RLS-PQ','ทดสอบ RLS','เม็ด',1)$$);
-select pg_temp.t_write('production', 'production เพิ่ม batches', true,
-  $$insert into public.batches(lot_no) values ('TEST-RLS-BP')$$);
-select pg_temp.t_write('warehouse', 'warehouse เพิ่ม batches (ห้าม)', false,
-  $$insert into public.batches(lot_no) values ('TEST-RLS-BW')$$);
+  -- ========== 5–7) เขียน/แก้ตาม write_* + audit append-only ==========
+  -- (ทุกการเขียนที่สำเร็จจะถูก raise '__UNDO__' เพื่อย้อนกลับ ไม่ค้างใน DB)
+  w_role  := array['manager','qc','production','warehouse','production','qc','production','warehouse','production','production','manager'];
+  w_allow := array[ true,    false, true,        false,      true,        false, true,        false,      true,        false,       false ]::boolean[];
+  w_scn   := array[
+    'manager เพิ่ม products',
+    'qc เพิ่ม products (ห้าม)',
+    'production เพิ่ม batches',
+    'warehouse เพิ่ม batches (ห้าม)',
+    'production เพิ่ม production_records',
+    'qc เพิ่ม production_records (ห้าม)',
+    'production แก้ jobs',
+    'warehouse แก้ jobs (ห้าม → เงียบ)',
+    'production แก้ profile ตัวเอง',
+    'production แก้ profile คนอื่น (ห้าม → เงียบ)',
+    'manager แก้ audit_log (ห้ามทุกกรณี)'
+  ];
+  w_sql := array[
+    $q$insert into public.products(code,name,dosage_form,standard_time_hours) values ('TEST-RLS-PM','ทดสอบ','เม็ด',1)$q$,
+    $q$insert into public.products(code,name,dosage_form,standard_time_hours) values ('TEST-RLS-PQ','ทดสอบ','เม็ด',1)$q$,
+    $q$insert into public.batches(lot_no) values ('TEST-RLS-BP')$q$,
+    $q$insert into public.batches(lot_no) values ('TEST-RLS-BW')$q$,
+    $q$insert into public.production_records(job_id,station,input_qty,output_qty) values ('d0000001-0000-0000-0000-000000000001','prep',10,10)$q$,
+    $q$insert into public.production_records(job_id,station,input_qty,output_qty) values ('d0000001-0000-0000-0000-000000000001','prep',10,10)$q$,
+    $q$update public.jobs set problem_note='rls-test' where job_no='JOB-003'$q$,
+    $q$update public.jobs set problem_note='rls-test' where job_no='JOB-003'$q$,
+    format($q$update public.profiles set department='rls-self' where auth_user_id=%L$q$, v_uid_prod),
+    format($q$update public.profiles set department='rls-other' where id=%L$q$, v_pid_mgr),
+    $q$update public.audit_log set reason='hack' where id=(select min(id) from public.audit_log)$q$
+  ];
 
--- ------------------------------------------------------------
--- 6) แก้ไข (update) — วัด row_count (deny = 0 แถวเงียบ ๆ)
--- ------------------------------------------------------------
-select pg_temp.t_update('production', 'production แก้ jobs', true,
-  $$update public.jobs set problem_note='rls-test' where job_no='JOB-003'$$);
-select pg_temp.t_update('warehouse', 'warehouse แก้ jobs (ห้าม → เงียบ)', false,
-  $$update public.jobs set problem_note='rls-test' where job_no='JOB-003'$$);
-select pg_temp.t_update('production', 'production แก้ profile ตัวเอง', true,
-  format($$update public.profiles set department='rls-self' where auth_user_id=%L$$, pg_temp.uid('production')));
-select pg_temp.t_update('production', 'production แก้ profile คนอื่น (ห้าม → เงียบ)', false,
-  format($$update public.profiles set department='rls-other' where id=%L$$, pg_temp.pid('manager')));
+  for i in 1..array_length(w_sql,1) loop
+    r := w_role[i];
+    v_uid := case r when 'production' then v_uid_prod when 'qc' then v_uid_qc when 'qa' then v_uid_qa when 'warehouse' then v_uid_wh else v_uid_mgr end;
+    perform set_config('request.jwt.claims', json_build_object('sub', v_uid, 'role','authenticated')::text, false);
+    execute 'set role authenticated';
+    v_rows := 0; v_cat := 'OK'; v_msg := null;
+    begin
+      execute w_sql[i];
+      get diagnostics v_rows = row_count;
+      raise exception '__UNDO__';        -- บังคับย้อนกลับการเขียนที่สำเร็จ
+    exception when others then
+      if sqlerrm = '__UNDO__' then
+        v_cat := 'OK';
+      elsif sqlerrm ilike '%row-level security%' then
+        v_cat := 'RLS';
+      elsif sqlerrm ilike '%permission denied%' then
+        v_cat := 'GRANT';
+      else
+        v_cat := 'OTHER'; v_msg := sqlerrm;
+      end if;
+    end;
+    execute 'reset role';
 
--- ------------------------------------------------------------
--- 7) audit_log = append-only — ห้าม UPDATE แม้แต่ manager (revoke + trigger)
--- ------------------------------------------------------------
-select pg_temp.t_update('manager', 'manager แก้ audit_log (ห้ามทุกกรณี)', false,
-  $$update public.audit_log set reason='hack' where id = (select min(id) from public.audit_log)$$);
+    v_actual := case v_cat
+      when 'OK'    then v_rows::text || ' แถว (เขียนได้)'
+      when 'RLS'   then 'ปฏิเสธโดย RLS'
+      when 'GRANT' then 'ปฏิเสธ (ไม่มีสิทธิ์ตาราง — แอปเขียนผ่าน service key)'
+      else 'ผิดพลาด: ' || coalesce(v_msg,'') end;
 
--- ============================================================
--- สรุปผล
--- ============================================================
-do $$
-declare v_total int; v_pass int;
-begin
-  select count(*), count(*) filter (where pass) into v_total, v_pass from _r;
-  raise notice '======== สรุปเทส RLS: ผ่าน %/% ========', v_pass, v_total;
-  if v_pass < v_total then
-    raise notice '⚠️ มีเคสไม่ผ่าน — ดูแถว result = ❌ ในตารางผลลัพธ์';
-  else
-    raise notice '✅ RLS เป็นไปตามที่ออกแบบทุกเคส';
-  end if;
-end $$;
+    if w_allow[i] then
+      v_exp  := 'เขียน/แก้ได้';
+      v_pass := (v_cat = 'OK' and v_rows > 0) or v_cat = 'GRANT';
+    else
+      v_exp  := 'ถูกปฏิเสธ';
+      v_pass := not (v_cat = 'OK' and v_rows > 0);
+    end if;
 
-select n,
+    a_scn := a_scn || w_scn[i]; a_exp := a_exp || v_exp; a_act := a_act || v_actual; a_pass := a_pass || v_pass;
+  end loop;
+
+  -- เผื่อหลุด: คืน role + claims ให้ปกติ
+  execute 'reset role';
+  perform set_config('request.jwt.claims', '', false);
+
+  -- สรุปผ่าน NOTICE
+  raise notice '======== สรุปเทส RLS: ผ่าน %/% ========',
+    (select count(*) from unnest(a_pass) x where x), array_length(a_pass,1);
+
+  -- ส่งออกเป็นตาราง
+  return query
+    select (row_number() over ())::int, s, e, ac,
+           case when p then '✅' else '❌ ตรวจ' end
+      from unnest(a_scn, a_exp, a_act, a_pass) as t(s, e, ac, p);
+
+exception when others then
+  -- กันค้าง: ถ้ามี error ไม่คาดคิด คืน role ก่อนโยนต่อ
+  execute 'reset role';
+  perform set_config('request.jwt.claims', '', false);
+  raise;
+end $fn$;
+
+-- รันเทส
+select n as "ลำดับ",
        scenario as "สถานการณ์",
        expected as "คาดหวัง",
        actual   as "ผลจริง",
-       case when pass then '✅' else '❌ ตรวจ' end as "result"
-  from _r
+       result   as "result"
+  from pg_temp.rls_test()
  order by n;
-
-rollback;  -- << คืนสภาพทุกอย่าง ไม่มีข้อมูลทดสอบค้างใน DB

@@ -12,8 +12,11 @@
    · 0008 (approvals) · 0002 (audit append-only: revoke update/delete + trigger) · ยืนยัน `log_audit()` เป็น security definer
    (= การเขียน audit จาก trigger ข้าม RLS ได้ → เทส "เขียนสำเร็จ" ไม่พังเพราะ audit)
 2. **ไฟล์ใหม่ `web/supabase/tests/rls_impersonation_test.sql`** — ⏳ รอ paste:
-   - รันใน `begin … rollback;` = **ไม่แตะข้อมูลจริง รันซ้ำได้** · อิง uid จาก auth จริง (ไม่ hardcode)
-   - สวมรอยด้วย `set local role authenticated` + ตั้ง `request.jwt.claims.sub` → ให้ RLS มีผลจริง · anon ใช้ `set role anon`
+   - **ฟังก์ชัน `pg_temp.rls_test()` return ตารางผลลัพธ์** (ไม่ใช้ temp table) · insert/update ทดสอบถูก
+     `raise '__UNDO__'` ในบล็อกย่อยเพื่อย้อนกลับ = **ไม่แตะข้อมูลจริง รันซ้ำได้** · อิง uid auth จริง (ไม่ hardcode)
+   - 🔧 **แก้บั๊กรอบแรก:** เวอร์ชันแรกใช้ temp table + `begin/rollback` → Supabase SQL Editor commit ทีละ
+     statement ทำให้ `on commit drop` ลบ temp ทันที (error `relation "_tu" does not exist`) → เปลี่ยนเป็นฟังก์ชัน
+   - สวมรอยด้วย `set role authenticated` (plain SET, ทนกับ autocommit) + ตั้ง `request.jwt.claims.sub` · anon ใช้ `set role anon`
    - **เทสครอบคลุม:** (1) role ผูก auth ครบไหม · (2) ตรรกะ write policy ผ่าน `has_role()` (แม่น ไม่ขึ้นกับ grant)
      · (3) อ่าน jobs: ทุก role เห็น / anon ไม่เห็น · (4) **audit_log เห็นเฉพาะ manager/qa** (เคส "ว่างเงียบ" คลาสสิก)
      · (5) insert ตาม write_* · (6) update วัด row_count (แก้ profile คนอื่น = 0 แถวเงียบ) · (7) audit_log แก้ไม่ได้
