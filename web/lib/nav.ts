@@ -13,6 +13,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/", label: "แดชบอร์ด", roles: "all", ready: true },
   { href: "/board", label: "บอร์ดงาน", roles: "all", ready: true },
   { href: "/daily", label: "รายงานประจำวัน", roles: "all", ready: true },
+  { href: "/machines", label: "เครื่องจักร", roles: "all", ready: true },
   {
     href: "/quality",
     label: "ตรวจ QC / QA",
