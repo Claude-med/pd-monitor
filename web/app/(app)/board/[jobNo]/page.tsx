@@ -16,11 +16,16 @@ import {
 } from "@/lib/data/station-constants";
 import { getApprovalsForJob } from "@/lib/data/approvals";
 import { listMachines } from "@/lib/data/machines";
+import {
+  getRequisitionsForJob,
+  getSelectableLots,
+} from "@/lib/data/requisitions";
 import { getProfile } from "@/lib/auth/dal";
 import { hasAnyRole } from "@/lib/auth/roles";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
 import { JobActions } from "./job-actions";
 import { RecordForm } from "./record-form";
+import { Requisitions } from "./requisitions";
 
 function fmtQty(n: number | null): string {
   return n == null ? "—" : n.toLocaleString("th-TH");
@@ -55,10 +60,16 @@ export default async function JobDetailPage({
     hasAnyRole(roles, ["production", "manager"]) &&
     RECORDABLE_STATUSES.has(job.status);
   const machines = canRecord ? await listMachines() : [];
+  const requisitions = await getRequisitionsForJob(job.id);
+  const canRequestMat = hasAnyRole(roles, ["production", "warehouse", "manager"]);
+  const canIssueMat = hasAnyRole(roles, ["warehouse", "manager"]);
+  const selectableLots = canRequestMat ? await getSelectableLots() : [];
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <RealtimeRefresh tables={["jobs", "production_records", "approvals"]} />
+      <RealtimeRefresh
+        tables={["jobs", "production_records", "approvals", "material_requisitions"]}
+      />
       <Link
         href="/board"
         className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
@@ -218,6 +229,17 @@ export default async function JobDetailPage({
           )}
         </div>
       </div>
+
+      {/* เบิกวัตถุดิบ (A2) */}
+      <Requisitions
+        jobId={job.id}
+        jobNo={job.job_no}
+        requisitions={requisitions}
+        lots={selectableLots}
+        canRequest={canRequestMat}
+        canIssue={canIssueMat}
+        currentProfileId={profile?.id ?? ""}
+      />
 
       {/* ลายเซ็นอนุมัติคุณภาพ (QC/QA e-signature) */}
       {approvals.length > 0 && (
