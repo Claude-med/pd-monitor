@@ -20,7 +20,7 @@ export type ActionResult = { ok?: boolean; jobNo?: string; error?: string };
 /** สร้างงานผลิตใหม่ (order + job + ล็อตถ้ามี) ผ่าน rpc — DB บังคับสิทธิ์ manager + validate */
 export async function createJob(v: NewJobValues): Promise<ActionResult> {
   const quantity = Number(v.quantity);
-  if (!v.job_no.trim()) return { error: "กรุณาระบุเลขงาน (Job No)" };
+  // job_no เว้นว่างได้ → DB ออกเลขอัตโนมัติ (JOB-YYYY-NNNN)
   if (!v.customer.trim()) return { error: "กรุณาระบุลูกค้า" };
   if (!v.product_id) return { error: "กรุณาเลือกผลิตภัณฑ์" };
   if (!Number.isFinite(quantity) || quantity <= 0)

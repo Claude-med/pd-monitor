@@ -33,6 +33,7 @@ export type ProductionRecordRow = {
   note: string | null;
   operator_name: string | null;
   machine_label: string | null; // "code · name" ของเครื่องที่ใช้ (ถ้ามี)
+  headcount: number | null; // จำนวนคน (A5)
   created_at: string;
 };
 
@@ -46,6 +47,7 @@ export type RecordFormValues = {
   hours: string;
   note: string;
   machine_id: string; // เครื่องจักรที่ใช้ (ออปชัน) — A1 ก้อน 2
+  headcount: string; // จำนวนคน (ออปชัน) — A5
 };
 
 /** ค่าที่ parse + ผ่าน validate แล้ว (พร้อมส่งเข้า rpc) */
@@ -58,6 +60,7 @@ export type ParsedRecord = {
   hours: number | null;
   note: string;
   machine_id: string | null;
+  headcount: number | null;
 };
 
 /** parse ตัวเลขทศนิยมจาก string · คืน null ถ้าว่าง · คืน NaN ถ้ารูปแบบผิด */
@@ -125,6 +128,15 @@ export function validateRecord(v: RecordFormValues): {
     else hoursVal = hours;
   }
 
+  // headcount (จำนวนคน) — ออปชัน ถ้ากรอกต้องเป็นจำนวนเต็ม ≥ 1
+  let headcountVal: number | null = null;
+  const hc = (v.headcount ?? "").trim();
+  if (hc !== "") {
+    const n = Number(hc);
+    if (!Number.isInteger(n) || n < 1) errors.headcount = "จำนวนคนต้องเป็นจำนวนเต็มตั้งแต่ 1";
+    else headcountVal = n;
+  }
+
   // ความสัมพันธ์ระหว่างช่อง (ตรวจเมื่อ input/output เป็นตัวเลขที่ใช้ได้)
   const inOk = typeof input === "number" && !Number.isNaN(input) && input >= 0;
   const outOk = typeof output === "number" && !Number.isNaN(output) && output >= 0;
@@ -149,6 +161,7 @@ export function validateRecord(v: RecordFormValues): {
       hours: hoursVal,
       note: v.note.trim(),
       machine_id: (v.machine_id ?? "").trim() || null,
+      headcount: headcountVal,
     },
   };
 }

@@ -34,6 +34,7 @@ const EMPTY: RecordFormValues = {
   hours: "",
   note: "",
   machine_id: "",
+  headcount: "",
 };
 
 type FieldErrors = Partial<Record<keyof RecordFormValues, string>>;
@@ -421,6 +422,25 @@ export function RecordForm({
             />
             {fieldErrors.hours && (
               <p className="mt-1 text-xs text-destructive">{fieldErrors.hours}</p>
+            )}
+          </div>
+
+          {/* headcount */}
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">
+              จำนวนคน
+            </label>
+            <input
+              type="number"
+              inputMode="numeric"
+              step="1"
+              min="1"
+              value={v.headcount}
+              onChange={(e) => set("headcount", e.target.value)}
+              className={numClass(fieldErrors.headcount)}
+            />
+            {fieldErrors.headcount && (
+              <p className="mt-1 text-xs text-destructive">{fieldErrors.headcount}</p>
             )}
           </div>
         </div>

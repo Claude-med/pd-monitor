@@ -12,6 +12,7 @@ export const DEFAULT_LABOR_RATE = 60;
 export type StationAgg = {
   station: StationKey;
   hours: number;
+  personHours: number; // ชม. × จำนวนคน (คน-ชม.) — A5
   output: number;
   loss: number;
 };
@@ -27,6 +28,7 @@ export type DashboardData = {
   totalOutput: number;
   totalLoss: number;
   totalHours: number;
+  totalPersonHours: number; // ชม. × คน รวม (ใช้คิดค่าแรง) — A5
   yieldPct: number | null; // output/input × 100 (null = ยังไม่มี input)
   byStation: StationAgg[];
 };
@@ -42,7 +44,7 @@ export async function getDashboardData(
     supabase.from("jobs").select("status, problem"),
     supabase
       .from("production_records")
-      .select("station, input_qty, output_qty, loss_qty, hours")
+      .select("station, input_qty, output_qty, loss_qty, hours, headcount")
       .gte("record_date", from)
       .lte("record_date", to),
   ]);
@@ -59,7 +61,7 @@ export async function getDashboardData(
   const stationMap = new Map<StationKey, StationAgg>(
     STATIONS.map((s) => [
       s.key,
-      { station: s.key, hours: 0, output: 0, loss: 0 },
+      { station: s.key, hours: 0, personHours: 0, output: 0, loss: 0 },
     ]),
   );
 
@@ -67,14 +69,19 @@ export async function getDashboardData(
   let totalOutput = 0;
   let totalLoss = 0;
   let totalHours = 0;
+  let totalPersonHours = 0;
   for (const r of records ?? []) {
+    const hrs = r.hours ?? 0;
+    const ph = hrs * (r.headcount ?? 1); // ไม่ระบุคน = คิด 1 คน
     totalInput += r.input_qty ?? 0;
     totalOutput += r.output_qty ?? 0;
     totalLoss += r.loss_qty ?? 0;
-    totalHours += r.hours ?? 0;
+    totalHours += hrs;
+    totalPersonHours += ph;
     const agg = stationMap.get(r.station as StationKey);
     if (agg) {
-      agg.hours += r.hours ?? 0;
+      agg.hours += hrs;
+      agg.personHours += ph;
       agg.output += r.output_qty ?? 0;
       agg.loss += r.loss_qty ?? 0;
     }
@@ -89,6 +96,7 @@ export async function getDashboardData(
     totalOutput,
     totalLoss,
     totalHours,
+    totalPersonHours,
     yieldPct: totalInput > 0 ? (totalOutput / totalInput) * 100 : null,
     byStation: STATIONS.map((s) => stationMap.get(s.key)!),
   };

@@ -76,11 +76,11 @@ export function NewJobForm({ products: initial }: { products: ProductOption[] })
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {/* เลขงาน */}
         <div>
-          <label className={labelClass}>เลขงาน (Job No) *</label>
+          <label className={labelClass}>เลขงาน (Job No)</label>
           <input
             value={v.job_no}
             onChange={(e) => set("job_no", e.target.value)}
-            placeholder="เช่น JOB-004"
+            placeholder="เว้นว่าง = ออกเลขอัตโนมัติ"
             className={inputClass}
           />
         </div>

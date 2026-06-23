@@ -38,6 +38,7 @@ export async function addRecord(
     // idempotency key (UUID จาก client) — retry แล้วไม่เกิดแถวซ้ำ
     p_client_id: clientId ?? null,
     p_machine_id: parsed.machine_id,
+    p_headcount: parsed.headcount,
   });
 
   if (error) {

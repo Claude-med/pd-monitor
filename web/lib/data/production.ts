@@ -5,7 +5,7 @@ export * from "@/lib/data/station-constants";
 
 // operator_id เป็นหนึ่งใน FK หลายตัวที่ชี้ profiles → ต้องระบุคอลัมน์ให้ PostgREST
 const SELECT = `
-  id, station, record_date, input_qty, output_qty, loss_qty, hours, note, created_at,
+  id, station, record_date, input_qty, output_qty, loss_qty, hours, headcount, note, created_at,
   operator:profiles!operator_id ( full_name ),
   machine:machines!machine_id ( code, name )
 `;
@@ -25,6 +25,7 @@ function shape(r: any): ProductionRecordRow {
     note: r.note,
     operator_name: op?.full_name ?? null,
     machine_label: mc ? `${mc.code} · ${mc.name}` : null,
+    headcount: r.headcount ?? null,
     created_at: r.created_at,
   };
 }

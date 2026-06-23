@@ -199,7 +199,7 @@ export default async function JobDetailPage({
 
         {records.length > 0 ? (
           <div className="-mx-2 overflow-x-auto">
-            <table className="w-full min-w-[720px] text-sm">
+            <table className="w-full min-w-[780px] text-sm">
               <thead>
                 <tr className="border-b text-left text-xs text-muted-foreground">
                   <th className="px-2 py-2 font-medium">วันที่</th>
@@ -209,6 +209,7 @@ export default async function JobDetailPage({
                   <th className="px-2 py-2 text-right font-medium">ผลิตได้</th>
                   <th className="px-2 py-2 text-right font-medium">ของเสีย</th>
                   <th className="px-2 py-2 text-right font-medium">ชม.</th>
+                  <th className="px-2 py-2 text-right font-medium">คน</th>
                   <th className="px-2 py-2 font-medium">ผู้บันทึก</th>
                 </tr>
               </thead>
@@ -226,6 +227,7 @@ export default async function JobDetailPage({
                     <td className="px-2 py-2 text-right tabular-nums">{fmtQty(r.output_qty)}</td>
                     <td className="px-2 py-2 text-right tabular-nums">{fmtQty(r.loss_qty)}</td>
                     <td className="px-2 py-2 text-right tabular-nums">{r.hours ?? "—"}</td>
+                    <td className="px-2 py-2 text-right tabular-nums">{r.headcount ?? "—"}</td>
                     <td className="whitespace-nowrap px-2 py-2 text-muted-foreground">
                       {r.operator_name ?? "—"}
                     </td>

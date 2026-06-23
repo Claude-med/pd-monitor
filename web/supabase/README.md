@@ -32,7 +32,8 @@
    > **`0015_record_machine` (D10/A1 ก้อน 2 — เพิ่ม `machine_id` ใน production_records + ยกเครื่อง `add_production_record` รับ p_machine_id + กันเลือกเครื่องที่ซ่อม/ถึงกำหนดสอบเทียบ)** ·
    > **`0016_materials` (D10/A2 ก้อน 1 — คลังวัตถุดิบ: ตาราง `materials` + `material_lots` + enum type/lot_status + RPC `upsert_material`/`upsert_material_lot` สำหรับหน้า `/materials`)** ·
    > **`0017_requisitions` (D10/A2 ก้อน 2 — ใบเบิกวัตถุดิบ: ตาราง `material_requisitions` + RPC `request_material`/`issue_requisition`/`cancel_requisition` · จ่ายแล้วตัดสต็อก กันล็อตไม่ผ่าน/หมดอายุ/สต็อกไม่พอ)** ·
-   > **`0018_line_clearance` (D10/A3 — Line Clearance: ตาราง `line_clearances` + RPC `perform_line_clearance`/`check_line_clearance` (สองลายเซ็น) + ยกเครื่อง `advance_job_status` ให้เป็น GATE ก่อน "มีแผน→กำลังผลิต")**
+   > **`0018_line_clearance` (D10/A3 — Line Clearance: ตาราง `line_clearances` + RPC `perform_line_clearance`/`check_line_clearance` (สองลายเซ็น) + ยกเครื่อง `advance_job_status` ให้เป็น GATE ก่อน "มีแผน→กำลังผลิต")** ·
+   > **`0019_headcount_autojobno` (D10/A5 — +headcount ใน production_records (ค่าแรง=ชม.×คน×อัตรา) + sequence ออกเลขงาน JOB-YYYY-NNNN อัตโนมัติใน create_job_with_order)**
 
 4. เช็กผล: เมนูซ้าย → **Table Editor** ต้องเห็นตาราง
    `profiles, user_roles, products, orders, batches, jobs, production_records, audit_log`

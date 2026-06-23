@@ -67,7 +67,7 @@ export default async function DashboardPage({
       : DEFAULT_LABOR_RATE;
 
   const d = await getDashboardData(from, to);
-  const dlCost = d.totalHours * rate;
+  const dlCost = d.totalPersonHours * rate;
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -204,7 +204,7 @@ export default async function DashboardPage({
               ฿{fmtBaht(dlCost)}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              = {fmt(d.totalHours)} ชม. × {fmt(rate)} ฿/ชม.
+              = {fmt(d.totalPersonHours)} คน-ชม. × {fmt(rate)} ฿/ชม.
             </p>
 
             <div className="mt-4 overflow-x-auto">
@@ -213,6 +213,7 @@ export default async function DashboardPage({
                   <tr className="border-b text-left text-xs text-muted-foreground">
                     <th className="px-3 py-2 font-medium">สถานี</th>
                     <th className="px-3 py-2 text-right font-medium">ชม.</th>
+                    <th className="px-3 py-2 text-right font-medium">คน-ชม.</th>
                     <th className="px-3 py-2 text-right font-medium">ผลิตได้</th>
                     <th className="px-3 py-2 text-right font-medium">ของเสีย</th>
                     <th className="px-3 py-2 text-right font-medium">ค่าแรง (฿)</th>
@@ -229,13 +230,16 @@ export default async function DashboardPage({
                         {fmt(s.hours)}
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums">
+                        {fmt(s.personHours)}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums">
                         {fmt(s.output)}
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums">
                         {fmt(s.loss)}
                       </td>
                       <td className="px-3 py-2 text-right font-medium tabular-nums">
-                        ฿{fmtBaht(s.hours * rate)}
+                        ฿{fmtBaht(s.personHours * rate)}
                       </td>
                     </tr>
                   ))}
@@ -245,6 +249,9 @@ export default async function DashboardPage({
                     <td className="px-3 py-2">รวม</td>
                     <td className="px-3 py-2 text-right tabular-nums">
                       {fmt(d.totalHours)}
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums">
+                      {fmt(d.totalPersonHours)}
                     </td>
                     <td className="px-3 py-2 text-right tabular-nums">
                       {fmt(d.totalOutput)}
@@ -260,7 +267,7 @@ export default async function DashboardPage({
               </table>
             </div>
             <p className="mt-3 text-xs text-muted-foreground">
-              * ค่าแรงคิดจากชั่วโมงทำงานที่บันทึก × อัตราที่ตั้ง (ปรับช่อง
+              * ค่าแรงคิดจาก คน-ชม. (ชั่วโมง × จำนวนคน) × อัตราที่ตั้ง — ไม่ระบุจำนวนคน = คิด 1 คน (ปรับช่อง
               &ldquo;ค่าแรง&rdquo; ด้านบนได้) — ใช้ประเมินต้นทุนเบื้องต้น
             </p>
           </div>
