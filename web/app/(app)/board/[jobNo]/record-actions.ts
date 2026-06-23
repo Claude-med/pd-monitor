@@ -18,6 +18,7 @@ export async function addRecord(
   jobId: string,
   jobNo: string,
   values: RecordFormValues,
+  clientId?: string,
 ): Promise<RecordResult> {
   const { errors, parsed } = validateRecord(values);
   if (!parsed) {
@@ -34,6 +35,8 @@ export async function addRecord(
     p_hours: parsed.hours,
     p_record_date: parsed.record_date,
     p_note: parsed.note || null,
+    // idempotency key (UUID จาก client) — retry แล้วไม่เกิดแถวซ้ำ
+    p_client_id: clientId ?? null,
   });
 
   if (error) {
