@@ -20,12 +20,14 @@ import {
   getRequisitionsForJob,
   getSelectableLots,
 } from "@/lib/data/requisitions";
+import { getLineClearance } from "@/lib/data/line-clearance";
 import { getProfile } from "@/lib/auth/dal";
 import { hasAnyRole } from "@/lib/auth/roles";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
 import { JobActions } from "./job-actions";
 import { RecordForm } from "./record-form";
 import { Requisitions } from "./requisitions";
+import { LineClearancePanel } from "./line-clearance";
 
 function fmtQty(n: number | null): string {
   return n == null ? "—" : n.toLocaleString("th-TH");
@@ -64,11 +66,20 @@ export default async function JobDetailPage({
   const canRequestMat = hasAnyRole(roles, ["production", "warehouse", "manager"]);
   const canIssueMat = hasAnyRole(roles, ["warehouse", "manager"]);
   const selectableLots = canRequestMat ? await getSelectableLots() : [];
+  const lineClearance = await getLineClearance(job.id);
+  const canPerformLc = hasAnyRole(roles, ["production", "manager"]);
+  const canCheckLc = hasAnyRole(roles, ["production", "qc", "qa", "manager"]);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <RealtimeRefresh
-        tables={["jobs", "production_records", "approvals", "material_requisitions"]}
+        tables={[
+          "jobs",
+          "production_records",
+          "approvals",
+          "material_requisitions",
+          "line_clearances",
+        ]}
       />
       <Link
         href="/board"
@@ -166,6 +177,16 @@ export default async function JobDetailPage({
           roles={roles}
         />
       </div>
+
+      {/* Line Clearance (A3) — gate ก่อนเริ่มผลิต */}
+      <LineClearancePanel
+        jobNo={job.job_no}
+        jobId={job.id}
+        clearance={lineClearance}
+        canPerform={canPerformLc}
+        canCheck={canCheckLc}
+        currentProfileId={profile?.id ?? ""}
+      />
 
       {/* บันทึกผลผลิตรายวัน */}
       <div className="rounded-xl border bg-card p-5">
