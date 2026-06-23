@@ -58,7 +58,13 @@ function JobCard({ job }: { job: JobRow }) {
   );
 }
 
-export function BoardView({ jobs }: { jobs: JobRow[] }) {
+export function BoardView({
+  jobs,
+  canCreate = false,
+}: {
+  jobs: JobRow[];
+  canCreate?: boolean;
+}) {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
   const [problemOnly, setProblemOnly] = useState(false);
@@ -84,11 +90,21 @@ export function BoardView({ jobs }: { jobs: JobRow[] }) {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">บอร์ดงาน</h1>
-        <p className="text-sm text-muted-foreground">
-          ติดตามทุกคำสั่งผลิตตามสถานะ — กดที่การ์ดเพื่อดูรายละเอียด
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">บอร์ดงาน</h1>
+          <p className="text-sm text-muted-foreground">
+            ติดตามทุกคำสั่งผลิตตามสถานะ — กดที่การ์ดเพื่อดูรายละเอียด
+          </p>
+        </div>
+        {canCreate && (
+          <Link
+            href="/board/new"
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+          >
+            ＋ สร้างงานใหม่
+          </Link>
+        )}
       </div>
 
       {/* KPI */}
