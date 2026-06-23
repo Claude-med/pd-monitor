@@ -16,6 +16,7 @@ import {
 } from "@/lib/data/station-constants";
 import { getApprovalsForJob } from "@/lib/data/approvals";
 import { getProfile } from "@/lib/auth/dal";
+import { hasAnyRole } from "@/lib/auth/roles";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
 import { JobActions } from "./job-actions";
 import { RecordForm } from "./record-form";
@@ -50,7 +51,7 @@ export default async function JobDetailPage({
   const records = await getRecordsForJob(job.id);
   const approvals = await getApprovalsForJob(job.id);
   const canRecord =
-    (roles.includes("production") || roles.includes("manager")) &&
+    hasAnyRole(roles, ["production", "manager"]) &&
     RECORDABLE_STATUSES.has(job.status);
 
   return (
@@ -204,7 +205,7 @@ export default async function JobDetailPage({
             <RecordForm jobId={job.id} jobNo={job.job_no} />
           ) : (
             <p className="text-xs text-muted-foreground">
-              {roles.includes("production") || roles.includes("manager")
+              {hasAnyRole(roles, ["production", "manager"])
                 ? "บันทึกผลผลิตได้เฉพาะงานที่เริ่มผลิตแล้ว (ยังไม่ถึง/เลยขั้นผลิต)"
                 : "เฉพาะฝ่ายผลิต/ผู้บริหารบันทึกผลผลิตได้"}
             </p>

@@ -6,7 +6,13 @@ import { createClient } from "@/lib/supabase/server";
  * ใช้ React cache() กันยิง query ซ้ำใน render รอบเดียว
  */
 
-export type AppRole = "production" | "qc" | "qa" | "warehouse" | "manager";
+export type AppRole =
+  | "production"
+  | "qc"
+  | "qa"
+  | "warehouse"
+  | "manager"
+  | "admin";
 
 export type Profile = {
   id: string;

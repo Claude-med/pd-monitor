@@ -1,4 +1,5 @@
 import type { AppRole } from "@/lib/auth/dal";
+import { hasAnyRole } from "@/lib/auth/roles";
 
 export type NavItem = {
   href: string;
@@ -30,6 +31,22 @@ export const NAV_ITEMS: NavItem[] = [
     roles: ["manager", "qa"],
     ready: false,
   },
+  {
+    href: "/admin/users",
+    label: "จัดการผู้ใช้",
+    roles: ["manager"],
+    ready: true,
+  },
+];
+
+/** ลำดับ role ทั้งหมด (ใช้ในหน้า admin จัดการผู้ใช้) */
+export const ALL_ROLES: AppRole[] = [
+  "production",
+  "qc",
+  "qa",
+  "warehouse",
+  "manager",
+  "admin",
 ];
 
 export const ROLE_LABELS: Record<AppRole, string> = {
@@ -38,11 +55,11 @@ export const ROLE_LABELS: Record<AppRole, string> = {
   qa: "QA",
   warehouse: "คลังสินค้า",
   manager: "ผู้บริหาร",
+  admin: "ผู้ดูแลระบบ (Admin)",
 };
 
 export function visibleNav(roles: AppRole[]): NavItem[] {
   return NAV_ITEMS.filter(
-    (item) =>
-      item.roles === "all" || item.roles.some((r) => roles.includes(r)),
+    (item) => item.roles === "all" || hasAnyRole(roles, item.roles),
   );
 }

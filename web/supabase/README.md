@@ -23,6 +23,11 @@
    > **หมายเหตุ D3:** ใช้ `0005_fix_auth_roles_meta.sql` (ไฟล์เดียวจบ) — มันรวมทั้งการแก้บั๊ก trigger
    > ของ profiles + งาน D3 ทั้งหมดไว้แล้ว · `0004_auth_roles.sql` เก็บไว้เป็นฉบับ canonical สำหรับติดตั้งใหม่ตั้งแต่ต้น
    > (ถ้าเคยรัน 0004 แล้วเจอ error `record "new" has no field "created_by"` → รัน 0005 นี้ได้เลย ปลอดภัย ไม่ต้อง reset)
+   >
+   > **D5–D10 (ต่อจากด้านบน):** paste ตามลำดับเลขไฟล์ — `0007_production_records` (บันทึกผลผลิต) ·
+   > `0008_approvals` (ลายเซ็น QC/QA) · `0009_realtime` (อัปเดตสด) · `0010_record_idempotency` (กันบันทึกซ้ำ) ·
+   > `0011_create_job` (สร้างงาน/เพิ่มยา) · **`0012_admin_users` (D10 — RPC จัดการสิทธิ์/โปรไฟล์/ระงับบัญชี สำหรับหน้า `/admin/users`)** ·
+   > **`0013_admin_role` (D10 — เพิ่ม role `admin` = ทำได้ทุกอย่าง · ทำให้ `has_role()` ถือว่า admin มีทุกสิทธิ์)**
 
 4. เช็กผล: เมนูซ้าย → **Table Editor** ต้องเห็นตาราง
    `profiles, user_roles, products, orders, batches, jobs, production_records, audit_log`

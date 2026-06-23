@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getProfile } from "@/lib/auth/dal";
+import { hasRole } from "@/lib/auth/roles";
 import { getProducts } from "@/lib/data/products";
 import { NewJobForm } from "./new-job-form";
 
@@ -7,7 +8,7 @@ export const metadata = { title: "สร้างงานผลิตใหม�
 
 export default async function NewJobPage() {
   const profile = await getProfile();
-  const isManager = profile?.roles.includes("manager") ?? false;
+  const isManager = hasRole(profile?.roles ?? [], "manager");
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">

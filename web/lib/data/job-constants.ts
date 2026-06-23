@@ -1,4 +1,5 @@
 import type { AppRole } from "@/lib/auth/dal";
+import { hasAnyRole } from "@/lib/auth/roles";
 
 // ไฟล์นี้ "ไม่มี" server import → ใช้ได้ทั้ง Server และ Client Components
 
@@ -66,7 +67,7 @@ export function availableTransitions(
   roles: AppRole[],
 ): Transition[] {
   return TRANSITIONS.filter(
-    (t) => t.from === status && t.roles.some((r) => roles.includes(r)),
+    (t) => t.from === status && hasAnyRole(roles, t.roles),
   );
 }
 

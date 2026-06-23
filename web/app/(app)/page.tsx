@@ -1,4 +1,5 @@
 import { getProfile } from "@/lib/auth/dal";
+import { hasRole } from "@/lib/auth/roles";
 import {
   getDashboardData,
   DEFAULT_LABOR_RATE,
@@ -52,7 +53,7 @@ export default async function DashboardPage({
   searchParams: Promise<{ from?: string; to?: string; rate?: string }>;
 }) {
   const profile = await getProfile();
-  const isManager = profile?.roles.includes("manager") ?? false;
+  const isManager = hasRole(profile?.roles ?? [], "manager");
 
   const sp = await searchParams;
   const from = sp.from && ISO.test(sp.from) ? sp.from : firstOfMonthISO();
