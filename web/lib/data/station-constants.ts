@@ -32,6 +32,7 @@ export type ProductionRecordRow = {
   hours: number | null;
   note: string | null;
   operator_name: string | null;
+  machine_label: string | null; // "code · name" ของเครื่องที่ใช้ (ถ้ามี)
   created_at: string;
 };
 
@@ -44,6 +45,7 @@ export type RecordFormValues = {
   loss_qty: string;
   hours: string;
   note: string;
+  machine_id: string; // เครื่องจักรที่ใช้ (ออปชัน) — A1 ก้อน 2
 };
 
 /** ค่าที่ parse + ผ่าน validate แล้ว (พร้อมส่งเข้า rpc) */
@@ -55,6 +57,7 @@ export type ParsedRecord = {
   loss_qty: number;
   hours: number | null;
   note: string;
+  machine_id: string | null;
 };
 
 /** parse ตัวเลขทศนิยมจาก string · คืน null ถ้าว่าง · คืน NaN ถ้ารูปแบบผิด */
@@ -145,6 +148,7 @@ export function validateRecord(v: RecordFormValues): {
       loss_qty: lossVal,
       hours: hoursVal,
       note: v.note.trim(),
+      machine_id: (v.machine_id ?? "").trim() || null,
     },
   };
 }

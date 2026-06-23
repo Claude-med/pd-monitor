@@ -15,6 +15,7 @@ import {
   RECORDABLE_STATUSES,
 } from "@/lib/data/station-constants";
 import { getApprovalsForJob } from "@/lib/data/approvals";
+import { listMachines } from "@/lib/data/machines";
 import { getProfile } from "@/lib/auth/dal";
 import { hasAnyRole } from "@/lib/auth/roles";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
@@ -53,6 +54,7 @@ export default async function JobDetailPage({
   const canRecord =
     hasAnyRole(roles, ["production", "manager"]) &&
     RECORDABLE_STATUSES.has(job.status);
+  const machines = canRecord ? await listMachines() : [];
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -165,11 +167,12 @@ export default async function JobDetailPage({
 
         {records.length > 0 ? (
           <div className="-mx-2 overflow-x-auto">
-            <table className="w-full min-w-[640px] text-sm">
+            <table className="w-full min-w-[720px] text-sm">
               <thead>
                 <tr className="border-b text-left text-xs text-muted-foreground">
                   <th className="px-2 py-2 font-medium">วันที่</th>
                   <th className="px-2 py-2 font-medium">สถานี</th>
+                  <th className="px-2 py-2 font-medium">เครื่องจักร</th>
                   <th className="px-2 py-2 text-right font-medium">ตั้งต้น</th>
                   <th className="px-2 py-2 text-right font-medium">ผลิตได้</th>
                   <th className="px-2 py-2 text-right font-medium">ของเสีย</th>
@@ -183,6 +186,9 @@ export default async function JobDetailPage({
                     <td className="whitespace-nowrap px-2 py-2">{r.record_date}</td>
                     <td className="whitespace-nowrap px-2 py-2">
                       {STATION_ICON[r.station]} {STATION_LABEL[r.station] ?? r.station}
+                    </td>
+                    <td className="whitespace-nowrap px-2 py-2 text-muted-foreground">
+                      {r.machine_label ?? "—"}
                     </td>
                     <td className="px-2 py-2 text-right tabular-nums">{fmtQty(r.input_qty)}</td>
                     <td className="px-2 py-2 text-right tabular-nums">{fmtQty(r.output_qty)}</td>
@@ -202,7 +208,7 @@ export default async function JobDetailPage({
 
         <div className="mt-4">
           {canRecord ? (
-            <RecordForm jobId={job.id} jobNo={job.job_no} />
+            <RecordForm jobId={job.id} jobNo={job.job_no} machines={machines} />
           ) : (
             <p className="text-xs text-muted-foreground">
               {hasAnyRole(roles, ["production", "manager"])

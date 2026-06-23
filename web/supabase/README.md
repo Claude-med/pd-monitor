@@ -28,7 +28,8 @@
    > `0008_approvals` (ลายเซ็น QC/QA) · `0009_realtime` (อัปเดตสด) · `0010_record_idempotency` (กันบันทึกซ้ำ) ·
    > `0011_create_job` (สร้างงาน/เพิ่มยา) · **`0012_admin_users` (D10 — RPC จัดการสิทธิ์/โปรไฟล์/ระงับบัญชี สำหรับหน้า `/admin/users`)** ·
    > **`0013_admin_role` (D10 — เพิ่ม role `admin` = ทำได้ทุกอย่าง · ทำให้ `has_role()` ถือว่า admin มีทุกสิทธิ์)** ·
-   > **`0014_machines` (D10/A1 — ทะเบียนเครื่องจักร: ตาราง `machines` + enum `machine_status` + RPC `upsert_machine` สำหรับหน้า `/machines`)**
+   > **`0014_machines` (D10/A1 — ทะเบียนเครื่องจักร: ตาราง `machines` + enum `machine_status` + RPC `upsert_machine` สำหรับหน้า `/machines`)** ·
+   > **`0015_record_machine` (D10/A1 ก้อน 2 — เพิ่ม `machine_id` ใน production_records + ยกเครื่อง `add_production_record` รับ p_machine_id + กันเลือกเครื่องที่ซ่อม/ถึงกำหนดสอบเทียบ)**
 
 4. เช็กผล: เมนูซ้าย → **Table Editor** ต้องเห็นตาราง
    `profiles, user_roles, products, orders, batches, jobs, production_records, audit_log`

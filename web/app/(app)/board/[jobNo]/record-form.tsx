@@ -7,6 +7,11 @@ import {
   validateRecord,
   type RecordFormValues,
 } from "@/lib/data/station-constants";
+import {
+  MACHINE_BLOCKED_STATUSES,
+  type MachineStatus,
+} from "@/lib/data/machine-constants";
+import type { Machine } from "@/lib/data/machines";
 import { addRecord } from "./record-actions";
 import {
   newClientId,
@@ -28,6 +33,7 @@ const EMPTY: RecordFormValues = {
   loss_qty: "",
   hours: "",
   note: "",
+  machine_id: "",
 };
 
 type FieldErrors = Partial<Record<keyof RecordFormValues, string>>;
@@ -49,7 +55,15 @@ function recordSummary(r: PendingRecord): string {
   } / ผลิตได้ ${r.values.output_qty || "—"}`;
 }
 
-export function RecordForm({ jobId, jobNo }: { jobId: string; jobNo: string }) {
+export function RecordForm({
+  jobId,
+  jobNo,
+  machines,
+}: {
+  jobId: string;
+  jobNo: string;
+  machines: Machine[];
+}) {
   const [open, setOpen] = useState(false);
   const [v, setV] = useState<RecordFormValues>(EMPTY);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
@@ -77,6 +91,15 @@ export function RecordForm({ jobId, jobNo }: { jobId: string; jobNo: string }) {
   }
 
   const busy = saveState === "saving" || saveState === "retrying";
+
+  // เครื่องที่เลือกได้: เปิดใช้งาน + ไม่อยู่สถานะซ่อม/ถึงกำหนดสอบเทียบ
+  // + ตรงสถานีที่เลือก (หรือเครื่องที่ไม่ผูกสถานี) — เครื่องที่ซ่อมจะไม่ขึ้นให้เลือก
+  const machineOptions = machines.filter(
+    (m) =>
+      m.is_active &&
+      !MACHINE_BLOCKED_STATUSES.has(m.status as MachineStatus) &&
+      (v.station === "" || m.station === v.station || m.station === null),
+  );
 
   // พยายามบันทึก 1 รายการแบบทนเน็ต (retry + backoff)
   // คืน true ถ้าสำเร็จ · false ถ้าค้าง (เน็ตยังมีปัญหา) · "permanent" ถ้าข้อมูล/สิทธิ์ผิด
@@ -134,7 +157,12 @@ export function RecordForm({ jobId, jobNo }: { jobId: string; jobNo: string }) {
 
     if (result === true) {
       setSaveState("saved");
-      setV({ ...EMPTY, record_date: v.record_date, station: v.station });
+      setV({
+        ...EMPTY,
+        record_date: v.record_date,
+        station: v.station,
+        machine_id: v.machine_id,
+      });
       setFieldErrors({});
       router.refresh();
     } else if (result === "permanent") {
@@ -142,7 +170,12 @@ export function RecordForm({ jobId, jobNo }: { jobId: string; jobNo: string }) {
     } else {
       // ค้างไว้ — ข้อมูลปลอดภัยในคิว จะลองใหม่เมื่อเน็ตกลับมา
       setSaveState("queued");
-      setV({ ...EMPTY, record_date: v.record_date, station: v.station });
+      setV({
+        ...EMPTY,
+        record_date: v.record_date,
+        station: v.station,
+        machine_id: v.machine_id,
+      });
       setFieldErrors({});
     }
   }
@@ -288,6 +321,30 @@ export function RecordForm({ jobId, jobNo }: { jobId: string; jobNo: string }) {
             {fieldErrors.record_date && (
               <p className="mt-1 text-xs text-destructive">{fieldErrors.record_date}</p>
             )}
+          </div>
+
+          {/* เครื่องจักรที่ใช้ (ออปชัน) */}
+          <div className="sm:col-span-2">
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">
+              เครื่องจักรที่ใช้
+            </label>
+            <select
+              value={v.machine_id}
+              onChange={(e) => set("machine_id", e.target.value)}
+              className={numClass()}
+            >
+              <option value="">— ไม่ระบุเครื่อง —</option>
+              {machineOptions.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.code} · {m.name}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              {v.station
+                ? "แสดงเฉพาะเครื่องของสถานีนี้ที่พร้อมใช้ — เครื่องที่ซ่อม/ถึงกำหนดสอบเทียบจะไม่ขึ้นให้เลือก"
+                : "เลือกสถานีก่อนเพื่อกรองเครื่องให้ตรง — เครื่องที่ซ่อม/ถึงกำหนดสอบเทียบจะไม่ขึ้นให้เลือก"}
+            </p>
           </div>
 
           {/* input */}

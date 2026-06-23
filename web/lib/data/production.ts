@@ -6,12 +6,14 @@ export * from "@/lib/data/station-constants";
 // operator_id เป็นหนึ่งใน FK หลายตัวที่ชี้ profiles → ต้องระบุคอลัมน์ให้ PostgREST
 const SELECT = `
   id, station, record_date, input_qty, output_qty, loss_qty, hours, note, created_at,
-  operator:profiles!operator_id ( full_name )
+  operator:profiles!operator_id ( full_name ),
+  machine:machines!machine_id ( code, name )
 `;
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 function shape(r: any): ProductionRecordRow {
   const op = Array.isArray(r.operator) ? r.operator[0] : r.operator;
+  const mc = Array.isArray(r.machine) ? r.machine[0] : r.machine;
   return {
     id: r.id,
     station: r.station,
@@ -22,6 +24,7 @@ function shape(r: any): ProductionRecordRow {
     hours: r.hours,
     note: r.note,
     operator_name: op?.full_name ?? null,
+    machine_label: mc ? `${mc.code} · ${mc.name}` : null,
     created_at: r.created_at,
   };
 }
