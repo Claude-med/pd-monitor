@@ -43,9 +43,11 @@
    - realtime: `product_recipes` + `recipe_items`
 3. commit + push แล้ว → Vercel auto-deploy
 
-### ⚠️ ขั้นที่ผู้ใช้ต้องทำเอง (ก่อนใช้งานจริง)
-- **paste `0020_recipes.sql`** ลง Supabase SQL Editor (ต่อจาก 0001–0019) → ปุ่มจัดการสูตรถึงจะทำงาน
-  (ถ้ายังไม่ paste: หน้า /recipes เปิดได้แต่ว่างเปล่า · กดบันทึกจะ error "ไม่พบฟังก์ชัน")
+### ✅ verified DB แล้ว (24 มิ.ย. 69)
+- ผู้ใช้ paste `0020_recipes.sql` แล้ว · Claude เช็กผ่าน REST: ตาราง `product_recipes`+`recipe_items` มีจริง (200)
+  · ฟังก์ชัน `upsert_recipe`+`set_recipe_items` มีจริง + guard ทำงาน (ตอบ "ยังไม่ได้เข้าสู่ระบบ" เมื่อไม่มี session) ✅
+
+### ⚠️ เหลือผู้ใช้ทดสอบ UI จริง (RPC ต้องมี session — เทสผ่าน REST ไม่ได้)
 - ทดสอบ: login เป็น **manager** → /recipes → เลือกยา → "＋ เพิ่มสูตร" (ตั้งขนาดแบตช์) →
   "แก้รายการวัตถุดิบ" เลือกวัตถุดิบจากคลัง A2 + จำนวน → บันทึก → เห็น BOM ในตาราง · login role อื่น = เห็นแต่ดูอย่างเดียว
 
