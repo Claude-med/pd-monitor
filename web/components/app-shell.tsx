@@ -10,9 +10,11 @@ import type { Profile } from "@/lib/auth/dal";
 export function AppShell({
   profile,
   children,
+  unreadCount = 0,
 }: {
   profile: Profile;
   children: React.ReactNode;
+  unreadCount?: number;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const pathname = usePathname();
@@ -46,6 +48,11 @@ export function AppShell({
             ].join(" ")}
           >
             <span>{item.label}</span>
+            {item.href === "/inbox" && unreadCount > 0 && (
+              <span className="rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                {unreadCount > 99 ? "99+" : unreadCount}
+              </span>
+            )}
             {!item.ready && (
               <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
                 เร็วๆ นี้

@@ -23,7 +23,34 @@
 
 ---
 
-## 📅 บันทึกวันที่ 24 มิถุนายน 2569 — เฟส 12 / D12 (ก้อน 3): B1 eBR — ปิด D12 (ล่าสุด)
+## 📅 บันทึกวันที่ 24 มิถุนายน 2569 — เฟส 12 / D12 (ก้อน 4): B4 Notification (in-app inbox) (ล่าสุด)
+
+### ✅ วันนี้ทำอะไรไปบ้าง — กล่องแจ้งเตือนในแอป 🔔
+> fetch Notion ก่อนเริ่ม (demo-feature-suggestions = 10 ฟีเจอร์เดิม ครบ ไม่มีของใหม่)
+> **Decisions ผู้ใช้:** triggers ครบ 4 (reject · deviation major/critical · overdue · stuck) · ส่ง**ตาม role ที่เกี่ยว**
+1. **DB (`web/supabase/migrations/0026_notifications.sql`)** — ⏳ รอ paste:
+   - `notifications` (kind/title/body/job_id/job_no/`target_role`[null=ทุกคน]) + `notification_reads` (อ่านแล้ว ต่อคน, pk(notif,profile))
+   - RLS: เห็นเฉพาะ `target_role is null or has_role(target_role)` · reads = ของตัวเอง
+   - helper `create_notification(...)` · RPC `mark_notification_read`/`mark_all_notifications_read`/`unread_notification_count` (สำหรับกระดิ่ง)
+   - **ยกเครื่อง 2 ฟังก์ชัน (event-driven):** `advance_job_status` → ตีกลับ = แจ้ง `production` · `open_deviation` → major/critical = แจ้ง `qa`+`manager` (คง gate/logic เดิมทั้งหมด)
+   - realtime: notifications + notification_reads
+2. **แอป (`web/`)** — build ผ่าน:
+   - `lib/data/notification-constants.ts` (InboxItem/KIND_META/STUCK_DAYS — ไม่มี server import) · `lib/data/notifications.ts` (`getInbox`/`getUnreadCount` + **derived overdue/stuck คำนวณสด** เฉพาะ production/manager)
+   - หน้า `/inbox` (`page.tsx`+`inbox-view.tsx`+`actions.ts`) — รายการ stored+derived · ปุ่มอ่าน/อ่านทั้งหมด · realtime
+   - **กระดิ่ง:** เมนู "🔔 แจ้งเตือน" ใน nav + **badge เลขยังไม่อ่าน** (layout ส่ง unreadCount → app-shell)
+3. push แล้ว · ตรวจ deploy ด้วย `vercel ls` (กัน gotcha push หลายก้อนข้าม deploy)
+
+### ⚠️ ขั้นที่ผู้ใช้ต้องทำ
+- **paste `0026_notifications.sql`** ลง Supabase SQL Editor (ต่อจาก 0001–0025)
+- ทดสอบ UI: QA/QC ตีกลับงาน → login ฝ่ายผลิตเห็นกระดิ่งเด้ง + /inbox มีรายการ · เปิด deviation major → QA/manager เห็น · งานเลย planned_end → เห็น "เกินกำหนด"
+
+### ▶️ ขั้นถัดไป (เลือกได้ — ปิด D12 จริงเมื่อ verify B4)
+- MES-grade ที่เหลือ: **B5 Barcode/QR · B6 OEE/downtime · B7 capacity · B8 integration** (ดู Notion Roadmap)
+> ก่อนเริ่มเฟสใหม่: fetch Notion เช็ก requirement ล่าสุด
+
+---
+
+## 📅 บันทึกวันที่ 24 มิถุนายน 2569 — เฟส 12 / D12 (ก้อน 3): B1 eBR — ปิด D12 (ส่วน B1/B2/B3)
 
 ### ✅ วันนี้ทำอะไรไปบ้าง — แฟ้มบันทึกการผลิตรวมของล็อต + พิมพ์ได้ 📄🖨️
 > ก้อน 3 เป็น **read view ล้วน — ไม่มี SQL ให้ paste** (รวมข้อมูลที่มีอยู่ทั้งหมดของงานหนึ่ง)

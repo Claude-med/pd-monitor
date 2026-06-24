@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getUser, getProfile } from "@/lib/auth/dal";
+import { getUnreadCount } from "@/lib/data/notifications";
 import { AppShell } from "@/components/app-shell";
 
 export default async function AppLayout({
@@ -28,5 +29,11 @@ export default async function AppLayout({
     );
   }
 
-  return <AppShell profile={profile}>{children}</AppShell>;
+  const unreadCount = await getUnreadCount();
+
+  return (
+    <AppShell profile={profile} unreadCount={unreadCount}>
+      {children}
+    </AppShell>
+  );
 }

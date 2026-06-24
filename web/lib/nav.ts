@@ -11,6 +11,7 @@ export type NavItem = {
 /** เมนูหลัก — กรองตาม role ของผู้ใช้ก่อนแสดง */
 export const NAV_ITEMS: NavItem[] = [
   { href: "/", label: "แดชบอร์ด", roles: "all", ready: true },
+  { href: "/inbox", label: "🔔 แจ้งเตือน", roles: "all", ready: true },
   { href: "/board", label: "บอร์ดงาน", roles: "all", ready: true },
   { href: "/daily", label: "รายงานประจำวัน", roles: "all", ready: true },
   { href: "/machines", label: "เครื่องจักร", roles: "all", ready: true },
