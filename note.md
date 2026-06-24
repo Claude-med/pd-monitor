@@ -23,7 +23,24 @@
 
 ---
 
-## 📅 บันทึกวันที่ 24 มิถุนายน 2569 — เฟส 12 / D12 (ก้อน 2): B2 Lot Genealogy / Traceability (ล่าสุด)
+## 📅 บันทึกวันที่ 24 มิถุนายน 2569 — เฟส 12 / D12 (ก้อน 3): B1 eBR — ปิด D12 (ล่าสุด)
+
+### ✅ วันนี้ทำอะไรไปบ้าง — แฟ้มบันทึกการผลิตรวมของล็อต + พิมพ์ได้ 📄🖨️
+> ก้อน 3 เป็น **read view ล้วน — ไม่มี SQL ให้ paste** (รวมข้อมูลที่มีอยู่ทั้งหมดของงานหนึ่ง)
+1. **`lib/data/ebr.ts`** — `getBatchRecord(jobNo)` รวมจาก data layer เดิม (Promise.all): ข้อมูลงาน + line clearance + วัตถุดิบที่เบิก + เครื่องที่ใช้ + บันทึกผลผลิต + in-process QC + QA sample + deviation + ลายเซ็น QC/QA + FG ที่รับเข้า
+2. **หน้า `/board/[jobNo]/ebr`** (`ebr/page.tsx`) — เอกสารแฟ้มเดียว 10 ส่วนเรียงตามลำดับ GMP · `ebr/print-button.tsx` (client `window.print()`)
+3. **print CSS** ใน `globals.css` (`@media print`): ใช้ visibility trick ซ่อน app chrome เหลือเฉพาะ `#ebr` (ไม่ขึ้นกับโครง layout) + `.no-print` + `@page margin`
+4. **ปุ่มลิงก์ "📄 ดู eBR"** ในหน้า job detail (`board/[jobNo]/page.tsx`) · build ผ่าน · push แล้ว
+> = **ปิด D12 ครบ 3 ก้อน** (B3 deviation · B2 traceability · B1 eBR) 🎉
+
+### ▶️ ขั้นถัดไป (เลือกได้)
+- **B4 Notification** (in-app inbox: เตือนงานใกล้เกินกำหนด/ค้าง/ตีกลับ/deviation) — อยู่ใน roadmap คู่กับ B3
+- หรือ MES-grade อื่น: B5 Barcode/QR · B6 OEE/downtime · B7 capacity · B8 integration (ดู Notion Roadmap)
+> ก่อนเริ่มเฟสใหม่: fetch Notion เช็ก requirement ล่าสุด
+
+---
+
+## 📅 บันทึกวันที่ 24 มิถุนายน 2569 — เฟส 12 / D12 (ก้อน 2): B2 Lot Genealogy / Traceability
 
 ### ✅ วันนี้ทำอะไรไปบ้าง — หน้าไล่ย้อนสายโซ่ล็อต 🔗🔍
 > ก้อน 2 เป็น **read view ล้วน — ไม่มี SQL ให้ paste** (สายข้อมูล lot มีครบแล้ว: material_lots → material_requisitions → jobs → batches/fg_inventory)

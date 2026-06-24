@@ -160,3 +160,31 @@
     touch-action: manipulation;
   }
 }
+
+/* ============================================================
+   พิมพ์ eBR (D12 / B1) — ซ่อน app chrome เหลือเฉพาะแฟ้ม #ebr
+   ใช้ visibility trick → ไม่ขึ้นกับโครง layout ของ app-shell
+   ============================================================ */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #ebr,
+  #ebr * {
+    visibility: visible;
+  }
+  #ebr {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    padding: 0;
+    color: #000;
+    background: #fff;
+  }
+  .no-print {
+    display: none !important;
+  }
+  @page {
+    margin: 14mm;
+  }
+}

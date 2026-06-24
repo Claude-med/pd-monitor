@@ -101,12 +101,20 @@ export default async function JobDetailPage({
           "deviations",
         ]}
       />
-      <Link
-        href="/board"
-        className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
-      >
-        ← กลับบอร์ดงาน
-      </Link>
+      <div className="flex items-center justify-between gap-2">
+        <Link
+          href="/board"
+          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
+        >
+          ← กลับบอร์ดงาน
+        </Link>
+        <Link
+          href={`/board/${encodeURIComponent(job.job_no)}/ebr`}
+          className="inline-flex items-center rounded-md border px-3 py-1.5 text-sm hover:bg-accent"
+        >
+          📄 ดู eBR (แฟ้มบันทึกการผลิต)
+        </Link>
+      </div>
 
       {/* หัวเรื่อง */}
       <div className="flex flex-wrap items-center gap-3">
