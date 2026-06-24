@@ -19,7 +19,7 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/quality",
     label: "ตรวจ QC / QA",
     roles: ["qc", "qa", "manager"],
-    ready: false,
+    ready: true,
   },
   {
     href: "/warehouse",
@@ -31,7 +31,7 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/audit",
     label: "ประวัติ / Audit",
     roles: ["manager", "qa"],
-    ready: false,
+    ready: true,
   },
   {
     href: "/admin/users",
