@@ -23,7 +23,23 @@
 
 ---
 
-## 📅 บันทึกวันที่ 24 มิถุนายน 2569 — เฟส 12 / D12 (ก้อน 1): B3 Deviation / Incident (ล่าสุด)
+## 📅 บันทึกวันที่ 24 มิถุนายน 2569 — เฟส 12 / D12 (ก้อน 2): B2 Lot Genealogy / Traceability (ล่าสุด)
+
+### ✅ วันนี้ทำอะไรไปบ้าง — หน้าไล่ย้อนสายโซ่ล็อต 🔗🔍
+> ก้อน 2 เป็น **read view ล้วน — ไม่มี SQL ให้ paste** (สายข้อมูล lot มีครบแล้ว: material_lots → material_requisitions → jobs → batches/fg_inventory)
+1. **`lib/data/genealogy.ts`** — รวม query ข้ามตาราง:
+   - `getJobTrace(jobId)` = ผังของงานเดียว (วัตถุดิบที่เบิก RM/PM lot + FG lot ที่ออก + วันผลิต/หมดอายุ + จำนวน deviation/เปิดค้าง)
+   - `searchTrace(q)` = ค้นด้วยเลขงาน/เลขล็อต → **ขาไป** (job/FG lot → วัตถุดิบที่ใช้) + **ขาย้อน** (RM lot → งานที่เบิกใช้ล็อตนั้น เผื่อ recall)
+2. **หน้า `/trace`** (`app/(app)/trace/page.tsx`) — ช่องค้นหา (GET) → การ์ดผังสายโซ่ "วัตถุดิบ → JOB → FG" คลิกเข้างาน/ดู eBR ได้ · realtime
+3. **เมนู** `lib/nav.ts` เพิ่ม "ไล่ย้อนล็อต (Trace)" (roles: qa/warehouse/manager) · build ผ่าน · push แล้ว
+> ⚠️ ในการ์ดมีลิงก์ "ดู eBR →" ชี้ `/board/[jobNo]/ebr` ซึ่งทำในก้อน 3 (B1) — จะ 404 จนกว่าจะทำ B1 เสร็จ
+
+### ▶️ ขั้นถัดไป (D12 ก้อน 3)
+- **B1 eBR** — หน้า view รวมแฟ้มการผลิตของ lot หน้าเดียว + ปุ่มพิมพ์ (print CSS)
+
+---
+
+## 📅 บันทึกวันที่ 24 มิถุนายน 2569 — เฟส 12 / D12 (ก้อน 1): B3 Deviation / Incident
 
 ### ✅ วันนี้ทำอะไรไปบ้าง — ระบบบันทึกเหตุผิดปกติ + gate กัน QA→FG ⚠️
 > เริ่ม D12 (MES-grade) · fetch Notion Roadmap (B1–B8) + recommendations ก่อนเริ่ม · ทำทีละก้อน B3 → B2 → B1
@@ -40,8 +56,13 @@
    - ฝังใน `board/[jobNo]/page.tsx` (fetch + failChecks ที่ยังไม่ผูก deviation + realtime `deviations`)
 3. push แล้ว → Vercel auto-deploy
 
-### ⚠️ ขั้นที่ผู้ใช้ต้องทำ
-- **paste `0025_deviations.sql`** ลง Supabase SQL Editor (ต่อจาก 0001–0024)
+### ✅ verified DB แล้ว (24 มิ.ย. 69)
+- ผู้ใช้ paste `0025_deviations.sql` แล้ว · Claude เช็กผ่าน REST: ตาราง `deviations` มีจริง (200) ·
+  RPC `open_deviation`+`update_deviation` guard ทำงาน ("ยังไม่ได้เข้าสู่ระบบ") · helper `has_open_deviation` ตอบ 200 (false) ✅
+- ⚠️ หมายเหตุ: `SUPABASE_SECRET_KEY` ใน `.env.local` ในเครื่อง **ใช้ไม่ได้แล้ว (401 — ถูก rotate)** → verify ทำผ่าน publishable key แทน
+  (ฝั่ง Vercel น่าจะยังมี key ที่ถูก เพราะแอปใช้งานได้ · ถ้าจะรันแอด local ต้องอัปเดต secret key ใหม่จาก Supabase dashboard)
+
+### ⚠️ เหลือผู้ใช้ทดสอบ UI จริง
 - ทดสอบ UI: production/qc/qa เปิด deviation บนงาน → QA กด QA→FG **ต้องถูกบล็อก** "มี deviation เปิดค้าง" →
   QA กด "อัปเดต/ปิด" ใส่ root cause+CAPA เลือก closed → QA→FG ผ่าน · ผล in-process "ไม่ผ่าน" → ปุ่ม "เปิด deviation" ด่วน ผูก check ถูก
 

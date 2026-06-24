@@ -29,6 +29,12 @@ export const NAV_ITEMS: NavItem[] = [
     ready: true,
   },
   {
+    href: "/trace",
+    label: "ไล่ย้อนล็อต (Trace)",
+    roles: ["qa", "warehouse", "manager"],
+    ready: true,
+  },
+  {
     href: "/audit",
     label: "ประวัติ / Audit",
     roles: ["manager", "qa"],
