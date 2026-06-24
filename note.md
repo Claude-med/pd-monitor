@@ -23,7 +23,32 @@
 
 ---
 
-## 📅 บันทึกวันที่ 24 มิถุนายน 2569 — เฟส 11 / D11 (A4 ก้อน 3): สถานีย่อยจริง + route — ปิด A4 (ล่าสุด)
+## 📅 บันทึกวันที่ 24 มิถุนายน 2569 — เฟส 11 / D11 (A6 ก้อน 1): คลัง FG (ล่าสุด)
+
+### ✅ วันนี้ทำอะไรไปบ้าง — รับสินค้าสำเร็จรูปเข้าคลัง 📦🏬
+> fetch Notion ก่อนเริ่ม (demo-feature-suggestions = 10 ฟีเจอร์เดิม ครบแล้ว · ไม่มีของใหม่) · ใช้ดีไซน์ A6 จาก Roadmap
+> เริ่ม A6 · แบ่ง 2 ก้อน → ก้อน 1 = คลัง FG (เติมเมนู /warehouse placeholder) · ก้อน 2 = in-process QC + QA samples
+1. **DB (`web/supabase/migrations/0023_fg_inventory.sql`)** — ⏳ รอ paste:
+   - `fg_inventory` (สต็อก FG ต่อ 1 งาน · `unique(job_id)` · qty/unit/lot/location/received_date) · meta+audit+RLS+realtime
+   - RPC `receive_fg(job, qty, ...)` (warehouse/manager · **upsert** ต่องาน · ดึง product/lot/unit จากงานอัตโนมัติ
+     · validate งานต้องถึง `finished_goods` ก่อน · กันจำนวนติดลบ) · `can_manage_fg()` = warehouse/manager
+2. **แอป:** หน้า `/warehouse` (page + warehouse-view + actions) — การ์ดต่อหนึ่งงาน FG + สรุป (งาน FG/รอรับเข้า/ยอดรวม)
+   · ปุ่ม "รับเข้าคลัง"/"แก้คลัง" (จำนวน/หน่วย/ตำแหน่ง/ล็อต/หมายเหตุ) · `lib/data/fg.ts` (listFgJobs) · realtime jobs+fg_inventory
+   · nav: เปิดเมนู "คลัง / FG" (ready=true) · build ผ่าน · push แล้ว
+
+### ⚠️ เหลือผู้ใช้ทำ
+- **paste `0023_fg_inventory.sql`** (ต่อจาก 0022) · ทดสอบ: warehouse/manager → เมนู "คลัง / FG" →
+  งานที่ QA ปล่อยผ่าน (finished_goods) ขึ้นในลิสต์ → กด "รับเข้าคลัง" ใส่จำนวน+ตำแหน่ง → บันทึก → การ์ดขึ้น "รับเข้าคลังแล้ว"
+  (ถ้ายังไม่มีงาน FG: ต้องดันงานสักงานให้ถึง finished_goods ก่อน)
+
+### ▶️ ขั้นถัดไป (A6 ก้อน 2 + ปิด D11)
+- **A6 ก้อน 2:** in-process QC (`inprocess_checks`: job/station/param/value/pass-fail/checked_by) + จุดเก็บ sample QA (`qa_samples`)
+  — ฟอร์มในหน้า job detail · ⚠️ in-process fail ควรเชื่อม deviation (B3) ภายหลัง
+- จากนั้น B3 deviation · B4 notification (in-app inbox) → ปิด D11
+
+---
+
+## 📅 บันทึกวันที่ 24 มิถุนายน 2569 — เฟส 11 / D11 (A4 ก้อน 3): สถานีย่อยจริง + route — ปิด A4
 
 ### ✅ วันนี้ทำอะไรไปบ้าง — กระบวนการผลิตจริงหลายสถานี + ลำดับต่อยา 🛠️
 > fetch Notion ก่อนเริ่ม · ⚠️ Notion เตือนชัด "อย่าแตะ enum production_station เดิม (prod_records+dashboard พัง) → ทำตาราง config"
