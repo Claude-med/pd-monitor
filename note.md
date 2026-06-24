@@ -39,9 +39,10 @@
    - `lib/data/stations.ts` (`listStations`) + ต่อ route เข้า `listProductsWithRecipes`
 3. push แล้ว → **= ปิด A4 ครบ 3 ก้อน** (สูตร/BOM · บรรจุ · สถานีย่อย) 🎉
 
-### ⚠️ เหลือผู้ใช้ทำ
-- **paste `0022_stations.sql`** (ต่อจาก 0021) · ทดสอบ: manager → /recipes → แผง "ตั้งค่าสถานี" เห็น 10 สถานี seed →
-  ในการ์ดยา กด "แก้ขั้นตอน" เลือกสถานีเรียงลำดับ (บด→ร่อน→ผสม→ตอก→บรรจุ) เลื่อน ▲▼ → บันทึก → เห็น chain
+### ✅ verified DB แล้ว (24 มิ.ย. 69)
+- ผู้ใช้ paste `0022_stations.sql` แล้ว · Claude เช็กผ่าน REST: `stations` seed ครบ 10 สถานี (map กลุ่มถูก)
+  · `product_routes` มีจริง (200) · ฟังก์ชัน `upsert_station`+`set_product_route` มีจริง + guard ทำงาน ✅
+- เหลือผู้ใช้ทดสอบ UI: manager → /recipes → แผง "ตั้งค่าสถานี" เห็น 10 สถานี → การ์ดยา "แก้ขั้นตอน" เรียงลำดับ ▲▼ → บันทึก
 
 ### ▶️ ขั้นถัดไป (D11 ต่อ)
 - **A6** คลัง FG + in-process QC + จุดเก็บ sample (QA) — `fg_inventory` · `inprocess_checks` · `qa_samples`
