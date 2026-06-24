@@ -36,10 +36,10 @@
    · ปุ่ม "รับเข้าคลัง"/"แก้คลัง" (จำนวน/หน่วย/ตำแหน่ง/ล็อต/หมายเหตุ) · `lib/data/fg.ts` (listFgJobs) · realtime jobs+fg_inventory
    · nav: เปิดเมนู "คลัง / FG" (ready=true) · build ผ่าน · push แล้ว
 
-### ⚠️ เหลือผู้ใช้ทำ
-- **paste `0023_fg_inventory.sql`** (ต่อจาก 0022) · ทดสอบ: warehouse/manager → เมนู "คลัง / FG" →
-  งานที่ QA ปล่อยผ่าน (finished_goods) ขึ้นในลิสต์ → กด "รับเข้าคลัง" ใส่จำนวน+ตำแหน่ง → บันทึก → การ์ดขึ้น "รับเข้าคลังแล้ว"
-  (ถ้ายังไม่มีงาน FG: ต้องดันงานสักงานให้ถึง finished_goods ก่อน)
+### ✅ verified DB แล้ว (24 มิ.ย. 69)
+- ผู้ใช้ paste `0023_fg_inventory.sql` แล้ว · Claude เช็กผ่าน REST: ตาราง `fg_inventory` มีจริง (200)
+  · ฟังก์ชัน `receive_fg` มีจริง + guard ทำงาน · มีงาน finished_goods 2 งาน (JOB-002, JOB-004) ให้ทดสอบรับเข้าได้เลย ✅
+- เหลือผู้ใช้ทดสอบ UI: warehouse/manager → "คลัง / FG" → กด "รับเข้าคลัง" ใส่จำนวน+ตำแหน่ง → บันทึก → การ์ดขึ้น "รับเข้าคลังแล้ว"
 
 ### ▶️ ขั้นถัดไป (A6 ก้อน 2 + ปิด D11)
 - **A6 ก้อน 2:** in-process QC (`inprocess_checks`: job/station/param/value/pass-fail/checked_by) + จุดเก็บ sample QA (`qa_samples`)
