@@ -23,7 +23,40 @@
 
 ---
 
-## 📅 บันทึกวันที่ 23 มิถุนายน 2569 — เฟส 10 / D10 เสร็จครบ (A0·A1·A2·A3·A5) (ล่าสุด)
+## 📅 บันทึกวันที่ 24 มิถุนายน 2569 — เฟส 11 / D11 (A4 ก้อน 1): สูตรการผลิต / BOM (ล่าสุด)
+
+### ✅ วันนี้ทำอะไรไปบ้าง — สูตรยา + รายการวัตถุดิบที่ใช้ (Bill of Materials) 🧪📋
+> เริ่ม D11 · ผู้ใช้เลือกทำ A4 ก่อน · แบ่ง A4 เป็น 2 ก้อน → **ก้อน 1 = Recipe/BOM** (ฐาน ต่อกับ A2 วัตถุดิบ)
+> หมายเหตุ: ยังไม่ได้ fetch Notion รอบนี้ (A4 อยู่ใน Roadmap D11 ที่โพสต์ไว้แล้ว) — รอบหน้าก่อนก้อนใหม่ค่อยเช็ก
+1. **DB (`web/supabase/migrations/0020_recipes.sql`)** — ⏳ รอ paste:
+   - `product_recipes` (หัวสูตร: ผูก product · ชื่อ/เวอร์ชัน · `batch_size`+`batch_unit` · is_active · note)
+   - `recipe_items` (BOM: ผูก `materials` ของ A2 · qty/แบตช์ · unit · note · `unique(recipe_id, material_id)` กันซ้ำ)
+   - meta+audit trigger + RLS (อ่านทุกคน authenticated · เขียนผ่าน RPC) + realtime ทั้ง 2 ตาราง
+   - RPC security definer (เฉพาะ manager/admin ผ่าน `can_manage_recipes()`):
+     · `upsert_recipe(...)` เพิ่ม/แก้หัวสูตร · `set_recipe_items(recipe, jsonb)` **แทนที่ BOM ทั้งชุด atomic**
+       (validate ใน DB: วัตถุดิบมีจริง · qty ไม่ว่าง/ไม่ติดลบ · กันวัตถุดิบซ้ำในสูตร)
+2. **แอป (`web/`)** — build ผ่าน:
+   - `lib/data/recipes.ts` — `listProductsWithRecipes()` (join product→recipes→items→material) + `getMaterialOptions()`
+   - หน้า `app/(app)/recipes/` — `page.tsx` (guard อ่านทุก role, จัดการเฉพาะ manager) + `recipes-view.tsx` + `actions.ts`
+     · การ์ดต่อยา → เพิ่ม/แก้หัวสูตร · **BomEditor** เลือกวัตถุดิบจาก dropdown + qty/หน่วย/หมายเหตุ (เพิ่ม/ลบแถว) บันทึกทีเดียว
+   - `lib/nav.ts` — เมนูใหม่ "สูตรการผลิต / BOM" (ready=true)
+   - realtime: `product_recipes` + `recipe_items`
+3. commit + push แล้ว → Vercel auto-deploy
+
+### ⚠️ ขั้นที่ผู้ใช้ต้องทำเอง (ก่อนใช้งานจริง)
+- **paste `0020_recipes.sql`** ลง Supabase SQL Editor (ต่อจาก 0001–0019) → ปุ่มจัดการสูตรถึงจะทำงาน
+  (ถ้ายังไม่ paste: หน้า /recipes เปิดได้แต่ว่างเปล่า · กดบันทึกจะ error "ไม่พบฟังก์ชัน")
+- ทดสอบ: login เป็น **manager** → /recipes → เลือกยา → "＋ เพิ่มสูตร" (ตั้งขนาดแบตช์) →
+  "แก้รายการวัตถุดิบ" เลือกวัตถุดิบจากคลัง A2 + จำนวน → บันทึก → เห็น BOM ในตาราง · login role อื่น = เห็นแต่ดูอย่างเดียว
+
+### ▶️ ขั้นถัดไป (D11 ต่อ)
+- **A4 ก้อน 2:** สถานีย่อยจริง (บด/ร่อน/ผสมแห้ง/ฉาบ/ฟิล์ม/คัด-ขัด) + รูปแบบบรรจุ (Blister/Strip/ซอง/ขวด)
+- จากนั้น **A6** คลัง FG + in-process QC + จุดเก็บ sample (QA) · (+ B3 deviation · B4 notification ตามลำดับ)
+> ก่อนเริ่มก้อนใหม่: fetch Notion เช็ก requirement ล่าสุด
+
+---
+
+## 📅 บันทึกวันที่ 23 มิถุนายน 2569 — เฟส 10 / D10 เสร็จครบ (A0·A1·A2·A3·A5)
 
 ### ✅ D10 = เติม brief CEO รอบแรก — เสร็จครบ 5 ก้อน 🎉 (migration 0012–0019 paste+verify หมดแล้ว)
 > ทุกก้อน: เขียนผ่าน RPC security definer + RLS + audit + realtime ตามแพตเทิร์นเดิม · build ผ่าน · paste + verify REST + ผู้ใช้ทดสอบ UI ผ่าน · push ขึ้น Vercel แล้ว
