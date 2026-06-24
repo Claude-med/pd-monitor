@@ -40,9 +40,12 @@
    - **กระดิ่ง:** เมนู "🔔 แจ้งเตือน" ใน nav + **badge เลขยังไม่อ่าน** (layout ส่ง unreadCount → app-shell)
 3. push แล้ว · ตรวจ deploy ด้วย `vercel ls` (กัน gotcha push หลายก้อนข้าม deploy)
 
-### ⚠️ ขั้นที่ผู้ใช้ต้องทำ
-- **paste `0026_notifications.sql`** ลง Supabase SQL Editor (ต่อจาก 0001–0025)
-- ทดสอบ UI: QA/QC ตีกลับงาน → login ฝ่ายผลิตเห็นกระดิ่งเด้ง + /inbox มีรายการ · เปิด deviation major → QA/manager เห็น · งานเลย planned_end → เห็น "เกินกำหนด"
+### ✅ verified DB แล้ว (24 มิ.ย. 69)
+- ผู้ใช้ paste `0026_notifications.sql` แล้ว · Claude เช็กผ่าน REST: ตาราง `notifications`+`notification_reads` มีจริง (200) ·
+  RPC `mark_notification_read`+`mark_all_notifications_read` guard ทำงาน · `unread_notification_count` ตอบ 200 (0) ✅
+
+### ⚠️ เหลือผู้ใช้ทดสอบ UI จริง
+- QA/QC ตีกลับงาน → login ฝ่ายผลิตเห็นกระดิ่งเด้ง + /inbox มีรายการ · เปิด deviation major → QA/manager เห็น · งานเลย planned_end → เห็น "เกินกำหนด"
 
 ### ▶️ ขั้นถัดไป (เลือกได้ — ปิด D12 จริงเมื่อ verify B4)
 - MES-grade ที่เหลือ: **B5 Barcode/QR · B6 OEE/downtime · B7 capacity · B8 integration** (ดู Notion Roadmap)
