@@ -1,6 +1,7 @@
 import { getProfile } from "@/lib/auth/dal";
 import { hasAnyRole } from "@/lib/auth/roles";
 import { listProductsWithRecipes, getMaterialOptions } from "@/lib/data/recipes";
+import { listStations } from "@/lib/data/stations";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
 import { RecipesView } from "./recipes-view";
 
@@ -9,18 +10,26 @@ export const metadata = { title: "สูตรการผลิต / BOM — PD
 export default async function RecipesPage() {
   const profile = await getProfile();
   const canManage = hasAnyRole(profile?.roles ?? [], ["manager"]);
-  const [products, materials] = await Promise.all([
+  const [products, materials, stations] = await Promise.all([
     listProductsWithRecipes(),
     getMaterialOptions(),
+    listStations(),
   ]);
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
-      <RealtimeRefresh tables={["product_recipes", "recipe_items"]} />
+      <RealtimeRefresh
+        tables={[
+          "product_recipes",
+          "recipe_items",
+          "stations",
+          "product_routes",
+        ]}
+      />
       <div>
         <h1 className="text-2xl font-bold tracking-tight">สูตรการผลิต / BOM</h1>
         <p className="text-sm text-muted-foreground">
-          สูตรของยาแต่ละตัว · ขนาดแบตช์ · รายการวัตถุดิบ/บรรจุภัณฑ์ที่ใช้ (Bill of Materials)
+          สูตรของยาแต่ละตัว · ขนาดแบตช์ · วัตถุดิบ (BOM) · รูปแบบบรรจุ · ขั้นตอน/สถานีการผลิต
           {canManage ? "" : " (ดูอย่างเดียว — จัดการได้เฉพาะผู้บริหาร)"}
         </p>
       </div>
@@ -37,6 +46,7 @@ export default async function RecipesPage() {
       <RecipesView
         products={products}
         materials={materials}
+        stations={stations}
         canManage={canManage}
       />
     </div>

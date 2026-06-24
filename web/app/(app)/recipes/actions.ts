@@ -48,6 +48,70 @@ export async function upsertRecipe(v: {
   return { ok: true, id: data as string };
 }
 
+/** เพิ่ม/แก้สถานีย่อย (master) */
+export async function upsertStation(v: {
+  id: string | null;
+  code: string;
+  name: string;
+  station_group: string;
+  seq: string;
+  is_active: boolean;
+}): Promise<ActionResult> {
+  if (!(await requireManager()))
+    return { error: "ไม่มีสิทธิ์ (เฉพาะผู้บริหาร)" };
+  if (!v.code.trim()) return { error: "กรุณาระบุรหัสสถานี" };
+  if (!v.name.trim()) return { error: "กรุณาระบุชื่อสถานี" };
+  if (!v.station_group) return { error: "กรุณาเลือกกลุ่มสถานี" };
+
+  let seq = 100;
+  if (v.seq.trim() !== "") {
+    seq = Number(v.seq);
+    if (!Number.isInteger(seq)) return { error: "ลำดับต้องเป็นจำนวนเต็ม" };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("upsert_station", {
+    p_id: v.id,
+    p_code: v.code.trim(),
+    p_name: v.name.trim(),
+    p_group: v.station_group,
+    p_seq: seq,
+    p_is_active: v.is_active,
+  });
+  if (error) return { error: error.message || "บันทึกสถานีไม่สำเร็จ" };
+  revalidatePath("/recipes");
+  return { ok: true, id: data as string };
+}
+
+/** แทนที่ลำดับสถานีของยา (route) ทั้งชุด */
+export async function setProductRoute(
+  productId: string,
+  items: { station_id: string; note: string }[],
+): Promise<ActionResult> {
+  if (!(await requireManager()))
+    return { error: "ไม่มีสิทธิ์ (เฉพาะผู้บริหาร)" };
+  if (!productId) return { error: "ไม่พบยา/ผลิตภัณฑ์" };
+
+  const payload: { station_id: string; note?: string }[] = [];
+  const seen = new Set<string>();
+  for (const it of items) {
+    if (!it.station_id) continue; // ข้ามแถวว่าง
+    if (seen.has(it.station_id))
+      return { error: "มีสถานีซ้ำกันในลำดับ — สถานีหนึ่งใส่ได้ครั้งเดียว" };
+    seen.add(it.station_id);
+    payload.push({ station_id: it.station_id, note: it.note.trim() || undefined });
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_product_route", {
+    p_product_id: productId,
+    p_items: payload,
+  });
+  if (error) return { error: error.message || "บันทึกลำดับสถานีไม่สำเร็จ" };
+  revalidatePath("/recipes");
+  return { ok: true };
+}
+
 /** แก้รูปแบบบรรจุของยา */
 export async function updatePackaging(v: {
   product_id: string;

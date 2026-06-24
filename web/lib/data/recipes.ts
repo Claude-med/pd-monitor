@@ -1,4 +1,15 @@
 import { createClient } from "@/lib/supabase/server";
+import type { StationKey } from "@/lib/data/station-constants";
+
+export type RouteStep = {
+  id: string;
+  station_id: string;
+  station_code: string;
+  station_name: string;
+  station_group: StationKey;
+  step_no: number;
+  note: string | null;
+};
 
 export type RecipeItem = {
   id: string;
@@ -28,6 +39,7 @@ export type ProductWithRecipes = {
   pack_type: string | null;
   pack_pattern: string | null;
   recipes: Recipe[];
+  route: RouteStep[];
 };
 
 export type MaterialOption = {
@@ -62,6 +74,10 @@ export async function listProductsWithRecipes(): Promise<ProductWithRecipes[]> {
            id, material_id, qty, unit, note,
            material:materials ( code, name )
          )
+       ),
+       route:product_routes (
+         id, station_id, step_no, note,
+         station:stations ( code, name, station_group )
        )`,
     )
     .eq("is_active", true)
@@ -101,6 +117,17 @@ export async function listProductsWithRecipes(): Promise<ProductWithRecipes[]> {
         if (a.is_active !== b.is_active) return a.is_active ? -1 : 1;
         return a.name.localeCompare(b.name);
       }),
+    route: ((p.route ?? []) as any[])
+      .map((r) => ({
+        id: r.id,
+        station_id: r.station_id,
+        station_code: r.station?.code ?? "—",
+        station_name: r.station?.name ?? "",
+        station_group: r.station?.station_group,
+        step_no: r.step_no,
+        note: r.note,
+      }))
+      .sort((a, b) => a.step_no - b.step_no),
   }));
   /* eslint-enable @typescript-eslint/no-explicit-any */
 }
