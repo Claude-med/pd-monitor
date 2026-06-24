@@ -33,6 +33,11 @@
 4. **ปุ่มลิงก์ "📄 ดู eBR"** ในหน้า job detail (`board/[jobNo]/page.tsx`) · build ผ่าน · push แล้ว
 > = **ปิด D12 ครบ 3 ก้อน** (B3 deviation · B2 traceability · B1 eBR) 🎉
 
+### ⚠️ เจอ gotcha deploy (24 มิ.ย. 69)
+- **push หลาย commit ติดๆ กัน → Vercel อาจ "ข้าม" commit สุดท้าย** (eBR fdbca1f ไม่ trigger deploy → หน้า ebr 404 บนเว็บจริง)
+- แก้: `git commit --allow-empty -m "trigger" && git push` เพื่อบังคับ deploy ใหม่ · ตรวจด้วย `vercel ls pd-monitor --yes` (CLI authed อยู่)
+- **ครั้งหน้า: ถ้า push หลายก้อนรวด ให้เช็ก `vercel ls` ว่า deploy ตรง commit ล่าสุดจริง**
+
 ### ▶️ ขั้นถัดไป (เลือกได้)
 - **B4 Notification** (in-app inbox: เตือนงานใกล้เกินกำหนด/ค้าง/ตีกลับ/deviation) — อยู่ใน roadmap คู่กับ B3
 - หรือ MES-grade อื่น: B5 Barcode/QR · B6 OEE/downtime · B7 capacity · B8 integration (ดู Notion Roadmap)
