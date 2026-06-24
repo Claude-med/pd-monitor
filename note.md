@@ -34,8 +34,9 @@
 2. **แอป:** หน้า `/recipes` แสดงรูปแบบบรรจุบนการ์ดยา + ปุ่ม "แก้บรรจุ" (เลือก type + กรอกรายละเอียดแผง)
    · `lib/data/packaging-constants.ts` (ตัวเลือก pack type) · build ผ่าน · push แล้ว
 
-### ⚠️ เหลือผู้ใช้ทำ
-- **paste `0021_packaging.sql`** (ต่อจาก 0020) · ทดสอบ: manager → /recipes → "แก้บรรจุ" → เลือก Blister + ใส่ "แผง 50×10's" → บันทึก → เห็นบนการ์ด
+### ✅ verified DB แล้ว (24 มิ.ย. 69)
+- ผู้ใช้ paste `0021_packaging.sql` แล้ว · Claude เช็กผ่าน REST: คอลัมน์ `pack_type`+`pack_pattern` มีจริง (200)
+  · ฟังก์ชัน `update_product_packaging` มีจริง + guard ทำงาน · ผู้ใช้ทดสอบ UI ผ่าน ✅
 
 ### ▶️ ขั้นถัดไป (D11 ต่อ)
 - **A4 ก้อน 3:** สถานีย่อยจริง — ตาราง `stations` (config: บด/ร่อน/ผสมแห้ง/ฉาบ/ฟิล์ม/คัด-ขัด/บรรจุ) + `product_routes` (ยา→ลำดับสถานี)
