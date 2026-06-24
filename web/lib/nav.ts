@@ -15,6 +15,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/daily", label: "รายงานประจำวัน", roles: "all", ready: true },
   { href: "/machines", label: "เครื่องจักร", roles: "all", ready: true },
   { href: "/materials", label: "วัตถุดิบ / คลัง", roles: "all", ready: true },
+  { href: "/recipes", label: "สูตรการผลิต / BOM", roles: "all", ready: true },
   {
     href: "/quality",
     label: "ตรวจ QC / QA",
