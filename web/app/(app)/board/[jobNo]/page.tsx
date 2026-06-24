@@ -21,6 +21,7 @@ import {
   getSelectableLots,
 } from "@/lib/data/requisitions";
 import { getLineClearance } from "@/lib/data/line-clearance";
+import { getInprocessChecks, getQaSamples } from "@/lib/data/quality-checks";
 import { getProfile } from "@/lib/auth/dal";
 import { hasAnyRole } from "@/lib/auth/roles";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
@@ -28,6 +29,7 @@ import { JobActions } from "./job-actions";
 import { RecordForm } from "./record-form";
 import { Requisitions } from "./requisitions";
 import { LineClearancePanel } from "./line-clearance";
+import { QualityChecks } from "./quality-checks";
 
 function fmtQty(n: number | null): string {
   return n == null ? "—" : n.toLocaleString("th-TH");
@@ -69,6 +71,10 @@ export default async function JobDetailPage({
   const lineClearance = await getLineClearance(job.id);
   const canPerformLc = hasAnyRole(roles, ["production", "manager"]);
   const canCheckLc = hasAnyRole(roles, ["production", "qc", "qa", "manager"]);
+  const inprocessChecks = await getInprocessChecks(job.id);
+  const qaSamples = await getQaSamples(job.id);
+  const canInprocess = hasAnyRole(roles, ["qc", "manager"]);
+  const canSample = hasAnyRole(roles, ["qa", "manager"]);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -79,6 +85,8 @@ export default async function JobDetailPage({
           "approvals",
           "material_requisitions",
           "line_clearances",
+          "inprocess_checks",
+          "qa_samples",
         ]}
       />
       <Link
@@ -263,6 +271,16 @@ export default async function JobDetailPage({
         canRequest={canRequestMat}
         canIssue={canIssueMat}
         currentProfileId={profile?.id ?? ""}
+      />
+
+      {/* ตรวจระหว่างผลิต (in-process QC) + จุดเก็บตัวอย่าง QA (A6) */}
+      <QualityChecks
+        jobId={job.id}
+        jobNo={job.job_no}
+        checks={inprocessChecks}
+        samples={qaSamples}
+        canCheck={canInprocess}
+        canSample={canSample}
       />
 
       {/* ลายเซ็นอนุมัติคุณภาพ (QC/QA e-signature) */}
