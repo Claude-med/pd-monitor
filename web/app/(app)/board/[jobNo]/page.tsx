@@ -22,6 +22,8 @@ import {
 } from "@/lib/data/requisitions";
 import { getLineClearance } from "@/lib/data/line-clearance";
 import { getInprocessChecks, getQaSamples } from "@/lib/data/quality-checks";
+import { getDeviationsByJob } from "@/lib/data/deviations";
+import { canOpenDeviation, canCloseDeviation } from "@/lib/data/deviation-constants";
 import { getProfile } from "@/lib/auth/dal";
 import { hasAnyRole } from "@/lib/auth/roles";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
@@ -30,6 +32,7 @@ import { RecordForm } from "./record-form";
 import { Requisitions } from "./requisitions";
 import { LineClearancePanel } from "./line-clearance";
 import { QualityChecks } from "./quality-checks";
+import { Deviations } from "./deviations";
 
 function fmtQty(n: number | null): string {
   return n == null ? "—" : n.toLocaleString("th-TH");
@@ -75,6 +78,14 @@ export default async function JobDetailPage({
   const qaSamples = await getQaSamples(job.id);
   const canInprocess = hasAnyRole(roles, ["qc", "manager"]);
   const canSample = hasAnyRole(roles, ["qa", "manager"]);
+  const deviations = await getDeviationsByJob(job.id);
+  // ผลตรวจระหว่างผลิตที่ "ไม่ผ่าน" และยังไม่ได้เปิด deviation → เสนอเปิดด่วน
+  const linkedCheckIds = new Set(
+    deviations.map((d) => d.inprocess_check_id).filter(Boolean) as string[],
+  );
+  const failChecks = inprocessChecks
+    .filter((c) => c.result === "fail" && !linkedCheckIds.has(c.id))
+    .map((c) => ({ id: c.id, station: c.station, param: c.param }));
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -87,6 +98,7 @@ export default async function JobDetailPage({
           "line_clearances",
           "inprocess_checks",
           "qa_samples",
+          "deviations",
         ]}
       />
       <Link
@@ -281,6 +293,16 @@ export default async function JobDetailPage({
         samples={qaSamples}
         canCheck={canInprocess}
         canSample={canSample}
+      />
+
+      {/* Deviation / เหตุผิดปกติ (B3) — gate กัน QA→FG ถ้ามีเปิดค้าง */}
+      <Deviations
+        jobId={job.id}
+        jobNo={job.job_no}
+        deviations={deviations}
+        failChecks={failChecks}
+        canOpen={canOpenDeviation(roles)}
+        canClose={canCloseDeviation(roles)}
       />
 
       {/* ลายเซ็นอนุมัติคุณภาพ (QC/QA e-signature) */}

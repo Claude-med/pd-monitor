@@ -23,7 +23,36 @@
 
 ---
 
-## 📅 บันทึกวันที่ 24 มิถุนายน 2569 — เฟส 11 / D11 (A6 ก้อน 2): in-process QC + QA sample — ปิด A6 (ล่าสุด)
+## 📅 บันทึกวันที่ 24 มิถุนายน 2569 — เฟส 12 / D12 (ก้อน 1): B3 Deviation / Incident (ล่าสุด)
+
+### ✅ วันนี้ทำอะไรไปบ้าง — ระบบบันทึกเหตุผิดปกติ + gate กัน QA→FG ⚠️
+> เริ่ม D12 (MES-grade) · fetch Notion Roadmap (B1–B8) + recommendations ก่อนเริ่ม · ทำทีละก้อน B3 → B2 → B1
+> **Decisions (ผู้ใช้ยืนยัน):** (1) deviation เปิดค้าง = บล็อกเฉพาะ QA→FG (2) เปิด: ผลิต/QC/QA · ปิด: QA/ผู้บริหาร (3) eBR = หน้า view + ปุ่มพิมพ์
+1. **DB (`web/supabase/migrations/0025_deviations.sql`)** — ⏳ รอ paste:
+   - enum `deviation_severity` (minor/major/critical) · `deviation_status` (open/investigating/closed)
+   - ตาราง `deviations` (ผูก job · machine(null) · `inprocess_check_id`(null เชื่อมผล in-process fail) ·
+     title/description/dev_type/severity/status/reported_by/assigned_to/due_date/root_cause/capa/closed_by/closed_at) + ALCOA+audit+RLS+realtime
+   - RPC `open_deviation` (production/qc/qa/manager) · `update_deviation` (**ปิด=closed เฉพาะ qa/manager + ต้องมี root_cause+capa**)
+   - helper `has_open_deviation(job)` · **ยกเครื่อง `advance_job_status` เพิ่ม GATE: qa→finished_goods ถ้ามี deviation เปิดค้าง = บล็อก** (คง gate line clearance เดิม)
+2. **แอป (`web/`)** — build ผ่าน (Next 16/Turbopack):
+   - `lib/data/deviation-constants.ts` (severity/status/type + canOpen/canClose) · `lib/data/deviations.ts` (`getDeviationsByJob`)
+   - `board/[jobNo]/deviation-actions.ts` (`openDeviation`/`updateDeviation`) · `board/[jobNo]/deviations.tsx` (ส่วน "⚠️ Deviation" + ฟอร์มเปิด/ปิด + quick-open จากผล in-process ที่ "ไม่ผ่าน")
+   - ฝังใน `board/[jobNo]/page.tsx` (fetch + failChecks ที่ยังไม่ผูก deviation + realtime `deviations`)
+3. push แล้ว → Vercel auto-deploy
+
+### ⚠️ ขั้นที่ผู้ใช้ต้องทำ
+- **paste `0025_deviations.sql`** ลง Supabase SQL Editor (ต่อจาก 0001–0024)
+- ทดสอบ UI: production/qc/qa เปิด deviation บนงาน → QA กด QA→FG **ต้องถูกบล็อก** "มี deviation เปิดค้าง" →
+  QA กด "อัปเดต/ปิด" ใส่ root cause+CAPA เลือก closed → QA→FG ผ่าน · ผล in-process "ไม่ผ่าน" → ปุ่ม "เปิด deviation" ด่วน ผูก check ถูก
+
+### ▶️ ขั้นถัดไป (D12 — หลัง verify B3)
+- **B2 Lot Genealogy** (ก้อน 2): หน้า `/trace` ไล่ย้อนสายโซ่ RM lot → งาน → FG lot (read view เป็นหลัก สายข้อมูลมีอยู่แล้ว)
+- **B1 eBR** (ก้อน 3): หน้า view รวมแฟ้มการผลิตของ lot + ปุ่มพิมพ์ (print CSS)
+> แผนเต็ม: `~/.claude/plans/1-b3-deviation-declarative-otter.md`
+
+---
+
+## 📅 บันทึกวันที่ 24 มิถุนายน 2569 — เฟส 11 / D11 (A6 ก้อน 2): in-process QC + QA sample — ปิด A6
 
 ### ✅ วันนี้ทำอะไรไปบ้าง — ตรวจคุณภาพระหว่างผลิต + จุดเก็บตัวอย่าง QA 🔬🧫
 > ปิดส่วนสุดท้ายของ A6 · ฟอร์มอยู่ในหน้า job detail (board/[jobNo]) · ⚠️ in-process "ไม่ผ่าน" จะเชื่อม deviation (B3) ภายหลัง
