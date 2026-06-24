@@ -23,7 +23,28 @@
 
 ---
 
-## 📅 บันทึกวันที่ 24 มิถุนายน 2569 — เฟส 11 / D11 (A4 ก้อน 1): สูตรการผลิต / BOM (ล่าสุด)
+## 📅 บันทึกวันที่ 24 มิถุนายน 2569 — เฟส 11 / D11 (A4 ก้อน 2): รูปแบบบรรจุ (ล่าสุด)
+
+### ✅ วันนี้ทำอะไรไปบ้าง — ระบุรูปแบบบรรจุของยาแต่ละตัว 📦
+> fetch Notion (หน้า Roadmap) ก่อนเริ่ม · A4 เหลือ 2 ส่วน → แยกเป็นก้อน 2 (บรรจุ · เล็ก/ปลอดภัย) + ก้อน 3 (สถานีย่อย/route · ใหญ่)
+> ⚠️ Notion เตือน: "อย่าเปลี่ยน enum production_station — production_records เดิมจะพัง · ทำตาราง config (stations + product_routes) ปลอดภัยกว่า" → เก็บไว้ทำก้อน 3
+1. **DB (`web/supabase/migrations/0021_packaging.sql`)** — ⏳ รอ paste:
+   - เพิ่มคอลัมน์ `products.pack_type` (Blister/Strip/ซอง/ขวด/กระปุก/อื่นๆ) + `pack_pattern` (เช่น "แผง 50×10's")
+   - RPC `update_product_packaging(product, type, pattern)` (manager/admin · audit ผ่าน trigger เดิมของ products)
+2. **แอป:** หน้า `/recipes` แสดงรูปแบบบรรจุบนการ์ดยา + ปุ่ม "แก้บรรจุ" (เลือก type + กรอกรายละเอียดแผง)
+   · `lib/data/packaging-constants.ts` (ตัวเลือก pack type) · build ผ่าน · push แล้ว
+
+### ⚠️ เหลือผู้ใช้ทำ
+- **paste `0021_packaging.sql`** (ต่อจาก 0020) · ทดสอบ: manager → /recipes → "แก้บรรจุ" → เลือก Blister + ใส่ "แผง 50×10's" → บันทึก → เห็นบนการ์ด
+
+### ▶️ ขั้นถัดไป (D11 ต่อ)
+- **A4 ก้อน 3:** สถานีย่อยจริง — ตาราง `stations` (config: บด/ร่อน/ผสมแห้ง/ฉาบ/ฟิล์ม/คัด-ขัด/บรรจุ) + `product_routes` (ยา→ลำดับสถานี)
+  ⚠️ ใช้ตาราง config ไม่แตะ enum เดิม (Notion เตือน) · map สถานีย่อย→กลุ่ม 4 enum เดิมเพื่อให้ dashboard ไม่พัง
+- จากนั้น **A6** คลัง FG + in-process QC + sample · (+ B3 deviation · B4 notification)
+
+---
+
+## 📅 บันทึกวันที่ 24 มิถุนายน 2569 — เฟส 11 / D11 (A4 ก้อน 1): สูตรการผลิต / BOM
 
 ### ✅ วันนี้ทำอะไรไปบ้าง — สูตรยา + รายการวัตถุดิบที่ใช้ (Bill of Materials) 🧪📋
 > เริ่ม D11 · ผู้ใช้เลือกทำ A4 ก่อน · แบ่ง A4 เป็น 2 ก้อน → **ก้อน 1 = Recipe/BOM** (ฐาน ต่อกับ A2 วัตถุดิบ)
