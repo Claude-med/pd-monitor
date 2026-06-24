@@ -23,7 +23,34 @@
 
 ---
 
-## 📅 บันทึกวันที่ 24 มิถุนายน 2569 — เฟส 11 / D11 (A4 ก้อน 2): รูปแบบบรรจุ (ล่าสุด)
+## 📅 บันทึกวันที่ 24 มิถุนายน 2569 — เฟส 11 / D11 (A4 ก้อน 3): สถานีย่อยจริง + route — ปิด A4 (ล่าสุด)
+
+### ✅ วันนี้ทำอะไรไปบ้าง — กระบวนการผลิตจริงหลายสถานี + ลำดับต่อยา 🛠️
+> fetch Notion ก่อนเริ่ม · ⚠️ Notion เตือนชัด "อย่าแตะ enum production_station เดิม (prod_records+dashboard พัง) → ทำตาราง config"
+> ทำตามเป๊ะ: ไม่แตะ enum · ใช้ตาราง stations + station_group map เข้า 4 กลุ่มเดิม
+1. **DB (`web/supabase/migrations/0022_stations.sql`)** — ⏳ รอ paste:
+   - `stations` (สถานีย่อย config: code/name/`station_group`[enum เดิมเป็นกลุ่ม rollup]/seq/is_active)
+     + **seed 10 สถานี**: ชั่ง/เตรียม(prep) · บด/ร่อน/ผสมแห้ง/ผสมเปียก(mixing) · ตอก/แคปซูล/ฟิล์ม/คัด-ขัด(tableting) · บรรจุ(packing)
+   - `product_routes` (ยา→ลำดับสถานี `step_no` · `unique(product_id,station_id)`) · meta+audit+RLS+realtime
+   - RPC `upsert_station` + `set_product_route(product, jsonb)` (manager · แทนที่ route ทั้งชุด atomic + กันสถานีซ้ำ/ไม่มีจริง)
+2. **แอป `/recipes`** — build ผ่าน:
+   - แผง "⚙️ ตั้งค่าสถานี (master)" ด้านบน (manager) — ตาราง+เพิ่ม/แก้สถานี (เลือกกลุ่มหลัก rollup)
+   - ส่วน "🛠️ ขั้นตอนการผลิต (Route)" ในการ์ดยา — แสดงเป็น chain (1.→2.→3.) สีตามกลุ่ม · แก้ได้: เลือกสถานี + เลื่อนลำดับ ▲▼ + เพิ่ม/ลบ
+   - `lib/data/stations.ts` (`listStations`) + ต่อ route เข้า `listProductsWithRecipes`
+3. push แล้ว → **= ปิด A4 ครบ 3 ก้อน** (สูตร/BOM · บรรจุ · สถานีย่อย) 🎉
+
+### ⚠️ เหลือผู้ใช้ทำ
+- **paste `0022_stations.sql`** (ต่อจาก 0021) · ทดสอบ: manager → /recipes → แผง "ตั้งค่าสถานี" เห็น 10 สถานี seed →
+  ในการ์ดยา กด "แก้ขั้นตอน" เลือกสถานีเรียงลำดับ (บด→ร่อน→ผสม→ตอก→บรรจุ) เลื่อน ▲▼ → บันทึก → เห็น chain
+
+### ▶️ ขั้นถัดไป (D11 ต่อ)
+- **A6** คลัง FG + in-process QC + จุดเก็บ sample (QA) — `fg_inventory` · `inprocess_checks` · `qa_samples`
+- จากนั้น B3 deviation · B4 notification (in-app inbox)
+> ก่อนเริ่ม A6: fetch Notion เช็ก requirement ล่าสุด
+
+---
+
+## 📅 บันทึกวันที่ 24 มิถุนายน 2569 — เฟส 11 / D11 (A4 ก้อน 2): รูปแบบบรรจุ
 
 ### ✅ วันนี้ทำอะไรไปบ้าง — ระบุรูปแบบบรรจุของยาแต่ละตัว 📦
 > fetch Notion (หน้า Roadmap) ก่อนเริ่ม · A4 เหลือ 2 ส่วน → แยกเป็นก้อน 2 (บรรจุ · เล็ก/ปลอดภัย) + ก้อน 3 (สถานีย่อย/route · ใหญ่)
