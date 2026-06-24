@@ -26,7 +26,7 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/warehouse",
     label: "คลัง / FG",
     roles: ["warehouse", "manager"],
-    ready: false,
+    ready: true,
   },
   {
     href: "/audit",
