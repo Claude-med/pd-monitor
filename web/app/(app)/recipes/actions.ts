@@ -48,6 +48,27 @@ export async function upsertRecipe(v: {
   return { ok: true, id: data as string };
 }
 
+/** แก้รูปแบบบรรจุของยา */
+export async function updatePackaging(v: {
+  product_id: string;
+  pack_type: string;
+  pack_pattern: string;
+}): Promise<ActionResult> {
+  if (!(await requireManager()))
+    return { error: "ไม่มีสิทธิ์ (เฉพาะผู้บริหาร)" };
+  if (!v.product_id) return { error: "ไม่พบยา/ผลิตภัณฑ์" };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("update_product_packaging", {
+    p_product_id: v.product_id,
+    p_pack_type: v.pack_type.trim() || null,
+    p_pack_pattern: v.pack_pattern.trim() || null,
+  });
+  if (error) return { error: error.message || "บันทึกรูปแบบบรรจุไม่สำเร็จ" };
+  revalidatePath("/recipes");
+  return { ok: true, id: data as string };
+}
+
 /** แทนที่รายการวัตถุดิบในสูตร (BOM) ทั้งชุด */
 export async function setRecipeItems(
   recipeId: string,

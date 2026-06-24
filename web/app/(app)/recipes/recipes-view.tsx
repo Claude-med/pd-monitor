@@ -7,7 +7,8 @@ import type {
   Recipe,
   MaterialOption,
 } from "@/lib/data/recipes";
-import { upsertRecipe, setRecipeItems } from "./actions";
+import { PACK_TYPES } from "@/lib/data/packaging-constants";
+import { upsertRecipe, setRecipeItems, updatePackaging } from "./actions";
 
 const inputClass =
   "w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring";
@@ -59,6 +60,11 @@ function ProductCard({
 }) {
   const [adding, setAdding] = useState(false);
   const [editHeaderId, setEditHeaderId] = useState<string | null>(null);
+  const [editPack, setEditPack] = useState(false);
+
+  const packLabel = [product.pack_type, product.pack_pattern]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <div className="rounded-xl border bg-card p-4">
@@ -77,21 +83,46 @@ function ProductCard({
           </div>
           <p className="mt-0.5 text-xs text-muted-foreground">
             {product.recipes.length} สูตร
+            {packLabel ? (
+              <> · บรรจุ: {packLabel}</>
+            ) : (
+              <> · ยังไม่ระบุรูปแบบบรรจุ</>
+            )}
           </p>
         </div>
         {canManage && (
-          <button
-            type="button"
-            onClick={() => {
-              setAdding((s) => !s);
-              setEditHeaderId(null);
-            }}
-            className="rounded-md border px-3 py-1.5 text-xs hover:bg-accent"
-          >
-            {adding ? "ปิด" : "＋ เพิ่มสูตร"}
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setEditPack((s) => !s);
+                setAdding(false);
+                setEditHeaderId(null);
+              }}
+              className="rounded-md border px-3 py-1.5 text-xs hover:bg-accent"
+            >
+              {editPack ? "ปิด" : "แก้บรรจุ"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setAdding((s) => !s);
+                setEditPack(false);
+                setEditHeaderId(null);
+              }}
+              className="rounded-md border px-3 py-1.5 text-xs hover:bg-accent"
+            >
+              {adding ? "ปิด" : "＋ เพิ่มสูตร"}
+            </button>
+          </div>
         )}
       </div>
+
+      {canManage && editPack && (
+        <div className="mt-3 border-t pt-3">
+          <PackagingForm product={product} onDone={() => setEditPack(false)} />
+        </div>
+      )}
 
       {canManage && adding && (
         <div className="mt-3 border-t pt-3">
@@ -119,6 +150,90 @@ function ProductCard({
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function PackagingForm({
+  product,
+  onDone,
+}: {
+  product: ProductWithRecipes;
+  onDone: () => void;
+}) {
+  const [packType, setPackType] = useState(product.pack_type ?? "");
+  const [packPattern, setPackPattern] = useState(product.pack_pattern ?? "");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  const router = useRouter();
+
+  function submit() {
+    setError(null);
+    start(async () => {
+      const res = await updatePackaging({
+        product_id: product.id,
+        pack_type: packType,
+        pack_pattern: packPattern,
+      });
+      if (res.ok) {
+        router.refresh();
+        onDone();
+        return;
+      }
+      setError(res.error ?? "บันทึกไม่สำเร็จ");
+    });
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div>
+          <label className={labelClass}>รูปแบบบรรจุ</label>
+          <select
+            value={packType}
+            onChange={(e) => setPackType(e.target.value)}
+            className={inputClass}
+          >
+            <option value="">— ไม่ระบุ —</option>
+            {PACK_TYPES.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className={labelClass}>รายละเอียดแผง/บรรจุ</label>
+          <input
+            value={packPattern}
+            onChange={(e) => setPackPattern(e.target.value)}
+            placeholder="เช่น แผง 50×10's (50 แผง × 10 เม็ด)"
+            className={inputClass}
+          />
+        </div>
+      </div>
+      {error && (
+        <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          {error}
+        </p>
+      )}
+      <div className="flex gap-2">
+        <button
+          type="button"
+          disabled={pending}
+          onClick={submit}
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+        >
+          {pending ? "กำลังบันทึก…" : "บันทึกรูปแบบบรรจุ"}
+        </button>
+        <button
+          type="button"
+          onClick={onDone}
+          className="rounded-md border px-4 py-2 text-sm hover:bg-accent"
+        >
+          ยกเลิก
+        </button>
+      </div>
     </div>
   );
 }

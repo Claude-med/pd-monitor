@@ -25,6 +25,8 @@ export type ProductWithRecipes = {
   code: string;
   name: string;
   dosage_form: string | null;
+  pack_type: string | null;
+  pack_pattern: string | null;
   recipes: Recipe[];
 };
 
@@ -53,7 +55,7 @@ export async function listProductsWithRecipes(): Promise<ProductWithRecipes[]> {
   const { data, error } = await supabase
     .from("products")
     .select(
-      `id, code, name, dosage_form,
+      `id, code, name, dosage_form, pack_type, pack_pattern,
        recipes:product_recipes (
          id, name, batch_size, batch_unit, is_active, note,
          items:recipe_items (
@@ -72,6 +74,8 @@ export async function listProductsWithRecipes(): Promise<ProductWithRecipes[]> {
     code: p.code,
     name: p.name,
     dosage_form: p.dosage_form,
+    pack_type: p.pack_type ?? null,
+    pack_pattern: p.pack_pattern ?? null,
     recipes: ((p.recipes ?? []) as any[])
       .map((r) => ({
         id: r.id,
