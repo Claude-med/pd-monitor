@@ -23,7 +23,35 @@
 
 ---
 
-## 📅 บันทึกวันที่ 24 มิถุนายน 2569 — เฟส 11 / D11 (A6 ก้อน 1): คลัง FG (ล่าสุด)
+## 📅 บันทึกวันที่ 24 มิถุนายน 2569 — เฟส 11 / D11 (A6 ก้อน 2): in-process QC + QA sample — ปิด A6 (ล่าสุด)
+
+### ✅ วันนี้ทำอะไรไปบ้าง — ตรวจคุณภาพระหว่างผลิต + จุดเก็บตัวอย่าง QA 🔬🧫
+> ปิดส่วนสุดท้ายของ A6 · ฟอร์มอยู่ในหน้า job detail (board/[jobNo]) · ⚠️ in-process "ไม่ผ่าน" จะเชื่อม deviation (B3) ภายหลัง
+1. **DB (`web/supabase/migrations/0024_quality_checks.sql`)** — ⏳ รอ paste:
+   - `inprocess_checks` (QC ระหว่างผลิต: station[enum 4 กลุ่ม]/param/value/unit/`result`[pass-fail]/checked_by/checked_at)
+   - `qa_samples` (จุด/รอบเก็บตัวอย่าง: sample_point/qty/unit/collected_by/collected_at)
+   - enum `check_result` (pass/fail) · meta+audit+RLS+realtime ทั้ง 2 ตาราง
+   - RPC `add_inprocess_check` (qc/manager · งานต้องอยู่ in_production/qc/qa) + `add_qa_sample` (qa/manager)
+     · เขียนชื่อผู้ตรวจ/ผู้เก็บอัตโนมัติจาก session (ALCOA)
+2. **แอป `board/[jobNo]`** — build ผ่าน:
+   - ส่วน "ตรวจระหว่างผลิต (In-process QC)" — ตาราง + ฟอร์ม (เห็น/เพิ่มได้เฉพาะ qc/manager) แสดงผ่าน/ไม่ผ่าน
+   - ส่วน "จุดเก็บตัวอย่าง (QA Sample)" — ตาราง + ฟอร์ม (เฉพาะ qa/manager)
+   - `lib/data/quality-checks.ts` + `quality-actions.ts` + `quality-checks.tsx` · realtime 2 ตารางใหม่
+3. push แล้ว → **= ปิด A6 + ปิดส่วน A ของ D11 ทั้งหมด** (A4·A6 เสร็จ) 🎉
+
+### ⚠️ เหลือผู้ใช้ทำ
+- **paste `0024_quality_checks.sql`** (ต่อจาก 0023) · ทดสอบ:
+  - login **qc** เปิดงานกำลังผลิต/QC (เช่น JOB-001) → "ตรวจระหว่างผลิต" กด "＋ บันทึกผลตรวจ" (เลือกสถานี+หัวข้อ+ผล) → บันทึก
+  - login **qa** → "จุดเก็บตัวอย่าง" กด "＋ บันทึกจุดเก็บตัวอย่าง" (ต้นรอบ/กลางรอบ/ปลายรอบ) → บันทึก
+
+### ▶️ ขั้นถัดไป (ปิดท้าย D11)
+- **B3 Deviation** — เปิดเหตุผิดปกติ (ประเภท/ความรุนแรง/ผู้รับผิดชอบ/กำหนดปิด) ผูก job/lot/เครื่อง · เชื่อม in-process fail
+- **B4 Notification** — แจ้งเตือนงานใกล้เกินกำหนด/ค้างนาน/ถูกตีกลับ/deviation (เริ่ม in-app inbox)
+> ก่อนเริ่ม B3/B4: fetch Notion เช็ก requirement ล่าสุด
+
+---
+
+## 📅 บันทึกวันที่ 24 มิถุนายน 2569 — เฟส 11 / D11 (A6 ก้อน 1): คลัง FG
 
 ### ✅ วันนี้ทำอะไรไปบ้าง — รับสินค้าสำเร็จรูปเข้าคลัง 📦🏬
 > fetch Notion ก่อนเริ่ม (demo-feature-suggestions = 10 ฟีเจอร์เดิม ครบแล้ว · ไม่มีของใหม่) · ใช้ดีไซน์ A6 จาก Roadmap
