@@ -85,7 +85,7 @@ export function Deviations({
       {canOpen && failChecks.length > 0 && (
         <div className="mt-4 rounded-md border border-dashed bg-muted/20 p-3">
           <p className="mb-2 text-xs font-medium text-muted-foreground">
-            ผลตรวจระหว่างผลิตที่ "ไม่ผ่าน" — เปิด deviation ได้เลย:
+            ผลตรวจระหว่างผลิตที่ &quot;ไม่ผ่าน&quot; — เปิด deviation ได้เลย:
           </p>
           <div className="flex flex-wrap gap-2">
             {failChecks.map((c) => (

@@ -1,4 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
+import type { AppRole } from "@/lib/auth/dal";
+import { hasAnyRole } from "@/lib/auth/roles";
 import type {
   EditTargetType,
   EditRequestStatus,
@@ -111,13 +113,17 @@ export async function getTargetSnapshot(
   return out;
 }
 
-/** จำนวนคำขอรออนุมัติ — สำหรับ badge เมนู */
-export async function getPendingEditCount(): Promise<number> {
+/** จำนวนคำขอรออนุมัติ — สำหรับ badge เมนู (นับเฉพาะที่ผู้ดูอนุมัติได้จริง) */
+export async function getPendingEditCount(roles: AppRole[]): Promise<number> {
   const supabase = await createClient();
-  const { count } = await supabase
+  let query = supabase
     .from("edit_requests")
     .select("id", { count: "exact", head: true })
     .eq("status", "pending");
+  // qa (ที่ไม่ใช่ manager/admin) อนุมัติได้เฉพาะผลตรวจ QC → นับเฉพาะชนิดนั้น badge จะไม่หลอก
+  if (!hasAnyRole(roles, ["manager", "admin"]))
+    query = query.eq("target_type", "inprocess_check");
+  const { count } = await query;
   return count ?? 0;
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */

@@ -31,7 +31,7 @@ export default async function EditRequestsPage() {
           อนุมัติแล้วระบบจะแก้ข้อมูลจริงให้ทันที พร้อมบันทึกประวัติ (ใคร/เมื่อไร/แก้อะไร)
         </p>
       </div>
-      <EditRequestsView items={pending} befores={befores} />
+      <EditRequestsView items={pending} befores={befores} roles={roles} />
     </div>
   );
 }

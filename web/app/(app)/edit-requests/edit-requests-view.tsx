@@ -4,8 +4,10 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { EditRequest } from "@/lib/data/edit-requests";
+import type { AppRole } from "@/lib/auth/dal";
 import {
   EDIT_TARGET_LABEL,
+  canReviewEdit,
   fieldLabel,
 } from "@/lib/data/edit-request-constants";
 import { fmtDateTime } from "@/lib/format";
@@ -14,9 +16,11 @@ import { reviewEditRequest } from "./actions";
 export function EditRequestsView({
   items,
   befores,
+  roles,
 }: {
   items: EditRequest[];
   befores: Record<string, Record<string, string>>;
+  roles: AppRole[];
 }) {
   if (items.length === 0) {
     return (
@@ -28,7 +32,12 @@ export function EditRequestsView({
   return (
     <div className="space-y-4">
       {items.map((r) => (
-        <RequestCard key={r.id} req={r} before={befores[r.id] ?? {}} />
+        <RequestCard
+          key={r.id}
+          req={r}
+          before={befores[r.id] ?? {}}
+          canReview={canReviewEdit(roles, r.target_type)}
+        />
       ))}
     </div>
   );
@@ -37,9 +46,11 @@ export function EditRequestsView({
 function RequestCard({
   req,
   before,
+  canReview,
 }: {
   req: EditRequest;
   before: Record<string, string>;
+  canReview: boolean;
 }) {
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -118,37 +129,43 @@ function RequestCard({
         {req.reason}
       </p>
 
-      <div className="mt-3 space-y-2">
-        <input
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          placeholder="หมายเหตุผู้อนุมัติ (จำเป็นเมื่อปฏิเสธ)"
-          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-        />
-        {error && (
-          <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            {error}
-          </p>
-        )}
-        <div className="flex gap-2">
-          <button
-            type="button"
-            disabled={pending}
-            onClick={() => run("approve")}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
-          >
-            {pending ? "กำลังดำเนินการ…" : "✅ อนุมัติ + แก้ให้"}
-          </button>
-          <button
-            type="button"
-            disabled={pending}
-            onClick={() => run("reject")}
-            className="rounded-md border border-red-300 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
-          >
-            ปฏิเสธ
-          </button>
+      {canReview ? (
+        <div className="mt-3 space-y-2">
+          <input
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="หมายเหตุผู้อนุมัติ (จำเป็นเมื่อปฏิเสธ)"
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+          />
+          {error && (
+            <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {error}
+            </p>
+          )}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => run("approve")}
+              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+            >
+              {pending ? "กำลังดำเนินการ…" : "✅ อนุมัติ + แก้ให้"}
+            </button>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => run("reject")}
+              className="rounded-md border border-red-300 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+            >
+              ปฏิเสธ
+            </button>
+          </div>
         </div>
-      </div>
+      ) : (
+        <p className="mt-3 rounded-md border border-dashed bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+          🔒 คำขอนี้ต้องให้ผู้จัดการอนุมัติ
+        </p>
+      )}
     </div>
   );
 }

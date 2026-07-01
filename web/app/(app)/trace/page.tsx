@@ -167,7 +167,7 @@ export default async function TracePage({
 
       {nothing && (
         <p className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
-          ไม่พบงาน/ล็อตที่ตรงกับ "{q}"
+          ไม่พบงาน/ล็อตที่ตรงกับ &quot;{q}&quot;
         </p>
       )}
 

@@ -212,6 +212,8 @@ export function RecordForm({
 
   // เปิดหน้า: โหลดคิวค้าง + ลองบันทึกถ้าออนไลน์ · ฟัง event เน็ตกลับมา
   useEffect(() => {
+    // ตั้งใจ setState ตอน mount เพื่อโหลดคิว offline ที่ค้างจาก localStorage ขึ้นมาแสดง
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     refreshPending();
     if (typeof navigator !== "undefined" && navigator.onLine) {
       void retryQueued();

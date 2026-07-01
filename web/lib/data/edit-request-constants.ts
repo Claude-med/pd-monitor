@@ -1,5 +1,8 @@
 // F1 — ค่าคงที่ระบบขอแก้ไขย้อนหลัง (ไม่มี server import — client ก็ import ได้)
 
+import type { AppRole } from "@/lib/auth/dal";
+import { hasAnyRole } from "@/lib/auth/roles";
+
 export type EditTargetType =
   | "production_record"
   | "material_requisition"
@@ -42,4 +45,16 @@ export const EDIT_STATUS_META: Record<
 
 export function fieldLabel(key: string): string {
   return EDIT_FIELD_LABEL[key] ?? key;
+}
+
+/**
+ * ผู้ใช้อนุมัติ/ปฏิเสธคำขอแก้ไขชนิดนี้ได้ไหม — สะท้อนกติกา server RPC review_edit_request
+ * (manager/admin อนุมัติได้ทุกชนิด · qa อนุมัติได้เฉพาะผลตรวจ QC ระหว่างผลิต)
+ */
+export function canReviewEdit(
+  roles: AppRole[],
+  targetType: EditTargetType,
+): boolean {
+  if (hasAnyRole(roles, ["manager", "admin"])) return true;
+  return targetType === "inprocess_check" && hasAnyRole(roles, ["qa"]);
 }

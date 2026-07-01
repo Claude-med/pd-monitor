@@ -33,7 +33,7 @@ export default async function AppLayout({
 
   const unreadCount = await getUnreadCount();
   const pendingEditCount = hasAnyRole(profile.roles, ["manager", "qa"])
-    ? await getPendingEditCount()
+    ? await getPendingEditCount(profile.roles)
     : 0;
 
   return (
