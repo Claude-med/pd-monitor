@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { getUser, getProfile } from "@/lib/auth/dal";
 import { getUnreadCount } from "@/lib/data/notifications";
+import { getPendingEditCount } from "@/lib/data/edit-requests";
+import { hasAnyRole } from "@/lib/auth/roles";
 import { AppShell } from "@/components/app-shell";
 
 export default async function AppLayout({
@@ -30,9 +32,16 @@ export default async function AppLayout({
   }
 
   const unreadCount = await getUnreadCount();
+  const pendingEditCount = hasAnyRole(profile.roles, ["manager", "qa"])
+    ? await getPendingEditCount()
+    : 0;
 
   return (
-    <AppShell profile={profile} unreadCount={unreadCount}>
+    <AppShell
+      profile={profile}
+      unreadCount={unreadCount}
+      pendingEditCount={pendingEditCount}
+    >
       {children}
     </AppShell>
   );

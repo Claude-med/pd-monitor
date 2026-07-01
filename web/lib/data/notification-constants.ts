@@ -5,7 +5,14 @@ export const STUCK_DAYS = 3;
 
 export type InboxItem = {
   id: string;
-  kind: "reject" | "deviation" | "overdue" | "stuck" | "arrival";
+  kind:
+    | "reject"
+    | "deviation"
+    | "overdue"
+    | "stuck"
+    | "arrival"
+    | "edit_request"
+    | "edit_reviewed";
   title: string;
   body: string | null;
   job_no: string | null;
@@ -23,4 +30,6 @@ export const KIND_META: Record<
   overdue: { label: "เกินกำหนด", icon: "⏰", color: "#ef4444" },
   stuck: { label: "ค้างนาน", icon: "🐢", color: "#f59e0b" },
   arrival: { label: "งานมาถึงคุณ", icon: "📥", color: "#0ea5e9" },
+  edit_request: { label: "คำขอแก้ไข", icon: "✏️", color: "#f59e0b" },
+  edit_reviewed: { label: "ผลคำขอแก้ไข", icon: "📝", color: "#0ea5e9" },
 };

@@ -36,6 +36,12 @@ export const NAV_ITEMS: NavItem[] = [
     ready: true,
   },
   {
+    href: "/edit-requests",
+    label: "คำขอแก้ไข (Amendment)",
+    roles: ["manager", "qa"],
+    ready: true,
+  },
+  {
     href: "/audit",
     label: "ประวัติ / Audit",
     roles: ["manager", "qa"],

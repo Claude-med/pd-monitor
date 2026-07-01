@@ -11,10 +11,12 @@ export function AppShell({
   profile,
   children,
   unreadCount = 0,
+  pendingEditCount = 0,
 }: {
   profile: Profile;
   children: React.ReactNode;
   unreadCount?: number;
+  pendingEditCount?: number;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const pathname = usePathname();
@@ -51,6 +53,11 @@ export function AppShell({
             {item.href === "/inbox" && unreadCount > 0 && (
               <span className="rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
                 {unreadCount > 99 ? "99+" : unreadCount}
+              </span>
+            )}
+            {item.href === "/edit-requests" && pendingEditCount > 0 && (
+              <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                {pendingEditCount > 99 ? "99+" : pendingEditCount}
               </span>
             )}
             {!item.ready && (

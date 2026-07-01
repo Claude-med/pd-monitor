@@ -12,6 +12,7 @@ import {
   issueRequisition,
   cancelRequisition,
 } from "./requisition-actions";
+import { EditRequestButton } from "./edit-request-button";
 
 function StatusBadge({ status }: { status: string }) {
   return (
@@ -33,6 +34,8 @@ export function Requisitions({
   canRequest,
   canIssue,
   currentProfileId,
+  canAmend,
+  pendingTargetIds,
 }: {
   jobId: string;
   jobNo: string;
@@ -42,7 +45,10 @@ export function Requisitions({
   canRequest: boolean;
   canIssue: boolean;
   currentProfileId: string;
+  canAmend: boolean;
+  pendingTargetIds: string[];
 }) {
+  const pendingSet = new Set(pendingTargetIds);
   const [open, setOpen] = useState(false);
   const [lotId, setLotId] = useState("");
   const [qty, setQty] = useState("");
@@ -173,6 +179,18 @@ export function Requisitions({
                           >
                             ยกเลิก
                           </button>
+                        )}
+                        {canAmend && (
+                          <EditRequestButton
+                            targetType="material_requisition"
+                            targetId={r.id}
+                            jobNo={jobNo}
+                            hasPending={pendingSet.has(r.id)}
+                            fields={[
+                              { key: "qty", label: "จำนวน", kind: "number", current: String(r.qty ?? "") },
+                              { key: "note", label: "หมายเหตุ", kind: "text", current: r.note ?? "" },
+                            ]}
+                          />
                         )}
                       </div>
                     </td>

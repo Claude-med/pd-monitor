@@ -26,6 +26,15 @@ import { getInprocessChecks, getQaSamples } from "@/lib/data/quality-checks";
 import { getJobRoute, listStations } from "@/lib/data/stations";
 import { getDeviationsByJob } from "@/lib/data/deviations";
 import { canOpenDeviation, canCloseDeviation } from "@/lib/data/deviation-constants";
+import {
+  getEditRequestsForJob,
+  getPendingTargetIds,
+} from "@/lib/data/edit-requests";
+import {
+  EDIT_TARGET_LABEL,
+  EDIT_STATUS_META,
+  fieldLabel,
+} from "@/lib/data/edit-request-constants";
 import { getProfile } from "@/lib/auth/dal";
 import { hasAnyRole } from "@/lib/auth/roles";
 import { fmtDateTime } from "@/lib/format";
@@ -36,6 +45,7 @@ import { Requisitions } from "./requisitions";
 import { LineClearancePanel } from "./line-clearance";
 import { QualityChecks } from "./quality-checks";
 import { Deviations } from "./deviations";
+import { EditRequestButton } from "./edit-request-button";
 
 function fmtQty(n: number | null): string {
   return n == null ? "—" : n.toLocaleString("th-TH");
@@ -91,6 +101,10 @@ export default async function JobDetailPage({
           .map((s) => ({ id: s.id, name: s.name }))
       : [];
   const deviations = await getDeviationsByJob(job.id);
+  // F1 — คำขอแก้ไขย้อนหลัง (ประวัติ + badge บนแถวที่มีคำขอค้าง)
+  const editRequests = await getEditRequestsForJob(job.id);
+  const pendingTargets = await getPendingTargetIds(job.id);
+  const canAmend = roles.length > 0;
   // ผลตรวจระหว่างผลิตที่ "ไม่ผ่าน" และยังไม่ได้เปิด deviation → เสนอเปิดด่วน
   const linkedCheckIds = new Set(
     deviations.map((d) => d.inprocess_check_id).filter(Boolean) as string[],
@@ -112,6 +126,7 @@ export default async function JobDetailPage({
           "qa_samples",
           "deviations",
           "deviation_comments",
+          "edit_requests",
         ]}
       />
       <div className="flex items-center justify-between gap-2">
@@ -252,6 +267,7 @@ export default async function JobDetailPage({
                   <th className="px-2 py-2 text-right font-medium">ชม.</th>
                   <th className="px-2 py-2 text-right font-medium">คน</th>
                   <th className="px-2 py-2 font-medium">ผู้บันทึก</th>
+                  {canAmend && <th className="px-2 py-2 font-medium">แก้ไข</th>}
                 </tr>
               </thead>
               <tbody>
@@ -273,12 +289,31 @@ export default async function JobDetailPage({
                       <td className="whitespace-nowrap px-2 py-2 text-muted-foreground">
                         {r.operator_name ?? "—"}
                       </td>
+                      {canAmend && (
+                        <td className="px-2 py-2">
+                          <EditRequestButton
+                            targetType="production_record"
+                            targetId={r.id}
+                            jobNo={job.job_no}
+                            hasPending={pendingTargets.has(r.id)}
+                            fields={[
+                              { key: "output_qty", label: "ผลิตได้", kind: "number", current: String(r.output_qty ?? "") },
+                              { key: "loss_qty", label: "ของเสีย", kind: "number", current: String(r.loss_qty ?? "") },
+                              { key: "input_qty", label: "จำนวนตั้งต้น", kind: "number", current: String(r.input_qty ?? "") },
+                              { key: "hours", label: "ชั่วโมง", kind: "number", current: String(r.hours ?? "") },
+                              { key: "headcount", label: "จำนวนคน", kind: "number", current: String(r.headcount ?? "") },
+                              { key: "record_date", label: "วันที่", kind: "date", current: r.record_date ?? "" },
+                              { key: "note", label: "หมายเหตุ", kind: "text", current: r.note ?? "" },
+                            ]}
+                          />
+                        </td>
+                      )}
                     </tr>
                     {r.note && (
                       <tr className="border-b last:border-0">
                         <td />
                         <td
-                          colSpan={8}
+                          colSpan={canAmend ? 9 : 8}
                           className="px-2 pb-2 text-xs text-muted-foreground"
                         >
                           📝 {r.note}
@@ -317,6 +352,8 @@ export default async function JobDetailPage({
         canRequest={canRequestMat}
         canIssue={canIssueMat}
         currentProfileId={profile?.id ?? ""}
+        canAmend={canAmend}
+        pendingTargetIds={[...pendingTargets]}
       />
 
       {/* ตรวจระหว่างผลิต (in-process QC) + จุดเก็บตัวอย่าง QA (A6) */}
@@ -329,6 +366,8 @@ export default async function JobDetailPage({
         stationOptions={stationOptions}
         canCheck={canInprocess}
         canSample={canSample}
+        canAmend={canAmend}
+        pendingTargetIds={[...pendingTargets]}
       />
 
       {/* Deviation / เหตุผิดปกติ (B3) — gate กัน QA→FG ถ้ามีเปิดค้าง */}
@@ -340,6 +379,52 @@ export default async function JobDetailPage({
         canOpen={canOpenDeviation(roles)}
         canClose={canCloseDeviation(roles)}
       />
+
+      {/* ประวัติการแก้ไขย้อนหลัง (F1) */}
+      {editRequests.length > 0 && (
+        <div className="rounded-xl border bg-card p-5">
+          <h2 className="mb-3 font-semibold">ประวัติการแก้ไขย้อนหลัง (Amendment)</h2>
+          <ul className="space-y-2">
+            {editRequests.map((e) => {
+              const meta = EDIT_STATUS_META[e.status];
+              return (
+                <li
+                  key={e.id}
+                  className="rounded-md border border-l-4 bg-card p-3 text-sm"
+                  style={{ borderLeftColor: meta.color }}
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className="rounded-full px-2 py-0.5 text-xs font-medium text-white"
+                      style={{ backgroundColor: meta.color }}
+                    >
+                      {meta.label}
+                    </span>
+                    <span className="font-medium">
+                      {EDIT_TARGET_LABEL[e.target_type]}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      โดย {e.requester_name ?? "—"} · {fmtDateTime(e.requested_at)}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    แก้:{" "}
+                    {Object.keys(e.changes)
+                      .map((k) => fieldLabel(k))
+                      .join(", ")}{" "}
+                    · เหตุผล: {e.reason}
+                  </p>
+                  {e.review_note && (
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      หมายเหตุผู้อนุมัติ: {e.review_note}
+                    </p>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
 
       {/* ลายเซ็นอนุมัติคุณภาพ (QC/QA e-signature) */}
       {approvals.length > 0 && (

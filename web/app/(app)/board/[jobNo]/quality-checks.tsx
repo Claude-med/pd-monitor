@@ -7,6 +7,7 @@ import type { InprocessCheck, QaSample } from "@/lib/data/quality-checks";
 import type { JobRouteStep } from "@/lib/data/stations";
 import { fmtDateTime } from "@/lib/format";
 import { addInprocessCheck, addQaSample } from "./quality-actions";
+import { EditRequestButton } from "./edit-request-button";
 
 export type StationOption = { id: string; name: string };
 
@@ -23,6 +24,8 @@ export function QualityChecks({
   stationOptions,
   canCheck,
   canSample,
+  canAmend,
+  pendingTargetIds,
 }: {
   jobId: string;
   jobNo: string;
@@ -32,7 +35,10 @@ export function QualityChecks({
   stationOptions: StationOption[];
   canCheck: boolean;
   canSample: boolean;
+  canAmend: boolean;
+  pendingTargetIds: string[];
 }) {
+  const pendingSet = new Set(pendingTargetIds);
   // สถานีที่ "ผ่าน" แล้ว (มีผล pass อย่างน้อย 1) — ใช้กับแถบความคืบหน้า + gate ส่ง QC
   const passedIds = new Set(
     checks.filter((c) => c.result === "pass" && c.station_id).map((c) => c.station_id),
@@ -97,6 +103,7 @@ export function QualityChecks({
                   <th className="px-2 py-2 font-medium">ค่า</th>
                   <th className="px-2 py-2 font-medium">ผล</th>
                   <th className="px-2 py-2 font-medium">ผู้ตรวจ</th>
+                  {canAmend && <th className="px-2 py-2 font-medium">แก้ไข</th>}
                 </tr>
               </thead>
               <tbody>
@@ -128,6 +135,32 @@ export function QualityChecks({
                     <td className="whitespace-nowrap px-2 py-2 text-muted-foreground">
                       {c.checker_name ?? "—"}
                     </td>
+                    {canAmend && (
+                      <td className="px-2 py-2">
+                        <EditRequestButton
+                          targetType="inprocess_check"
+                          targetId={c.id}
+                          jobNo={jobNo}
+                          hasPending={pendingSet.has(c.id)}
+                          fields={[
+                            { key: "param", label: "หัวข้อที่ตรวจ", kind: "text", current: c.param ?? "" },
+                            { key: "value", label: "ค่าที่วัดได้", kind: "text", current: c.value ?? "" },
+                            { key: "unit", label: "หน่วย", kind: "text", current: c.unit ?? "" },
+                            {
+                              key: "result",
+                              label: "ผล",
+                              kind: "select",
+                              current: c.result,
+                              options: [
+                                { value: "pass", label: "ผ่าน" },
+                                { value: "fail", label: "ไม่ผ่าน" },
+                              ],
+                            },
+                            { key: "note", label: "หมายเหตุ", kind: "text", current: c.note ?? "" },
+                          ]}
+                        />
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
