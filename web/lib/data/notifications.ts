@@ -3,6 +3,7 @@ import { STATUS_LABEL } from "@/lib/data/job-constants";
 import { hasAnyRole } from "@/lib/auth/roles";
 import type { Profile } from "@/lib/auth/dal";
 import { STUCK_DAYS, type InboxItem } from "@/lib/data/notification-constants";
+import { fmtDate } from "@/lib/format";
 
 // B4 — Notification (in-app inbox)
 //   stored  = แจ้งเตือนถาวรจาก event (reject / deviation) เก็บใน notifications + อ่าน/ยังไม่อ่าน
@@ -56,9 +57,9 @@ async function getDerivedAlerts(profile: Profile): Promise<InboxItem[]> {
         id: `stuck-${j.id}`,
         kind: "stuck",
         title: `งาน ${j.job_no} ค้างสถานะนานเกิน ${STUCK_DAYS} วัน`,
-        body: `สถานะ "${STATUS_LABEL[j.status] ?? j.status}" ไม่ขยับตั้งแต่ ${new Date(
+        body: `สถานะ "${STATUS_LABEL[j.status] ?? j.status}" ไม่ขยับตั้งแต่ ${fmtDate(
           j.updated_at,
-        ).toLocaleDateString("th-TH")}`,
+        )}`,
         job_no: j.job_no,
         created_at: j.updated_at,
         read: true,
@@ -73,30 +74,47 @@ async function getDerivedAlerts(profile: Profile): Promise<InboxItem[]> {
 export async function getInbox(profile: Profile): Promise<InboxItem[]> {
   const supabase = await createClient();
 
-  const [{ data: notifs }, { data: reads }, derived] = await Promise.all([
-    supabase
-      .from("notifications")
-      .select("id, kind, title, body, job_no, created_at")
-      .order("created_at", { ascending: false })
-      .limit(50),
-    supabase.from("notification_reads").select("notification_id"),
-    getDerivedAlerts(profile),
-  ]);
+  const [{ data: notifs }, { data: reads }, { data: fgRows }, derived] =
+    await Promise.all([
+      supabase
+        .from("notifications")
+        .select(
+          "id, kind, title, body, job_no, created_at, job_id, relevant_status, job:jobs(status)",
+        )
+        .order("created_at", { ascending: false })
+        .limit(50),
+      supabase.from("notification_reads").select("notification_id"),
+      supabase.from("fg_inventory").select("job_id"),
+      getDerivedAlerts(profile),
+    ]);
 
   const readSet = new Set(
     ((reads ?? []) as any[]).map((r) => r.notification_id),
   );
+  const fgSet = new Set(((fgRows ?? []) as any[]).map((r) => r.job_id));
 
-  const stored: InboxItem[] = ((notifs ?? []) as any[]).map((n) => ({
-    id: n.id,
-    kind: n.kind,
-    title: n.title,
-    body: n.body,
-    job_no: n.job_no,
-    created_at: n.created_at,
-    read: readSet.has(n.id),
-    source: "stored",
-  }));
+  // ซ่อนแจ้งเตือนที่ "หมดหน้าที่" — งานเลื่อนพ้นสถานะที่เกี่ยวข้อง หรือ (FG) รับเข้าคลังแล้ว
+  //   ต้องตรงกับเงื่อนไขใน unread_notification_count() (0029)
+  function isStale(n: any): boolean {
+    if (n.relevant_status == null) return false;
+    const job = Array.isArray(n.job) ? n.job[0] : n.job;
+    if (job?.status !== n.relevant_status) return true;
+    if (n.relevant_status === "finished_goods" && fgSet.has(n.job_id)) return true;
+    return false;
+  }
+
+  const stored: InboxItem[] = ((notifs ?? []) as any[])
+    .filter((n) => !isStale(n))
+    .map((n) => ({
+      id: n.id,
+      kind: n.kind,
+      title: n.title,
+      body: n.body,
+      job_no: n.job_no,
+      created_at: n.created_at,
+      read: readSet.has(n.id),
+      source: "stored",
+    }));
 
   return [...stored, ...derived].sort((a, b) =>
     (b.created_at ?? "").localeCompare(a.created_at ?? ""),

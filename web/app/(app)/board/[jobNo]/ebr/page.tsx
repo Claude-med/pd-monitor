@@ -9,6 +9,7 @@ import {
   DEV_TYPE_LABEL,
 } from "@/lib/data/deviation-constants";
 import { REQ_STATUS_LABEL } from "@/lib/data/requisition-constants";
+import { fmtDateTime } from "@/lib/format";
 import { PrintButton } from "./print-button";
 
 export const metadata = { title: "eBR — แฟ้มบันทึกการผลิต" };
@@ -18,7 +19,7 @@ function fmt(n: number | null): string {
 }
 
 function dt(s: string | null): string {
-  return s ? new Date(s).toLocaleString("th-TH") : "—";
+  return fmtDateTime(s);
 }
 
 function Section({
@@ -86,7 +87,7 @@ export default async function EbrPage({
           <div className="text-right text-xs text-muted-foreground">
             <p>เลขงาน: <b className="text-foreground">{job.job_no}</b></p>
             <p>สถานะ: {STATUS_LABEL[job.status] ?? job.status}</p>
-            <p>พิมพ์เมื่อ: {new Date().toLocaleString("th-TH")}</p>
+            <p>พิมพ์เมื่อ: {fmtDateTime(new Date())}</p>
           </div>
         </div>
 

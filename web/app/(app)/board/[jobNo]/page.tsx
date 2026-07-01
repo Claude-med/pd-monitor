@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getJobByNo } from "@/lib/data/jobs";
@@ -26,6 +27,7 @@ import { getDeviationsByJob } from "@/lib/data/deviations";
 import { canOpenDeviation, canCloseDeviation } from "@/lib/data/deviation-constants";
 import { getProfile } from "@/lib/auth/dal";
 import { hasAnyRole } from "@/lib/auth/roles";
+import { fmtDateTime } from "@/lib/format";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
 import { JobActions } from "./job-actions";
 import { RecordForm } from "./record-form";
@@ -99,6 +101,7 @@ export default async function JobDetailPage({
           "inprocess_checks",
           "qa_samples",
           "deviations",
+          "deviation_comments",
         ]}
       />
       <div className="flex items-center justify-between gap-2">
@@ -243,23 +246,36 @@ export default async function JobDetailPage({
               </thead>
               <tbody>
                 {records.map((r) => (
-                  <tr key={r.id} className="border-b last:border-0 align-top">
-                    <td className="whitespace-nowrap px-2 py-2">{r.record_date}</td>
-                    <td className="whitespace-nowrap px-2 py-2">
-                      {STATION_ICON[r.station]} {STATION_LABEL[r.station] ?? r.station}
-                    </td>
-                    <td className="whitespace-nowrap px-2 py-2 text-muted-foreground">
-                      {r.machine_label ?? "—"}
-                    </td>
-                    <td className="px-2 py-2 text-right tabular-nums">{fmtQty(r.input_qty)}</td>
-                    <td className="px-2 py-2 text-right tabular-nums">{fmtQty(r.output_qty)}</td>
-                    <td className="px-2 py-2 text-right tabular-nums">{fmtQty(r.loss_qty)}</td>
-                    <td className="px-2 py-2 text-right tabular-nums">{r.hours ?? "—"}</td>
-                    <td className="px-2 py-2 text-right tabular-nums">{r.headcount ?? "—"}</td>
-                    <td className="whitespace-nowrap px-2 py-2 text-muted-foreground">
-                      {r.operator_name ?? "—"}
-                    </td>
-                  </tr>
+                  <Fragment key={r.id}>
+                    <tr className={`align-top ${r.note ? "" : "border-b last:border-0"}`}>
+                      <td className="whitespace-nowrap px-2 py-2">{r.record_date}</td>
+                      <td className="whitespace-nowrap px-2 py-2">
+                        {STATION_ICON[r.station]} {STATION_LABEL[r.station] ?? r.station}
+                      </td>
+                      <td className="whitespace-nowrap px-2 py-2 text-muted-foreground">
+                        {r.machine_label ?? "—"}
+                      </td>
+                      <td className="px-2 py-2 text-right tabular-nums">{fmtQty(r.input_qty)}</td>
+                      <td className="px-2 py-2 text-right tabular-nums">{fmtQty(r.output_qty)}</td>
+                      <td className="px-2 py-2 text-right tabular-nums">{fmtQty(r.loss_qty)}</td>
+                      <td className="px-2 py-2 text-right tabular-nums">{r.hours ?? "—"}</td>
+                      <td className="px-2 py-2 text-right tabular-nums">{r.headcount ?? "—"}</td>
+                      <td className="whitespace-nowrap px-2 py-2 text-muted-foreground">
+                        {r.operator_name ?? "—"}
+                      </td>
+                    </tr>
+                    {r.note && (
+                      <tr className="border-b last:border-0">
+                        <td />
+                        <td
+                          colSpan={8}
+                          className="px-2 pb-2 text-xs text-muted-foreground"
+                        >
+                          📝 {r.note}
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 ))}
               </tbody>
             </table>
@@ -334,7 +350,7 @@ export default async function JobDetailPage({
                   </span>
                   <span className="font-medium">{a.signer_name ?? "—"}</span>
                   <span className="text-muted-foreground">
-                    {new Date(a.signed_at).toLocaleString("th-TH")}
+                    {fmtDateTime(a.signed_at)}
                   </span>
                   {a.reason && (
                     <span className="w-full text-muted-foreground">

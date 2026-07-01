@@ -8,6 +8,7 @@ import {
   ACTION_COLOR,
   type AuditAction,
 } from "@/lib/data/audit";
+import { fmtDateTime } from "@/lib/format";
 
 export const metadata = { title: "ประวัติ / Audit — PD Monitor" };
 
@@ -120,7 +121,7 @@ export default async function AuditPage({
               {rows.map((r) => (
                 <tr key={r.id} className="border-b last:border-0 align-top">
                   <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">
-                    {new Date(r.changed_at).toLocaleString("th-TH")}
+                    {fmtDateTime(r.changed_at)}
                   </td>
                   <td className="whitespace-nowrap px-3 py-2 font-medium">
                     {r.actor_name ?? (

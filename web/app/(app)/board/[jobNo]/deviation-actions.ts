@@ -79,3 +79,44 @@ export async function updateDeviation(
   revalidatePath(`/board/${jobNo}`);
   return { ok: true };
 }
+
+/** D1: เพิ่มหมายเหตุของฝ่ายตน (append-only — ไม่ทับกัน) */
+export async function addDeviationComment(
+  jobNo: string,
+  deviationId: string,
+  body: string,
+): Promise<ActionResult> {
+  const profile = await getProfile();
+  if (!profile || !canOpenDeviation(profile.roles))
+    return { error: "ไม่มีสิทธิ์เพิ่มหมายเหตุ" };
+  if (!body.trim()) return { error: "กรุณาพิมพ์หมายเหตุ" };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("add_deviation_comment", {
+    p_deviation_id: deviationId,
+    p_body: body.trim(),
+  });
+  if (error) return { error: error.message || "เพิ่มหมายเหตุไม่สำเร็จ" };
+  revalidatePath(`/board/${jobNo}`);
+  return { ok: true };
+}
+
+/** D2: ฝ่ายผลิตแจ้งว่าแก้ไขเรียบร้อย → ส่งให้ QA ตรวจสอบ (แจ้งเตือน QA/ผู้บริหาร) */
+export async function submitDeviationResolution(
+  jobNo: string,
+  deviationId: string,
+  note: string,
+): Promise<ActionResult> {
+  const profile = await getProfile();
+  if (!profile || !canOpenDeviation(profile.roles))
+    return { error: "ไม่มีสิทธิ์ส่ง deviation ให้ QA" };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("submit_deviation_resolution", {
+    p_id: deviationId,
+    p_note: note.trim() || null,
+  });
+  if (error) return { error: error.message || "ส่งให้ QA ไม่สำเร็จ" };
+  revalidatePath(`/board/${jobNo}`);
+  return { ok: true };
+}

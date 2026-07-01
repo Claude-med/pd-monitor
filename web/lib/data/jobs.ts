@@ -41,11 +41,22 @@ function shape(r: any): JobRow {
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
-/** งานทั้งหมด (RLS: ผู้ใช้ที่ login อ่านได้) */
+/** งานทั้งหมด (RLS: ผู้ใช้ที่ login อ่านได้) + ธงว่ารับเข้าคลัง FG แล้วหรือยัง */
 export async function getJobs(): Promise<JobRow[]> {
   const supabase = await createClient();
-  const { data } = await supabase.from("jobs").select(SELECT).order("job_no");
-  return (data ?? []).map(shape);
+  const [{ data }, { data: fgRows }] = await Promise.all([
+    supabase.from("jobs").select(SELECT).order("job_no"),
+    // fg_inventory อ่านได้ทุก role (RLS using(true)) — ใช้บอกว่างานเข้าคลังแล้ว
+    supabase.from("fg_inventory").select("job_id"),
+  ]);
+  const receivedJobIds = new Set(
+    (fgRows ?? []).map((r: { job_id: string }) => r.job_id),
+  );
+  return (data ?? []).map((r) => {
+    const job = shape(r);
+    job.fg_received = receivedJobIds.has(job.id);
+    return job;
+  });
 }
 
 /** งานเดียวตามเลข job_no */

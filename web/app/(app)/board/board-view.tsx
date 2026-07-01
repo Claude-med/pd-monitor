@@ -69,9 +69,15 @@ export function BoardView({
   const [status, setStatus] = useState("");
   const [problemOnly, setProblemOnly] = useState(false);
 
+  // งานที่รับเข้าคลัง FG แล้ว = ถือว่าจบหน้าที่ ย้ายไปดูที่หน้า "คลัง / FG" → ซ่อนจากบอร์ด
+  const boardJobs = useMemo(
+    () => jobs.filter((j) => !(j.status === "finished_goods" && j.fg_received)),
+    [jobs],
+  );
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return jobs.filter((j) => {
+    return boardJobs.filter((j) => {
       if (status && j.status !== status) return false;
       if (problemOnly && !j.problem) return false;
       if (q) {
@@ -81,12 +87,15 @@ export function BoardView({
       }
       return true;
     });
-  }, [jobs, search, status, problemOnly]);
+  }, [boardJobs, search, status, problemOnly]);
 
-  const total = jobs.length;
-  const producing = jobs.filter((j) => j.status === "in_production").length;
-  const done = jobs.filter((j) => j.status === "finished_goods").length;
-  const problem = jobs.filter((j) => j.problem).length;
+  const total = boardJobs.length;
+  const producing = boardJobs.filter((j) => j.status === "in_production").length;
+  // "เข้าคลังแล้ว" = งานที่รับเข้าคลัง FG จริง (มีใน fg_inventory)
+  const done = jobs.filter(
+    (j) => j.status === "finished_goods" && j.fg_received,
+  ).length;
+  const problem = boardJobs.filter((j) => j.problem).length;
 
   return (
     <div className="space-y-5">

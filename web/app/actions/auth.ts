@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
-export type LoginState = { error?: string } | undefined;
+export type LoginState = { error?: string; email?: string } | undefined;
 
 /**
  * Server Action: เข้าสู่ระบบด้วยอีเมล + รหัสผ่าน (Supabase Auth)
@@ -17,14 +17,15 @@ export async function login(
   const password = String(formData.get("password") ?? "");
 
   if (!email || !password) {
-    return { error: "กรุณากรอกอีเมลและรหัสผ่าน" };
+    // คงค่าอีเมลที่กรอกไว้ กันผู้ใช้ต้องพิมพ์ใหม่
+    return { error: "กรุณากรอกอีเมลและรหัสผ่าน", email };
   }
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
-    return { error: "อีเมลหรือรหัสผ่านไม่ถูกต้อง" };
+    return { error: "อีเมลหรือรหัสผ่านไม่ถูกต้อง", email };
   }
 
   redirect("/");

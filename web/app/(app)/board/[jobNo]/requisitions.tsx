@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { Fragment, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   REQ_STATUS_LABEL,
@@ -134,7 +134,8 @@ export function Requisitions({
                   r.status === "requested" &&
                   (canIssue || r.requested_by_id === currentProfileId);
                 return (
-                  <tr key={r.id} className="border-b last:border-0 align-top">
+                  <Fragment key={r.id}>
+                  <tr className={`align-top ${r.note ? "" : "border-b last:border-0"}`}>
                     <td className="px-2 py-2">
                       <span className="font-medium">{r.material_code}</span>{" "}
                       <span className="text-muted-foreground">{r.material_name}</span>
@@ -176,6 +177,17 @@ export function Requisitions({
                       </div>
                     </td>
                   </tr>
+                  {r.note && (
+                    <tr className="border-b last:border-0">
+                      <td
+                        colSpan={5}
+                        className="px-2 pb-2 text-xs text-muted-foreground"
+                      >
+                        📝 {r.note}
+                      </td>
+                    </tr>
+                  )}
+                  </Fragment>
                 );
               })}
             </tbody>

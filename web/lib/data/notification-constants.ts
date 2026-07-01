@@ -5,7 +5,7 @@ export const STUCK_DAYS = 3;
 
 export type InboxItem = {
   id: string;
-  kind: "reject" | "deviation" | "overdue" | "stuck";
+  kind: "reject" | "deviation" | "overdue" | "stuck" | "arrival";
   title: string;
   body: string | null;
   job_no: string | null;
@@ -22,4 +22,5 @@ export const KIND_META: Record<
   deviation: { label: "Deviation", icon: "⚠️", color: "#f59e0b" },
   overdue: { label: "เกินกำหนด", icon: "⏰", color: "#ef4444" },
   stuck: { label: "ค้างนาน", icon: "🐢", color: "#f59e0b" },
+  arrival: { label: "งานมาถึงคุณ", icon: "📥", color: "#0ea5e9" },
 };

@@ -4,6 +4,7 @@ import { hasAnyRole } from "@/lib/auth/roles";
 import { getJobs, STATUS_COLOR, STATUS_LABEL } from "@/lib/data/jobs";
 import type { JobRow } from "@/lib/data/job-constants";
 import { getRecentApprovals } from "@/lib/data/quality";
+import { fmtDateTime } from "@/lib/format";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
 
 export const metadata = { title: "ตรวจ QC / QA — PD Monitor" };
@@ -129,7 +130,7 @@ export default async function QualityPage() {
                   )}
                   <span className="font-medium">{a.signer_name ?? "—"}</span>
                   <span className="text-muted-foreground">
-                    {new Date(a.signed_at).toLocaleString("th-TH")}
+                    {fmtDateTime(a.signed_at)}
                   </span>
                   {a.reason && (
                     <span className="w-full text-muted-foreground">

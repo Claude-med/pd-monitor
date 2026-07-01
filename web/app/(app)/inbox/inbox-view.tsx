@@ -4,6 +4,7 @@ import { useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { KIND_META, type InboxItem } from "@/lib/data/notification-constants";
+import { fmtDateTime } from "@/lib/format";
 import { markRead, markAllRead } from "./actions";
 
 export function InboxView({
@@ -91,7 +92,7 @@ function InboxRow({ item }: { item: InboxItem }) {
       {item.body && <p className="mt-1 text-muted-foreground">{item.body}</p>}
       <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
         {item.created_at && (
-          <span>{new Date(item.created_at).toLocaleString("th-TH")}</span>
+          <span>{fmtDateTime(item.created_at)}</span>
         )}
         {item.job_no && (
           <Link

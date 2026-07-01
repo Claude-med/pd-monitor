@@ -11,7 +11,7 @@ export default async function BoardPage() {
   const canCreate = hasRole(profile?.roles ?? [], "manager");
   return (
     <>
-      <RealtimeRefresh tables={["jobs"]} />
+      <RealtimeRefresh tables={["jobs", "fg_inventory"]} />
       <BoardView jobs={jobs} canCreate={canCreate} />
     </>
   );

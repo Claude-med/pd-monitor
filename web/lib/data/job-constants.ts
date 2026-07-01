@@ -87,4 +87,6 @@ export type JobRow = {
   product_name: string | null;
   quantity: number | null;
   unit: string | null;
+  /** งานถูกรับเข้าคลัง FG แล้ว (มีรายการใน fg_inventory) — ใช้ซ่อนออกจากบอร์ด */
+  fg_received?: boolean;
 };

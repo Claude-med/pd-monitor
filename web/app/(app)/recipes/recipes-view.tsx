@@ -93,7 +93,7 @@ function StationMasterPanel({ stations }: { stations: Station[] }) {
             <div className="rounded-md border bg-muted/30 p-3">
               <StationForm
                 onDone={() => setAddOpen(false)}
-                nextSeq={(stations.at(-1)?.seq ?? 0) + 10}
+                nextSeq={(stations.at(-1)?.seq ?? 0) + 1}
               />
             </div>
           ) : (

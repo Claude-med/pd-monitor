@@ -12,9 +12,16 @@ import {
   DEV_STATUS_LABEL,
   DEV_STATUS_COLOR,
   DEV_TYPE_LABEL,
+  NOTE_ROLE_META,
 } from "@/lib/data/deviation-constants";
+import { fmtDateTime } from "@/lib/format";
 import { STATION_LABEL } from "@/lib/data/station-constants";
-import { openDeviation, updateDeviation } from "./deviation-actions";
+import {
+  openDeviation,
+  updateDeviation,
+  addDeviationComment,
+  submitDeviationResolution,
+} from "./deviation-actions";
 
 const inputClass =
   "w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring";
@@ -154,7 +161,7 @@ function DeviationItem({
         {dev.reporter_name && <span>เปิดโดย: {dev.reporter_name}</span>}
         {dev.machine_label && <span>เครื่อง: {dev.machine_label}</span>}
         {dev.due_date && <span>กำหนดปิด: {dev.due_date}</span>}
-        <span>{new Date(dev.created_at).toLocaleString("th-TH")}</span>
+        <span>{fmtDateTime(dev.created_at)}</span>
       </div>
 
       {(dev.root_cause || dev.capa) && (
@@ -171,33 +178,197 @@ function DeviationItem({
           )}
           {closed && dev.closed_at && (
             <p className="text-muted-foreground">
-              ปิดเมื่อ {new Date(dev.closed_at).toLocaleString("th-TH")}
+              ปิดเมื่อ {fmtDateTime(dev.closed_at)}
             </p>
           )}
         </div>
       )}
 
+      {/* D2: แจ้งว่าแก้ไขแล้ว รอ QA ตรวจสอบ */}
+      {!closed && dev.resolution_submitted_at && (
+        <p className="mt-2 rounded-md bg-sky-50 px-2 py-1 text-xs text-sky-800 dark:bg-sky-950/30 dark:text-sky-300">
+          🔄 แจ้งแก้ไขเรียบร้อยแล้ว — รอ QA ตรวจสอบ
+          {dev.resolution_by_name ? ` · โดย ${dev.resolution_by_name}` : ""} ·{" "}
+          {fmtDateTime(dev.resolution_submitted_at)}
+        </p>
+      )}
+
+      {/* D1: หมายเหตุแยกตามฝ่าย (append-only timeline) */}
+      {dev.comments.length > 0 && (
+        <ul className="mt-2 space-y-1.5">
+          {dev.comments.map((c) => {
+            const meta = NOTE_ROLE_META[c.role_group] ?? {
+              label: c.role_group,
+              color: "#64748b",
+            };
+            return (
+              <li key={c.id} className="rounded-md bg-muted/40 p-2 text-xs">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span
+                    className="rounded px-1.5 py-0.5 font-medium text-white"
+                    style={{ backgroundColor: meta.color }}
+                  >
+                    {meta.label}
+                  </span>
+                  {c.author_name && (
+                    <span className="text-muted-foreground">{c.author_name}</span>
+                  )}
+                  <span className="text-muted-foreground">
+                    · {fmtDateTime(c.created_at)}
+                  </span>
+                </div>
+                <p className="mt-1 whitespace-pre-wrap">{c.body}</p>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
       {canOpen && !closed && (
-        <div className="mt-2">
-          {editing ? (
+        <div className="mt-2 space-y-2">
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setEditing((e) => !e)}
+              className="rounded-md border px-3 py-1 text-xs hover:bg-accent"
+            >
+              {editing ? "ปิดฟอร์ม" : "อัปเดต / ปิด"}
+            </button>
+            <ResolutionButton jobNo={jobNo} deviationId={dev.id} />
+          </div>
+          {editing && (
             <UpdateForm
               jobNo={jobNo}
               dev={dev}
               canClose={canClose}
               onDone={() => setEditing(false)}
             />
-          ) : (
-            <button
-              type="button"
-              onClick={() => setEditing(true)}
-              className="rounded-md border px-3 py-1 text-xs hover:bg-accent"
-            >
-              อัปเดต / ปิด
-            </button>
           )}
+          <CommentBox jobNo={jobNo} deviationId={dev.id} />
         </div>
       )}
     </li>
+  );
+}
+
+/** D1: กล่องเพิ่มหมายเหตุของฝ่ายตน (append-only) */
+function CommentBox({
+  jobNo,
+  deviationId,
+}: {
+  jobNo: string;
+  deviationId: string;
+}) {
+  const [body, setBody] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  const router = useRouter();
+
+  function submit() {
+    if (!body.trim()) return;
+    setError(null);
+    start(async () => {
+      const res = await addDeviationComment(jobNo, deviationId, body);
+      if (res.ok) {
+        setBody("");
+        router.refresh();
+        return;
+      }
+      setError(res.error ?? "เพิ่มหมายเหตุไม่สำเร็จ");
+    });
+  }
+
+  return (
+    <div className="rounded-md border bg-muted/20 p-2">
+      <label className={labelClass}>เพิ่มหมายเหตุของฝ่ายคุณ</label>
+      <textarea
+        value={body}
+        onChange={(e) => setBody(e.target.value)}
+        rows={2}
+        placeholder="บันทึกสิ่งที่ฝ่ายคุณตรวจพบ/ดำเนินการ (ไม่ทับของฝ่ายอื่น)"
+        className={inputClass}
+      />
+      {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
+      <button
+        type="button"
+        disabled={pending || !body.trim()}
+        onClick={submit}
+        className="mt-2 rounded-md border px-3 py-1 text-xs hover:bg-accent disabled:opacity-50"
+      >
+        {pending ? "กำลังบันทึก…" : "＋ เพิ่มหมายเหตุ"}
+      </button>
+    </div>
+  );
+}
+
+/** D2: ปุ่ม "แก้ไขเรียบร้อย — ส่งให้ QA ตรวจสอบ" */
+function ResolutionButton({
+  jobNo,
+  deviationId,
+}: {
+  jobNo: string;
+  deviationId: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [note, setNote] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  const router = useRouter();
+
+  function submit() {
+    setError(null);
+    start(async () => {
+      const res = await submitDeviationResolution(jobNo, deviationId, note);
+      if (res.ok) {
+        setOpen(false);
+        setNote("");
+        router.refresh();
+        return;
+      }
+      setError(res.error ?? "ส่งให้ QA ไม่สำเร็จ");
+    });
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="rounded-md border border-sky-300 bg-sky-50 px-3 py-1 text-xs text-sky-800 hover:bg-sky-100 dark:bg-sky-950/30 dark:text-sky-300"
+      >
+        ✅ แก้ไขเรียบร้อย — ส่งให้ QA ตรวจสอบ
+      </button>
+    );
+  }
+
+  return (
+    <div className="w-full space-y-2 rounded-md border bg-sky-50/50 p-2 dark:bg-sky-950/20">
+      <label className={labelClass}>สรุปสิ่งที่แก้ไข (ถ้ามี)</label>
+      <textarea
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        rows={2}
+        className={inputClass}
+      />
+      {error && <p className="text-xs text-destructive">{error}</p>}
+      <div className="flex gap-2">
+        <button
+          type="button"
+          disabled={pending}
+          onClick={submit}
+          className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+        >
+          {pending ? "กำลังส่ง…" : "ส่งให้ QA ตรวจสอบ"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          className="rounded-md border px-3 py-1.5 text-xs hover:bg-accent"
+        >
+          ยกเลิก
+        </button>
+      </div>
+    </div>
   );
 }
 

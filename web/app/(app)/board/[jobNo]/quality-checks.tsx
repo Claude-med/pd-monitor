@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { STATIONS, STATION_LABEL } from "@/lib/data/station-constants";
 import type { InprocessCheck, QaSample } from "@/lib/data/quality-checks";
+import { fmtDateTime } from "@/lib/format";
 import { addInprocessCheck, addQaSample } from "./quality-actions";
 
 const inputClass =
@@ -51,7 +52,7 @@ export function QualityChecks({
                 {checks.map((c) => (
                   <tr key={c.id} className="border-b last:border-0 align-top">
                     <td className="whitespace-nowrap px-2 py-2 text-muted-foreground">
-                      {new Date(c.checked_at).toLocaleString("th-TH")}
+                      {fmtDateTime(c.checked_at)}
                     </td>
                     <td className="whitespace-nowrap px-2 py-2">
                       {STATION_LABEL[c.station] ?? c.station}
@@ -117,7 +118,7 @@ export function QualityChecks({
                 {samples.map((s) => (
                   <tr key={s.id} className="border-b last:border-0 align-top">
                     <td className="whitespace-nowrap px-2 py-2 text-muted-foreground">
-                      {new Date(s.collected_at).toLocaleString("th-TH")}
+                      {fmtDateTime(s.collected_at)}
                     </td>
                     <td className="px-2 py-2">{s.sample_point}</td>
                     <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums">

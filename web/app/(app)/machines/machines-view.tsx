@@ -124,6 +124,11 @@ export function MachinesView({
                     <DueBadge date={m.next_maintenance_date} label="ซ่อม" />
                     <DueBadge date={m.next_calibration_date} label="สอบเทียบ" />
                   </div>
+                  {m.note && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      📝 {m.note}
+                    </p>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
                   <StatusBadge status={m.status} />

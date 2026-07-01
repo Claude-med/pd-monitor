@@ -22,6 +22,8 @@ export function LoginForm() {
           autoComplete="username"
           required
           placeholder="you@pdmonitor.app"
+          // คงค่าอีเมลไว้เมื่อ login ไม่สำเร็จ (React 19 reset ฟอร์มกลับไปที่ defaultValue นี้)
+          defaultValue={state?.email ?? ""}
           className="w-full rounded-md border border-input bg-background px-3 py-2 text-base outline-none focus:ring-2 focus:ring-ring"
         />
       </div>

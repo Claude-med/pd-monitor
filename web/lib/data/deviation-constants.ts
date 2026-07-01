@@ -46,6 +46,14 @@ export const DEV_TYPE_LABEL: Record<string, string> = Object.fromEntries(
   DEVIATION_TYPES.map((t) => [t.key, t.label]),
 );
 
+/** ป้ายฝ่ายของหมายเหตุ deviation (D1) — ตรงกับ role_group ใน deviation_comments */
+export const NOTE_ROLE_META: Record<string, { label: string; color: string }> = {
+  production: { label: "ฝ่ายผลิต", color: "#f59e0b" },
+  qc: { label: "QC", color: "#0ea5e9" },
+  qa: { label: "QA", color: "#a855f7" },
+  manager: { label: "ผู้บริหาร", color: "#64748b" },
+};
+
 /** เปิด deviation ได้: production/qc/qa/manager (admin ผ่านเสมอ) */
 export function canOpenDeviation(roles: AppRole[]): boolean {
   return hasAnyRole(roles, ["production", "qc", "qa", "manager"]);

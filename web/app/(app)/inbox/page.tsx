@@ -14,7 +14,9 @@ export default async function InboxPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <RealtimeRefresh tables={["notifications", "notification_reads", "jobs"]} />
+      <RealtimeRefresh
+        tables={["notifications", "notification_reads", "jobs", "fg_inventory"]}
+      />
       <div>
         <h1 className="text-2xl font-bold tracking-tight">🔔 แจ้งเตือน</h1>
         <p className="mt-1 text-sm text-muted-foreground">

@@ -19,8 +19,9 @@ export const STATION_ICON: Record<string, string> = Object.fromEntries(
   STATIONS.map((s) => [s.key, s.icon]),
 );
 
-/** บันทึกผลผลิตได้เฉพาะงานที่ "เริ่มผลิตแล้ว" (ก่อนหน้านี้ยังไม่ผลิต · FG = ล็อกแล้ว ตาม A5) */
-export const RECORDABLE_STATUSES = new Set(["in_production", "qc", "qa"]);
+/** บันทึกผลผลิตได้เฉพาะงานที่ "กำลังผลิต" เท่านั้น (B3) — ต้องตรงกับ add_production_record ใน DB
+ *  ถ้า QC/QA ตีกลับ งานจะกลับมา in_production เอง จึงบันทึกต่อได้ตามปกติ */
+export const RECORDABLE_STATUSES = new Set(["in_production"]);
 
 export type ProductionRecordRow = {
   id: string;
