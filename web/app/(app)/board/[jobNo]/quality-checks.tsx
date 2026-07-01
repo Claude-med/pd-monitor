@@ -2,10 +2,13 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { STATIONS, STATION_LABEL } from "@/lib/data/station-constants";
+import { STATION_LABEL } from "@/lib/data/station-constants";
 import type { InprocessCheck, QaSample } from "@/lib/data/quality-checks";
+import type { JobRouteStep } from "@/lib/data/stations";
 import { fmtDateTime } from "@/lib/format";
 import { addInprocessCheck, addQaSample } from "./quality-actions";
+
+export type StationOption = { id: string; name: string };
 
 const inputClass =
   "w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring";
@@ -16,6 +19,8 @@ export function QualityChecks({
   jobNo,
   checks,
   samples,
+  route,
+  stationOptions,
   canCheck,
   canSample,
 }: {
@@ -23,9 +28,18 @@ export function QualityChecks({
   jobNo: string;
   checks: InprocessCheck[];
   samples: QaSample[];
+  route: JobRouteStep[];
+  stationOptions: StationOption[];
   canCheck: boolean;
   canSample: boolean;
 }) {
+  // สถานีที่ "ผ่าน" แล้ว (มีผล pass อย่างน้อย 1) — ใช้กับแถบความคืบหน้า + gate ส่ง QC
+  const passedIds = new Set(
+    checks.filter((c) => c.result === "pass" && c.station_id).map((c) => c.station_id),
+  );
+  const stationName = new Map(route.map((s) => [s.station_id, s.name]));
+  const doneCount = route.filter((s) => passedIds.has(s.station_id)).length;
+
   return (
     <div className="space-y-6">
       {/* In-process QC */}
@@ -34,6 +48,43 @@ export function QualityChecks({
           <h2 className="font-semibold">ตรวจระหว่างผลิต (In-process QC)</h2>
           <span className="text-xs text-muted-foreground">{checks.length} รายการ</span>
         </div>
+
+        {/* ความคืบหน้า QC ตามสูตร (route) — ต้องผ่านครบทุกสถานีก่อนส่ง QC */}
+        {route.length > 0 && (
+          <div className="mb-4 rounded-md border bg-muted/30 p-3">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <span className="text-xs font-medium text-muted-foreground">
+                ความคืบหน้า QC ตามสูตร (ต้องผ่านครบก่อนส่ง QC)
+              </span>
+              <span
+                className={`text-xs font-semibold ${
+                  doneCount === route.length ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"
+                }`}
+              >
+                {doneCount}/{route.length} สถานี
+              </span>
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {route.map((s, i) => {
+                const ok = passedIds.has(s.station_id);
+                return (
+                  <span key={s.station_id} className="flex items-center gap-1.5">
+                    {i > 0 && <span className="text-muted-foreground">→</span>}
+                    <span
+                      className={`rounded-full border px-2 py-0.5 text-xs ${
+                        ok
+                          ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
+                          : "text-muted-foreground"
+                      }`}
+                    >
+                      {ok ? "✓" : "⏳"} {s.name}
+                    </span>
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {checks.length > 0 ? (
           <div className="-mx-2 overflow-x-auto">
@@ -55,7 +106,9 @@ export function QualityChecks({
                       {fmtDateTime(c.checked_at)}
                     </td>
                     <td className="whitespace-nowrap px-2 py-2">
-                      {STATION_LABEL[c.station] ?? c.station}
+                      {(c.station_id && stationName.get(c.station_id)) ||
+                        STATION_LABEL[c.station] ||
+                        c.station}
                     </td>
                     <td className="px-2 py-2">{c.param}</td>
                     <td className="whitespace-nowrap px-2 py-2 tabular-nums">
@@ -86,7 +139,7 @@ export function QualityChecks({
 
         <div className="mt-4">
           {canCheck ? (
-            <InprocessForm jobId={jobId} jobNo={jobNo} />
+            <InprocessForm jobId={jobId} jobNo={jobNo} stationOptions={stationOptions} />
           ) : (
             <p className="text-xs text-muted-foreground">
               เฉพาะ QC/ผู้บริหารบันทึกผลตรวจระหว่างผลิตได้
@@ -151,16 +204,25 @@ export function QualityChecks({
   );
 }
 
-function InprocessForm({ jobId, jobNo }: { jobId: string; jobNo: string }) {
+function InprocessForm({
+  jobId,
+  jobNo,
+  stationOptions,
+}: {
+  jobId: string;
+  jobNo: string;
+  stationOptions: StationOption[];
+}) {
   const [open, setOpen] = useState(false);
-  const [v, setV] = useState({
-    station: "mixing",
+  const emptyForm = {
+    station_id: stationOptions[0]?.id ?? "",
     param: "",
     value: "",
     unit: "",
     result: "pass",
     note: "",
-  });
+  };
+  const [v, setV] = useState(emptyForm);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const router = useRouter();
@@ -174,7 +236,7 @@ function InprocessForm({ jobId, jobNo }: { jobId: string; jobNo: string }) {
     start(async () => {
       const res = await addInprocessCheck(jobNo, { job_id: jobId, ...v });
       if (res.ok) {
-        setV({ station: "mixing", param: "", value: "", unit: "", result: "pass", note: "" });
+        setV({ ...emptyForm });
         setOpen(false);
         router.refresh();
         return;
@@ -199,18 +261,24 @@ function InprocessForm({ jobId, jobNo }: { jobId: string; jobNo: string }) {
     <div className="space-y-3 rounded-md border bg-muted/30 p-3">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
-          <label className={labelClass}>สถานี</label>
-          <select
-            value={v.station}
-            onChange={(e) => set("station", e.target.value)}
-            className={inputClass}
-          >
-            {STATIONS.map((s) => (
-              <option key={s.key} value={s.key}>
-                {s.label}
-              </option>
-            ))}
-          </select>
+          <label className={labelClass}>สถานี *</label>
+          {stationOptions.length > 0 ? (
+            <select
+              value={v.station_id}
+              onChange={(e) => set("station_id", e.target.value)}
+              className={inputClass}
+            >
+              {stationOptions.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <p className="rounded-md border border-dashed px-3 py-2 text-xs text-muted-foreground">
+              ยังไม่มีสถานีในระบบ — ตั้งค่าสถานีที่หน้า “สูตรการผลิต / BOM” ก่อน
+            </p>
+          )}
         </div>
         <div>
           <label className={labelClass}>หัวข้อที่ตรวจ *</label>

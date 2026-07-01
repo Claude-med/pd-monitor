@@ -4,6 +4,7 @@ import type { StationKey } from "@/lib/data/station-constants";
 export type InprocessCheck = {
   id: string;
   station: StationKey;
+  station_id: string | null;
   param: string;
   value: string | null;
   unit: string | null;
@@ -35,7 +36,7 @@ export async function getInprocessChecks(jobId: string): Promise<InprocessCheck[
   const { data, error } = await supabase
     .from("inprocess_checks")
     .select(
-      `id, station, param, value, unit, result, checked_at, note,
+      `id, station, station_id, param, value, unit, result, checked_at, note,
        checker:profiles!checked_by ( full_name )`,
     )
     .eq("job_id", jobId)
@@ -44,6 +45,7 @@ export async function getInprocessChecks(jobId: string): Promise<InprocessCheck[
   return (data as any[]).map((r) => ({
     id: r.id,
     station: r.station,
+    station_id: r.station_id ?? null,
     param: r.param,
     value: r.value,
     unit: r.unit,

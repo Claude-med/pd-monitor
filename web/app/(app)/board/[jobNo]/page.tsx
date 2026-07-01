@@ -23,6 +23,7 @@ import {
 } from "@/lib/data/requisitions";
 import { getLineClearance } from "@/lib/data/line-clearance";
 import { getInprocessChecks, getQaSamples } from "@/lib/data/quality-checks";
+import { getJobRoute, listStations } from "@/lib/data/stations";
 import { getDeviationsByJob } from "@/lib/data/deviations";
 import { canOpenDeviation, canCloseDeviation } from "@/lib/data/deviation-constants";
 import { getProfile } from "@/lib/auth/dal";
@@ -80,6 +81,15 @@ export default async function JobDetailPage({
   const qaSamples = await getQaSamples(job.id);
   const canInprocess = hasAnyRole(roles, ["qc", "manager"]);
   const canSample = hasAnyRole(roles, ["qa", "manager"]);
+  // route ของงาน (snapshot สูตร) → แถบความคืบหน้า + ตัวเลือกสถานีในฟอร์ม in-process
+  const jobRoute = await getJobRoute(job.id);
+  const stationOptions = jobRoute.length
+    ? jobRoute.map((s) => ({ id: s.station_id, name: `${s.step_no}. ${s.name}` }))
+    : canInprocess
+      ? (await listStations())
+          .filter((s) => s.is_active)
+          .map((s) => ({ id: s.id, name: s.name }))
+      : [];
   const deviations = await getDeviationsByJob(job.id);
   // ผลตรวจระหว่างผลิตที่ "ไม่ผ่าน" และยังไม่ได้เปิด deviation → เสนอเปิดด่วน
   const linkedCheckIds = new Set(
@@ -315,6 +325,8 @@ export default async function JobDetailPage({
         jobNo={job.job_no}
         checks={inprocessChecks}
         samples={qaSamples}
+        route={jobRoute}
+        stationOptions={stationOptions}
         canCheck={canInprocess}
         canSample={canSample}
       />

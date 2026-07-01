@@ -12,7 +12,7 @@ export async function addInprocessCheck(
   jobNo: string,
   v: {
     job_id: string;
-    station: string;
+    station_id: string;
     param: string;
     value: string;
     unit: string;
@@ -24,11 +24,12 @@ export async function addInprocessCheck(
   if (!profile || !hasAnyRole(profile.roles, ["qc", "manager"]))
     return { error: "ไม่มีสิทธิ์ (เฉพาะ QC/ผู้บริหาร)" };
   if (!v.param.trim()) return { error: "กรุณาระบุหัวข้อที่ตรวจ" };
+  if (!v.station_id) return { error: "กรุณาเลือกสถานี" };
 
   const supabase = await createClient();
   const { error } = await supabase.rpc("add_inprocess_check", {
     p_job_id: v.job_id,
-    p_station: v.station,
+    p_station_id: v.station_id,
     p_param: v.param.trim(),
     p_value: v.value.trim() || null,
     p_unit: v.unit.trim() || null,
