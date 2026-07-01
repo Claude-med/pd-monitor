@@ -155,7 +155,7 @@ export function AppShell({
               onClick={closeMenu}
               aria-hidden
             />
-            <div className="absolute left-0 top-0 h-full w-72 max-w-[80%] border-r bg-sidebar shadow-xl">
+            <div className="absolute left-0 top-0 flex h-dvh w-72 max-w-[80%] flex-col border-r bg-sidebar shadow-xl">
               <div className="flex justify-end p-2">
                 <button
                   type="button"
@@ -177,7 +177,7 @@ export function AppShell({
                   </svg>
                 </button>
               </div>
-              {sidebarInner}
+              <div className="min-h-0 flex-1">{sidebarInner}</div>
             </div>
           </div>
         )}
