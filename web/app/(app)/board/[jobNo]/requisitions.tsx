@@ -100,6 +100,49 @@ export function Requisitions({
           };
   }
 
+  // ปุ่มจัดการต่อรายการ (ใช้ร่วมกันทั้งการ์ดมือถือ + ตารางจอกว้าง)
+  function rowActions(r: RequisitionRow) {
+    const canCancel =
+      r.status === "requested" &&
+      (canIssue || r.requested_by_id === currentProfileId);
+    return (
+      <>
+        {r.status === "requested" && canIssue && (
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => act(() => issueRequisition(jobNo, r.id))}
+            className="rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+          >
+            จ่าย
+          </button>
+        )}
+        {canCancel && (
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => act(() => cancelRequisition(jobNo, r.id))}
+            className="rounded-md border px-2.5 py-1 text-xs hover:bg-accent disabled:opacity-50"
+          >
+            ยกเลิก
+          </button>
+        )}
+        {canAmend && r.status !== "issued" && (
+          <EditRequestButton
+            targetType="material_requisition"
+            targetId={r.id}
+            jobNo={jobNo}
+            hasPending={pendingSet.has(r.id)}
+            fields={[
+              { key: "qty", label: "จำนวน", kind: "number", current: String(r.qty ?? "") },
+              { key: "note", label: "หมายเหตุ", kind: "text", current: r.note ?? "" },
+            ]}
+          />
+        )}
+      </>
+    );
+  }
+
   return (
     <div className="rounded-xl border bg-card p-5">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -123,94 +166,87 @@ export function Requisitions({
       )}
 
       {requisitions.length > 0 ? (
-        <div className="-mx-2 overflow-x-auto">
-          <table className="w-full min-w-[640px] text-sm">
-            <thead>
-              <tr className="border-b text-left text-xs text-muted-foreground">
-                <th className="px-2 py-2 font-medium">วัตถุดิบ · ล็อต</th>
-                <th className="px-2 py-2 text-right font-medium">จำนวน</th>
-                <th className="px-2 py-2 font-medium">สถานะ</th>
-                <th className="px-2 py-2 font-medium">ผู้ขอ</th>
-                <th className="px-2 py-2" />
-              </tr>
-            </thead>
-            <tbody>
-              {requisitions.map((r) => {
-                const canCancel =
-                  r.status === "requested" &&
-                  (canIssue || r.requested_by_id === currentProfileId);
-                return (
+        <>
+          {/* มือถือ: การ์ด */}
+          <div className="space-y-3 md:hidden">
+            {requisitions.map((r) => (
+              <div key={r.id} className="rounded-lg border bg-muted/20 p-3">
+                <div className="mb-1.5 flex items-start justify-between gap-2">
+                  <div>
+                    <span className="font-medium">{r.material_code}</span>{" "}
+                    <span className="text-sm text-muted-foreground">{r.material_name}</span>
+                    <span className="block text-xs text-muted-foreground">ล็อต {r.lot_no}</span>
+                  </div>
+                  <StatusBadge status={r.status} />
+                </div>
+                <div className="flex items-center justify-between gap-2 text-sm">
+                  <span className="tabular-nums">
+                    {r.qty.toLocaleString("th-TH")} {r.unit}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    ผู้ขอ: {r.requested_by_name ?? "—"}
+                  </span>
+                </div>
+                {r.note && (
+                  <p className="mt-1.5 text-xs text-muted-foreground">📝 {r.note}</p>
+                )}
+                <div className="mt-2 flex flex-wrap gap-1.5">{rowActions(r)}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* จอกว้าง: ตาราง */}
+          <div className="-mx-2 hidden overflow-x-auto md:block">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-left text-xs text-muted-foreground">
+                  <th className="px-2 py-2 font-medium">วัตถุดิบ · ล็อต</th>
+                  <th className="px-2 py-2 text-right font-medium">จำนวน</th>
+                  <th className="px-2 py-2 font-medium">สถานะ</th>
+                  <th className="px-2 py-2 font-medium">ผู้ขอ</th>
+                  <th className="px-2 py-2" />
+                </tr>
+              </thead>
+              <tbody>
+                {requisitions.map((r) => (
                   <Fragment key={r.id}>
-                  <tr className={`align-top ${r.note ? "" : "border-b last:border-0"}`}>
-                    <td className="px-2 py-2">
-                      <span className="font-medium">{r.material_code}</span>{" "}
-                      <span className="text-muted-foreground">{r.material_name}</span>
-                      <span className="block text-xs text-muted-foreground">
-                        ล็อต {r.lot_no}
-                      </span>
-                    </td>
-                    <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums">
-                      {r.qty.toLocaleString("th-TH")} {r.unit}
-                    </td>
-                    <td className="px-2 py-2">
-                      <StatusBadge status={r.status} />
-                    </td>
-                    <td className="whitespace-nowrap px-2 py-2 text-muted-foreground">
-                      {r.requested_by_name ?? "—"}
-                    </td>
-                    <td className="px-2 py-2 text-right">
-                      <div className="flex justify-end gap-1.5">
-                        {r.status === "requested" && canIssue && (
-                          <button
-                            type="button"
-                            disabled={pending}
-                            onClick={() => act(() => issueRequisition(jobNo, r.id))}
-                            className="rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
-                          >
-                            จ่าย
-                          </button>
-                        )}
-                        {canCancel && (
-                          <button
-                            type="button"
-                            disabled={pending}
-                            onClick={() => act(() => cancelRequisition(jobNo, r.id))}
-                            className="rounded-md border px-2.5 py-1 text-xs hover:bg-accent disabled:opacity-50"
-                          >
-                            ยกเลิก
-                          </button>
-                        )}
-                        {canAmend && r.status !== "issued" && (
-                          <EditRequestButton
-                            targetType="material_requisition"
-                            targetId={r.id}
-                            jobNo={jobNo}
-                            hasPending={pendingSet.has(r.id)}
-                            fields={[
-                              { key: "qty", label: "จำนวน", kind: "number", current: String(r.qty ?? "") },
-                              { key: "note", label: "หมายเหตุ", kind: "text", current: r.note ?? "" },
-                            ]}
-                          />
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                  {r.note && (
-                    <tr className="border-b last:border-0">
-                      <td
-                        colSpan={5}
-                        className="px-2 pb-2 text-xs text-muted-foreground"
-                      >
-                        📝 {r.note}
+                    <tr className={`align-top ${r.note ? "" : "border-b last:border-0"}`}>
+                      <td className="px-2 py-2">
+                        <span className="font-medium">{r.material_code}</span>{" "}
+                        <span className="text-muted-foreground">{r.material_name}</span>
+                        <span className="block text-xs text-muted-foreground">
+                          ล็อต {r.lot_no}
+                        </span>
+                      </td>
+                      <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums">
+                        {r.qty.toLocaleString("th-TH")} {r.unit}
+                      </td>
+                      <td className="px-2 py-2">
+                        <StatusBadge status={r.status} />
+                      </td>
+                      <td className="whitespace-nowrap px-2 py-2 text-muted-foreground">
+                        {r.requested_by_name ?? "—"}
+                      </td>
+                      <td className="px-2 py-2 text-right">
+                        <div className="flex justify-end gap-1.5">{rowActions(r)}</div>
                       </td>
                     </tr>
-                  )}
+                    {r.note && (
+                      <tr className="border-b last:border-0">
+                        <td
+                          colSpan={5}
+                          className="px-2 pb-2 text-xs text-muted-foreground"
+                        >
+                          📝 {r.note}
+                        </td>
+                      </tr>
+                    )}
                   </Fragment>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       ) : (
         <p className="text-sm text-muted-foreground">ยังไม่มีการเบิกวัตถุดิบ</p>
       )}

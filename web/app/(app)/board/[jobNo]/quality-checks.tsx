@@ -48,6 +48,62 @@ export function QualityChecks({
   const stationName = new Map(route.map((s) => [s.station_id, s.name]));
   const doneCount = route.filter((s) => passedIds.has(s.station_id)).length;
 
+  // ชื่อสถานีที่จะแสดง (ใช้ทั้งการ์ด/ตาราง)
+  const showStation = (c: InprocessCheck) =>
+    (c.station_id && stationName.get(c.station_id)) ||
+    STATION_LABEL[c.station] ||
+    c.station;
+
+  // ป้ายผล ผ่าน/ไม่ผ่าน (ใช้ทั้งการ์ด/ตาราง)
+  const resultBadge = (c: InprocessCheck) =>
+    c.result === "pass" ? (
+      <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-xs text-emerald-700 dark:text-emerald-400">
+        ผ่าน
+      </span>
+    ) : (
+      <span className="rounded bg-destructive/15 px-1.5 py-0.5 text-xs text-destructive">
+        ไม่ผ่าน
+      </span>
+    );
+
+  // ปุ่มขอแก้ไขผลตรวจ (ใช้ทั้งการ์ด/ตาราง) — null ถ้าไม่มีสิทธิ์
+  const checkEditButton = (c: InprocessCheck) =>
+    canAmend ? (
+      <EditRequestButton
+        targetType="inprocess_check"
+        targetId={c.id}
+        jobNo={jobNo}
+        hasPending={pendingSet.has(c.id)}
+        fields={[
+          ...(canEditStation && stationOptions.length
+            ? [
+                {
+                  key: "station_id",
+                  label: "สถานี",
+                  kind: "select" as const,
+                  current: c.station_id ?? "",
+                  options: stationOptions.map((s) => ({ value: s.id, label: s.name })),
+                },
+              ]
+            : []),
+          { key: "param", label: "หัวข้อที่ตรวจ", kind: "text" as const, current: c.param ?? "" },
+          { key: "value", label: "ค่าที่วัดได้", kind: "text" as const, current: c.value ?? "" },
+          { key: "unit", label: "หน่วย", kind: "text" as const, current: c.unit ?? "" },
+          {
+            key: "result",
+            label: "ผล",
+            kind: "select" as const,
+            current: c.result,
+            options: [
+              { value: "pass", label: "ผ่าน" },
+              { value: "fail", label: "ไม่ผ่าน" },
+            ],
+          },
+          { key: "note", label: "หมายเหตุ", kind: "text" as const, current: c.note ?? "" },
+        ]}
+      />
+    ) : null;
+
   return (
     <div className="space-y-6">
       {/* In-process QC */}
@@ -95,93 +151,65 @@ export function QualityChecks({
         )}
 
         {checks.length > 0 ? (
-          <div className="-mx-2 overflow-x-auto">
-            <table className="w-full min-w-[680px] text-sm">
-              <thead>
-                <tr className="border-b text-left text-xs text-muted-foreground">
-                  <th className="px-2 py-2 font-medium">เวลา</th>
-                  <th className="px-2 py-2 font-medium">สถานี</th>
-                  <th className="px-2 py-2 font-medium">หัวข้อ</th>
-                  <th className="px-2 py-2 font-medium">ค่า</th>
-                  <th className="px-2 py-2 font-medium">ผล</th>
-                  <th className="px-2 py-2 font-medium">ผู้ตรวจ</th>
-                  {canAmend && <th className="px-2 py-2 font-medium">แก้ไข</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {checks.map((c) => (
-                  <tr key={c.id} className="border-b last:border-0 align-top">
-                    <td className="whitespace-nowrap px-2 py-2 text-muted-foreground">
-                      {fmtDateTime(c.checked_at)}
-                    </td>
-                    <td className="whitespace-nowrap px-2 py-2">
-                      {(c.station_id && stationName.get(c.station_id)) ||
-                        STATION_LABEL[c.station] ||
-                        c.station}
-                    </td>
-                    <td className="px-2 py-2">{c.param}</td>
-                    <td className="whitespace-nowrap px-2 py-2 tabular-nums">
+          <>
+            {/* มือถือ: การ์ด */}
+            <div className="space-y-3 md:hidden">
+              {checks.map((c) => (
+                <div key={c.id} className="rounded-lg border bg-muted/20 p-3">
+                  <div className="mb-1.5 flex items-start justify-between gap-2">
+                    <span className="text-sm font-medium">{showStation(c)}</span>
+                    {resultBadge(c)}
+                  </div>
+                  <div className="text-sm">{c.param}</div>
+                  <div className="mt-1 flex items-center justify-between gap-2 text-sm">
+                    <span className="tabular-nums">
                       {c.value ?? "—"} {c.unit ?? ""}
-                    </td>
-                    <td className="px-2 py-2">
-                      {c.result === "pass" ? (
-                        <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-xs text-emerald-700 dark:text-emerald-400">
-                          ผ่าน
-                        </span>
-                      ) : (
-                        <span className="rounded bg-destructive/15 px-1.5 py-0.5 text-xs text-destructive">
-                          ไม่ผ่าน
-                        </span>
-                      )}
-                    </td>
-                    <td className="whitespace-nowrap px-2 py-2 text-muted-foreground">
-                      {c.checker_name ?? "—"}
-                    </td>
-                    {canAmend && (
-                      <td className="px-2 py-2">
-                        <EditRequestButton
-                          targetType="inprocess_check"
-                          targetId={c.id}
-                          jobNo={jobNo}
-                          hasPending={pendingSet.has(c.id)}
-                          fields={[
-                            ...(canEditStation && stationOptions.length
-                              ? [
-                                  {
-                                    key: "station_id",
-                                    label: "สถานี",
-                                    kind: "select" as const,
-                                    current: c.station_id ?? "",
-                                    options: stationOptions.map((s) => ({
-                                      value: s.id,
-                                      label: s.name,
-                                    })),
-                                  },
-                                ]
-                              : []),
-                            { key: "param", label: "หัวข้อที่ตรวจ", kind: "text", current: c.param ?? "" },
-                            { key: "value", label: "ค่าที่วัดได้", kind: "text", current: c.value ?? "" },
-                            { key: "unit", label: "หน่วย", kind: "text", current: c.unit ?? "" },
-                            {
-                              key: "result",
-                              label: "ผล",
-                              kind: "select",
-                              current: c.result,
-                              options: [
-                                { value: "pass", label: "ผ่าน" },
-                                { value: "fail", label: "ไม่ผ่าน" },
-                              ],
-                            },
-                            { key: "note", label: "หมายเหตุ", kind: "text", current: c.note ?? "" },
-                          ]}
-                        />
-                      </td>
-                    )}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {fmtDateTime(c.checked_at)} · {c.checker_name ?? "—"}
+                    </span>
+                  </div>
+                  {checkEditButton(c) && <div className="mt-2">{checkEditButton(c)}</div>}
+                </div>
+              ))}
+            </div>
+
+            {/* จอกว้าง: ตาราง */}
+            <div className="-mx-2 hidden overflow-x-auto md:block">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left text-xs text-muted-foreground">
+                    <th className="px-2 py-2 font-medium">เวลา</th>
+                    <th className="px-2 py-2 font-medium">สถานี</th>
+                    <th className="px-2 py-2 font-medium">หัวข้อ</th>
+                    <th className="px-2 py-2 font-medium">ค่า</th>
+                    <th className="px-2 py-2 font-medium">ผล</th>
+                    <th className="px-2 py-2 font-medium">ผู้ตรวจ</th>
+                    {canAmend && <th className="px-2 py-2 font-medium">แก้ไข</th>}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {checks.map((c) => (
+                    <tr key={c.id} className="border-b last:border-0 align-top">
+                      <td className="whitespace-nowrap px-2 py-2 text-muted-foreground">
+                        {fmtDateTime(c.checked_at)}
+                      </td>
+                      <td className="whitespace-nowrap px-2 py-2">{showStation(c)}</td>
+                      <td className="px-2 py-2">{c.param}</td>
+                      <td className="whitespace-nowrap px-2 py-2 tabular-nums">
+                        {c.value ?? "—"} {c.unit ?? ""}
+                      </td>
+                      <td className="px-2 py-2">{resultBadge(c)}</td>
+                      <td className="whitespace-nowrap px-2 py-2 text-muted-foreground">
+                        {c.checker_name ?? "—"}
+                      </td>
+                      {canAmend && <td className="px-2 py-2">{checkEditButton(c)}</td>}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         ) : (
           <p className="text-sm text-muted-foreground">ยังไม่มีผลตรวจระหว่างผลิต</p>
         )}
@@ -205,36 +233,59 @@ export function QualityChecks({
         </div>
 
         {samples.length > 0 ? (
-          <div className="-mx-2 overflow-x-auto">
-            <table className="w-full min-w-[560px] text-sm">
-              <thead>
-                <tr className="border-b text-left text-xs text-muted-foreground">
-                  <th className="px-2 py-2 font-medium">เวลา</th>
-                  <th className="px-2 py-2 font-medium">จุด/รอบ</th>
-                  <th className="px-2 py-2 text-right font-medium">จำนวน</th>
-                  <th className="px-2 py-2 font-medium">ผู้เก็บ</th>
-                  <th className="px-2 py-2 font-medium">หมายเหตุ</th>
-                </tr>
-              </thead>
-              <tbody>
-                {samples.map((s) => (
-                  <tr key={s.id} className="border-b last:border-0 align-top">
-                    <td className="whitespace-nowrap px-2 py-2 text-muted-foreground">
-                      {fmtDateTime(s.collected_at)}
-                    </td>
-                    <td className="px-2 py-2">{s.sample_point}</td>
-                    <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums">
+          <>
+            {/* มือถือ: การ์ด */}
+            <div className="space-y-3 md:hidden">
+              {samples.map((s) => (
+                <div key={s.id} className="rounded-lg border bg-muted/20 p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-medium">{s.sample_point}</span>
+                    <span className="text-sm tabular-nums">
                       {s.qty == null ? "—" : s.qty.toLocaleString("th-TH")} {s.unit ?? ""}
-                    </td>
-                    <td className="whitespace-nowrap px-2 py-2 text-muted-foreground">
-                      {s.collector_name ?? "—"}
-                    </td>
-                    <td className="px-2 py-2 text-muted-foreground">{s.note ?? ""}</td>
+                    </span>
+                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {fmtDateTime(s.collected_at)} · {s.collector_name ?? "—"}
+                  </div>
+                  {s.note && (
+                    <p className="mt-1 text-xs text-muted-foreground">📝 {s.note}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* จอกว้าง: ตาราง */}
+            <div className="-mx-2 hidden overflow-x-auto md:block">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left text-xs text-muted-foreground">
+                    <th className="px-2 py-2 font-medium">เวลา</th>
+                    <th className="px-2 py-2 font-medium">จุด/รอบ</th>
+                    <th className="px-2 py-2 text-right font-medium">จำนวน</th>
+                    <th className="px-2 py-2 font-medium">ผู้เก็บ</th>
+                    <th className="px-2 py-2 font-medium">หมายเหตุ</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {samples.map((s) => (
+                    <tr key={s.id} className="border-b last:border-0 align-top">
+                      <td className="whitespace-nowrap px-2 py-2 text-muted-foreground">
+                        {fmtDateTime(s.collected_at)}
+                      </td>
+                      <td className="px-2 py-2">{s.sample_point}</td>
+                      <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums">
+                        {s.qty == null ? "—" : s.qty.toLocaleString("th-TH")} {s.unit ?? ""}
+                      </td>
+                      <td className="whitespace-nowrap px-2 py-2 text-muted-foreground">
+                        {s.collector_name ?? "—"}
+                      </td>
+                      <td className="px-2 py-2 text-muted-foreground">{s.note ?? ""}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         ) : (
           <p className="text-sm text-muted-foreground">ยังไม่มีบันทึกจุดเก็บตัวอย่าง</p>
         )}

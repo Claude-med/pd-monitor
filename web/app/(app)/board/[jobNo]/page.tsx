@@ -47,10 +47,37 @@ import { Requisitions } from "./requisitions";
 import { LineClearancePanel } from "./line-clearance";
 import { QualityChecks } from "./quality-checks";
 import { Deviations } from "./deviations";
-import { EditRequestButton } from "./edit-request-button";
+import { EditRequestButton, type EditField } from "./edit-request-button";
+import type { ProductionRecordRow } from "@/lib/data/station-constants";
 
 function fmtQty(n: number | null): string {
   return n == null ? "—" : n.toLocaleString("th-TH");
+}
+
+type EditOption = { value: string; label: string };
+
+/** field ปุ่ม "ขอแก้ไข" ของบันทึกผลผลิต — ใช้ร่วมกันทั้งการ์ด (มือถือ) และตาราง (จอกว้าง) */
+function productionEditFields(
+  r: ProductionRecordRow,
+  canEditStationMachine: boolean,
+  stationEditOptions: EditOption[],
+  machineEditOptions: EditOption[],
+): EditField[] {
+  return [
+    { key: "output_qty", label: "ผลิตได้", kind: "number", current: String(r.output_qty ?? "") },
+    { key: "loss_qty", label: "ของเสีย", kind: "number", current: String(r.loss_qty ?? "") },
+    { key: "input_qty", label: "จำนวนตั้งต้น", kind: "number", current: String(r.input_qty ?? "") },
+    { key: "hours", label: "ชั่วโมง", kind: "number", current: String(r.hours ?? "") },
+    { key: "headcount", label: "จำนวนคน", kind: "number", current: String(r.headcount ?? "") },
+    { key: "record_date", label: "วันที่", kind: "date", current: r.record_date ?? "" },
+    { key: "note", label: "หมายเหตุ", kind: "text", current: r.note ?? "" },
+    ...(canEditStationMachine
+      ? [
+          { key: "station", label: "สถานี", kind: "select" as const, current: r.station ?? "", options: stationEditOptions },
+          { key: "machine_id", label: "เครื่องจักร", kind: "select" as const, current: r.machine_id ?? "", options: machineEditOptions },
+        ]
+      : []),
+  ];
 }
 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
@@ -271,95 +298,106 @@ export default async function JobDetailPage({
         </div>
 
         {records.length > 0 ? (
-          <div className="-mx-2 overflow-x-auto">
-            <table className="w-full min-w-[780px] text-sm">
-              <thead>
-                <tr className="border-b text-left text-xs text-muted-foreground">
-                  <th className="px-2 py-2 font-medium">วันที่</th>
-                  <th className="px-2 py-2 font-medium">สถานี</th>
-                  <th className="px-2 py-2 font-medium">เครื่องจักร</th>
-                  <th className="px-2 py-2 text-right font-medium">ตั้งต้น</th>
-                  <th className="px-2 py-2 text-right font-medium">ผลิตได้</th>
-                  <th className="px-2 py-2 text-right font-medium">ของเสีย</th>
-                  <th className="px-2 py-2 text-right font-medium">ชม.</th>
-                  <th className="px-2 py-2 text-right font-medium">คน</th>
-                  <th className="px-2 py-2 font-medium">ผู้บันทึก</th>
-                  {canAmend && <th className="px-2 py-2 font-medium">แก้ไข</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {records.map((r) => (
-                  <Fragment key={r.id}>
-                    <tr className={`align-top ${r.note ? "" : "border-b last:border-0"}`}>
-                      <td className="whitespace-nowrap px-2 py-2">{r.record_date}</td>
-                      <td className="whitespace-nowrap px-2 py-2">
-                        {STATION_ICON[r.station]} {STATION_LABEL[r.station] ?? r.station}
-                      </td>
-                      <td className="whitespace-nowrap px-2 py-2 text-muted-foreground">
-                        {r.machine_label ?? "—"}
-                      </td>
-                      <td className="px-2 py-2 text-right tabular-nums">{fmtQty(r.input_qty)}</td>
-                      <td className="px-2 py-2 text-right tabular-nums">{fmtQty(r.output_qty)}</td>
-                      <td className="px-2 py-2 text-right tabular-nums">{fmtQty(r.loss_qty)}</td>
-                      <td className="px-2 py-2 text-right tabular-nums">{r.hours ?? "—"}</td>
-                      <td className="px-2 py-2 text-right tabular-nums">{r.headcount ?? "—"}</td>
-                      <td className="whitespace-nowrap px-2 py-2 text-muted-foreground">
-                        {r.operator_name ?? "—"}
-                      </td>
-                      {canAmend && (
-                        <td className="px-2 py-2">
-                          <EditRequestButton
-                            targetType="production_record"
-                            targetId={r.id}
-                            jobNo={job.job_no}
-                            hasPending={pendingTargets.has(r.id)}
-                            fields={[
-                              { key: "output_qty", label: "ผลิตได้", kind: "number", current: String(r.output_qty ?? "") },
-                              { key: "loss_qty", label: "ของเสีย", kind: "number", current: String(r.loss_qty ?? "") },
-                              { key: "input_qty", label: "จำนวนตั้งต้น", kind: "number", current: String(r.input_qty ?? "") },
-                              { key: "hours", label: "ชั่วโมง", kind: "number", current: String(r.hours ?? "") },
-                              { key: "headcount", label: "จำนวนคน", kind: "number", current: String(r.headcount ?? "") },
-                              { key: "record_date", label: "วันที่", kind: "date", current: r.record_date ?? "" },
-                              { key: "note", label: "หมายเหตุ", kind: "text", current: r.note ?? "" },
-                              ...(canEditStationMachine
-                                ? [
-                                    {
-                                      key: "station",
-                                      label: "สถานี",
-                                      kind: "select" as const,
-                                      current: r.station ?? "",
-                                      options: stationEditOptions,
-                                    },
-                                    {
-                                      key: "machine_id",
-                                      label: "เครื่องจักร",
-                                      kind: "select" as const,
-                                      current: r.machine_id ?? "",
-                                      options: machineEditOptions,
-                                    },
-                                  ]
-                                : []),
-                            ]}
-                          />
+          <>
+            {/* มือถือ: การ์ด (เห็นครบทุกช่องในใบเดียว ไม่ต้องเลื่อนแนวนอน) */}
+            <div className="space-y-3 md:hidden">
+              {records.map((r) => (
+                <div key={r.id} className="rounded-lg border bg-muted/20 p-3">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <span className="text-sm font-medium">
+                      {STATION_ICON[r.station]} {STATION_LABEL[r.station] ?? r.station}
+                    </span>
+                    <span className="text-xs text-muted-foreground">{r.record_date}</span>
+                  </div>
+                  <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+                    <div><dt className="text-xs text-muted-foreground">ตั้งต้น</dt><dd className="tabular-nums">{fmtQty(r.input_qty)}</dd></div>
+                    <div><dt className="text-xs text-muted-foreground">ผลิตได้</dt><dd className="tabular-nums">{fmtQty(r.output_qty)}</dd></div>
+                    <div><dt className="text-xs text-muted-foreground">ของเสีย</dt><dd className="tabular-nums">{fmtQty(r.loss_qty)}</dd></div>
+                    <div><dt className="text-xs text-muted-foreground">ชม. / คน</dt><dd className="tabular-nums">{r.hours ?? "—"} / {r.headcount ?? "—"}</dd></div>
+                    <div><dt className="text-xs text-muted-foreground">เครื่องจักร</dt><dd>{r.machine_label ?? "—"}</dd></div>
+                    <div><dt className="text-xs text-muted-foreground">ผู้บันทึก</dt><dd>{r.operator_name ?? "—"}</dd></div>
+                  </dl>
+                  {r.note && <p className="mt-2 text-xs text-muted-foreground">📝 {r.note}</p>}
+                  {canAmend && (
+                    <div className="mt-2">
+                      <EditRequestButton
+                        targetType="production_record"
+                        targetId={r.id}
+                        jobNo={job.job_no}
+                        hasPending={pendingTargets.has(r.id)}
+                        fields={productionEditFields(r, canEditStationMachine, stationEditOptions, machineEditOptions)}
+                      />
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* จอกว้าง: ตาราง */}
+            <div className="-mx-2 hidden overflow-x-auto md:block">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left text-xs text-muted-foreground">
+                    <th className="px-2 py-2 font-medium">วันที่</th>
+                    <th className="px-2 py-2 font-medium">สถานี</th>
+                    <th className="px-2 py-2 font-medium">เครื่องจักร</th>
+                    <th className="px-2 py-2 text-right font-medium">ตั้งต้น</th>
+                    <th className="px-2 py-2 text-right font-medium">ผลิตได้</th>
+                    <th className="px-2 py-2 text-right font-medium">ของเสีย</th>
+                    <th className="px-2 py-2 text-right font-medium">ชม.</th>
+                    <th className="px-2 py-2 text-right font-medium">คน</th>
+                    <th className="px-2 py-2 font-medium">ผู้บันทึก</th>
+                    {canAmend && <th className="px-2 py-2 font-medium">แก้ไข</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {records.map((r) => (
+                    <Fragment key={r.id}>
+                      <tr className={`align-top ${r.note ? "" : "border-b last:border-0"}`}>
+                        <td className="whitespace-nowrap px-2 py-2">{r.record_date}</td>
+                        <td className="whitespace-nowrap px-2 py-2">
+                          {STATION_ICON[r.station]} {STATION_LABEL[r.station] ?? r.station}
                         </td>
-                      )}
-                    </tr>
-                    {r.note && (
-                      <tr className="border-b last:border-0">
-                        <td />
-                        <td
-                          colSpan={canAmend ? 9 : 8}
-                          className="px-2 pb-2 text-xs text-muted-foreground"
-                        >
-                          📝 {r.note}
+                        <td className="whitespace-nowrap px-2 py-2 text-muted-foreground">
+                          {r.machine_label ?? "—"}
                         </td>
+                        <td className="px-2 py-2 text-right tabular-nums">{fmtQty(r.input_qty)}</td>
+                        <td className="px-2 py-2 text-right tabular-nums">{fmtQty(r.output_qty)}</td>
+                        <td className="px-2 py-2 text-right tabular-nums">{fmtQty(r.loss_qty)}</td>
+                        <td className="px-2 py-2 text-right tabular-nums">{r.hours ?? "—"}</td>
+                        <td className="px-2 py-2 text-right tabular-nums">{r.headcount ?? "—"}</td>
+                        <td className="whitespace-nowrap px-2 py-2 text-muted-foreground">
+                          {r.operator_name ?? "—"}
+                        </td>
+                        {canAmend && (
+                          <td className="px-2 py-2">
+                            <EditRequestButton
+                              targetType="production_record"
+                              targetId={r.id}
+                              jobNo={job.job_no}
+                              hasPending={pendingTargets.has(r.id)}
+                              fields={productionEditFields(r, canEditStationMachine, stationEditOptions, machineEditOptions)}
+                            />
+                          </td>
+                        )}
                       </tr>
-                    )}
-                  </Fragment>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                      {r.note && (
+                        <tr className="border-b last:border-0">
+                          <td />
+                          <td
+                            colSpan={canAmend ? 9 : 8}
+                            className="px-2 pb-2 text-xs text-muted-foreground"
+                          >
+                            📝 {r.note}
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         ) : (
           <p className="text-sm text-muted-foreground">ยังไม่มีการบันทึกผลผลิต</p>
         )}
