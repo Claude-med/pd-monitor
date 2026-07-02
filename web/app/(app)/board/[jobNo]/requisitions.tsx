@@ -180,7 +180,7 @@ export function Requisitions({
                             ยกเลิก
                           </button>
                         )}
-                        {canAmend && (
+                        {canAmend && r.status !== "issued" && (
                           <EditRequestButton
                             targetType="material_requisition"
                             targetId={r.id}
