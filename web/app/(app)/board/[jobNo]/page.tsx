@@ -40,6 +40,7 @@ import { hasAnyRole } from "@/lib/auth/roles";
 import { fmtDateTime } from "@/lib/format";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
 import { JobActions } from "./job-actions";
+import { DeleteJobButton } from "./delete-job-button";
 import { RecordForm } from "./record-form";
 import { Requisitions } from "./requisitions";
 import { LineClearancePanel } from "./line-clearance";
@@ -232,6 +233,13 @@ export default async function JobDetailPage({
           status={job.status}
           roles={roles}
         />
+
+        {/* ลบงาน (ข้อ 2) — เฉพาะผู้บริหาร/ผู้ดูแล */}
+        {hasAnyRole(roles, ["manager", "admin"]) && (
+          <div className="mt-4 border-t pt-4">
+            <DeleteJobButton jobId={job.id} jobNo={job.job_no} />
+          </div>
+        )}
       </div>
 
       {/* Line Clearance (A3) — gate ก่อนเริ่มผลิต */}

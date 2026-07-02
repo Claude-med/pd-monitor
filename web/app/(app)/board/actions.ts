@@ -34,6 +34,50 @@ export async function changeStatus(
 }
 
 /**
+ * ลบงาน (ข้อ 2) — เฉพาะผู้บริหาร/ผู้ดูแล + ยืนยันรหัสผ่านซ้ำ (กันลบผิดงาน)
+ * DB (delete_job) เป็นด่านบังคับสิทธิ์จริง + ลบตารางลูก cascade + audit
+ * การยืนยันรหัส = พิสูจน์ว่า "คนหน้าจอ = เจ้าของบัญชี" (แพตเทิร์นเดียวกับ signDecision)
+ */
+export async function deleteJob(
+  jobId: string,
+  jobNo: string,
+  password: string,
+): Promise<ActionResult> {
+  if (!password || !password.trim()) {
+    return { error: "กรุณากรอกรหัสผ่านเพื่อยืนยันการลบ" };
+  }
+
+  const user = await getUser();
+  if (!user?.email) {
+    return { error: "ยังไม่ได้เข้าสู่ระบบ" };
+  }
+
+  // ยืนยันรหัสผ่านซ้ำด้วย client แยก (ไม่แตะ cookie/session ปัจจุบัน)
+  const verifier = createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+  const { error: authError } = await verifier.auth.signInWithPassword({
+    email: user.email,
+    password,
+  });
+  if (authError) {
+    return { error: "รหัสผ่านไม่ถูกต้อง — ลบงานไม่สำเร็จ" };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("delete_job", { p_job_id: jobId });
+  if (error) {
+    return { error: error.message || "ลบงานไม่สำเร็จ" };
+  }
+
+  revalidatePath("/board");
+  revalidatePath(`/board/${jobNo}`);
+  return { ok: true };
+}
+
+/**
  * ลงนามตัดสินคุณภาพ QC/QA (e-signature lite) — ยืนยันรหัสผ่านซ้ำก่อน แล้วบันทึกลายเซ็น
  * + ขยับสถานะผ่าน rpc sign_job_decision() (atomic ใน DB)
  *
