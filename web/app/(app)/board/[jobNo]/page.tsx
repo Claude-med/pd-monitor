@@ -11,6 +11,7 @@ import {
 } from "@/lib/data/job-constants";
 import { getRecordsForJob } from "@/lib/data/production";
 import {
+  STATIONS,
   STATION_LABEL,
   STATION_ICON,
   RECORDABLE_STATUSES,
@@ -80,7 +81,15 @@ export default async function JobDetailPage({
   const canRecord =
     hasAnyRole(roles, ["production", "manager"]) &&
     RECORDABLE_STATUSES.has(job.status);
-  const machines = canRecord ? await listMachines() : [];
+  // [ข้อ 8] ผู้บริหาร/ผู้ดูแล ขอแก้ไข "สถานี/เครื่องจักร" ของบันทึกผลผลิต + สถานีของ in-process ได้
+  const canEditStationMachine = hasAnyRole(roles, ["manager", "admin"]);
+  const machines = canRecord || canEditStationMachine ? await listMachines() : [];
+  // ตัวเลือกสำหรับฟอร์มขอแก้ไข (สถานี = enum 4 กลุ่ม · เครื่องจักร = รายการเครื่อง)
+  const stationEditOptions = STATIONS.map((s) => ({ value: s.key, label: s.label }));
+  const machineEditOptions = [
+    { value: "", label: "— ไม่ระบุเครื่อง —" },
+    ...machines.map((m) => ({ value: m.id, label: `${m.code} · ${m.name}` })),
+  ];
   const requisitions = await getRequisitionsForJob(job.id);
   const canRequestMat = hasAnyRole(roles, ["production", "warehouse", "manager"]);
   const canIssueMat = hasAnyRole(roles, ["warehouse", "manager"]);
@@ -312,6 +321,24 @@ export default async function JobDetailPage({
                               { key: "headcount", label: "จำนวนคน", kind: "number", current: String(r.headcount ?? "") },
                               { key: "record_date", label: "วันที่", kind: "date", current: r.record_date ?? "" },
                               { key: "note", label: "หมายเหตุ", kind: "text", current: r.note ?? "" },
+                              ...(canEditStationMachine
+                                ? [
+                                    {
+                                      key: "station",
+                                      label: "สถานี",
+                                      kind: "select" as const,
+                                      current: r.station ?? "",
+                                      options: stationEditOptions,
+                                    },
+                                    {
+                                      key: "machine_id",
+                                      label: "เครื่องจักร",
+                                      kind: "select" as const,
+                                      current: r.machine_id ?? "",
+                                      options: machineEditOptions,
+                                    },
+                                  ]
+                                : []),
                             ]}
                           />
                         </td>
@@ -375,6 +402,7 @@ export default async function JobDetailPage({
         canCheck={canInprocess}
         canSample={canSample}
         canAmend={canAmend}
+        canEditStation={canEditStationMachine}
         pendingTargetIds={[...pendingTargets]}
       />
 

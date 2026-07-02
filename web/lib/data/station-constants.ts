@@ -33,6 +33,7 @@ export type ProductionRecordRow = {
   hours: number | null;
   note: string | null;
   operator_name: string | null;
+  machine_id: string | null; // id เครื่องที่ใช้ (สำหรับ prefill ตอนขอแก้ไข)
   machine_label: string | null; // "code · name" ของเครื่องที่ใช้ (ถ้ามี)
   headcount: number | null; // จำนวนคน (A5)
   created_at: string;

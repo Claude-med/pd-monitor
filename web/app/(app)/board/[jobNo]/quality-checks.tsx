@@ -25,6 +25,7 @@ export function QualityChecks({
   canCheck,
   canSample,
   canAmend,
+  canEditStation,
   pendingTargetIds,
 }: {
   jobId: string;
@@ -36,6 +37,7 @@ export function QualityChecks({
   canCheck: boolean;
   canSample: boolean;
   canAmend: boolean;
+  canEditStation: boolean;
   pendingTargetIds: string[];
 }) {
   const pendingSet = new Set(pendingTargetIds);
@@ -143,6 +145,20 @@ export function QualityChecks({
                           jobNo={jobNo}
                           hasPending={pendingSet.has(c.id)}
                           fields={[
+                            ...(canEditStation && stationOptions.length
+                              ? [
+                                  {
+                                    key: "station_id",
+                                    label: "สถานี",
+                                    kind: "select" as const,
+                                    current: c.station_id ?? "",
+                                    options: stationOptions.map((s) => ({
+                                      value: s.id,
+                                      label: s.name,
+                                    })),
+                                  },
+                                ]
+                              : []),
                             { key: "param", label: "หัวข้อที่ตรวจ", kind: "text", current: c.param ?? "" },
                             { key: "value", label: "ค่าที่วัดได้", kind: "text", current: c.value ?? "" },
                             { key: "unit", label: "หน่วย", kind: "text", current: c.unit ?? "" },
