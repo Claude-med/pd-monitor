@@ -28,7 +28,7 @@ export async function addRecord(
   const supabase = await createClient();
   const { error } = await supabase.rpc("add_production_record", {
     p_job_id: jobId,
-    p_station: parsed.station,
+    p_station_id: parsed.station_id,
     p_input: parsed.input_qty,
     p_output: parsed.output_qty,
     p_loss: parsed.loss_qty,

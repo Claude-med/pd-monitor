@@ -25,7 +25,9 @@ export const RECORDABLE_STATUSES = new Set(["in_production"]);
 
 export type ProductionRecordRow = {
   id: string;
-  station: StationKey;
+  station: StationKey; // กลุ่มหลัก (enum) — ใช้ rollup dashboard/รายงาน
+  station_id: string | null; // สถานีย่อยตาม route (ถ้ามี)
+  station_name: string | null; // ชื่อสถานีย่อย (แสดงผล) — fallback เป็นชื่อกลุ่ม
   record_date: string;
   input_qty: number | null;
   output_qty: number | null;
@@ -41,7 +43,7 @@ export type ProductionRecordRow = {
 
 /** ค่าดิบจากฟอร์ม (ทุกช่องเป็น string) */
 export type RecordFormValues = {
-  station: string;
+  station_id: string; // สถานีย่อย (id) ที่เลือกตาม route ของงาน
   record_date: string;
   input_qty: string;
   output_qty: string;
@@ -54,7 +56,7 @@ export type RecordFormValues = {
 
 /** ค่าที่ parse + ผ่าน validate แล้ว (พร้อมส่งเข้า rpc) */
 export type ParsedRecord = {
-  station: StationKey;
+  station_id: string;
   record_date: string;
   input_qty: number;
   output_qty: number;
@@ -88,10 +90,10 @@ export function validateRecord(v: RecordFormValues): {
 } {
   const errors: Partial<Record<keyof RecordFormValues, string>> = {};
 
-  // station
-  const station = v.station as StationKey;
-  if (!STATIONS.some((s) => s.key === station)) {
-    errors.station = "เลือกสถานีผลิต";
+  // station (สถานีย่อยตาม route — ต้องเลือก 1 รายการ · DB ตรวจว่ามีจริงอีกชั้น)
+  const stationId = v.station_id.trim();
+  if (stationId === "") {
+    errors.station_id = "เลือกสถานีผลิต";
   }
 
   // record_date
@@ -155,7 +157,7 @@ export function validateRecord(v: RecordFormValues): {
   return {
     errors,
     parsed: {
-      station,
+      station_id: stationId,
       record_date: date,
       input_qty: input as number,
       output_qty: output as number,

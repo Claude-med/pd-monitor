@@ -11,7 +11,6 @@ import {
 } from "@/lib/data/job-constants";
 import { getRecordsForJob } from "@/lib/data/production";
 import {
-  STATIONS,
   STATION_LABEL,
   STATION_ICON,
   RECORDABLE_STATUSES,
@@ -21,6 +20,7 @@ import { listMachines } from "@/lib/data/machines";
 import {
   getRequisitionsForJob,
   getSelectableLots,
+  getRecipeMaterialIds,
 } from "@/lib/data/requisitions";
 import { getLineClearance } from "@/lib/data/line-clearance";
 import { getInprocessChecks, getQaSamples } from "@/lib/data/quality-checks";
@@ -60,7 +60,7 @@ type EditOption = { value: string; label: string };
 function productionEditFields(
   r: ProductionRecordRow,
   canEditStationMachine: boolean,
-  stationEditOptions: EditOption[],
+  stationIdEditOptions: EditOption[],
   machineEditOptions: EditOption[],
 ): EditField[] {
   return [
@@ -73,7 +73,7 @@ function productionEditFields(
     { key: "note", label: "หมายเหตุ", kind: "text", current: r.note ?? "" },
     ...(canEditStationMachine
       ? [
-          { key: "station", label: "สถานี", kind: "select" as const, current: r.station ?? "", options: stationEditOptions },
+          { key: "station_id", label: "สถานี", kind: "select" as const, current: r.station_id ?? "", options: stationIdEditOptions },
           { key: "machine_id", label: "เครื่องจักร", kind: "select" as const, current: r.machine_id ?? "", options: machineEditOptions },
         ]
       : []),
@@ -111,8 +111,23 @@ export default async function JobDetailPage({
   // [ข้อ 8] ผู้บริหาร/ผู้ดูแล ขอแก้ไข "สถานี/เครื่องจักร" ของบันทึกผลผลิต + สถานีของ in-process ได้
   const canEditStationMachine = hasAnyRole(roles, ["manager", "admin"]);
   const machines = canRecord || canEditStationMachine ? await listMachines() : [];
-  // ตัวเลือกสำหรับฟอร์มขอแก้ไข (สถานี = enum 4 กลุ่ม · เครื่องจักร = รายการเครื่อง)
-  const stationEditOptions = STATIONS.map((s) => ({ value: s.key, label: s.label }));
+  // สถานีย่อยทั้งหมด (active) + route ของงาน → ใช้ทำตัวเลือกสถานีในฟอร์มต่างๆ
+  const jobRoute = await getJobRoute(job.id);
+  const activeStations = (await listStations()).filter((s) => s.is_active);
+  // ฟอร์มบันทึกผลผลิต [ข้อ5]: เลือกสถานีตาม route (ถ้ามี) · ไม่งั้น = ทุกสถานี active
+  const recordStationOptions = jobRoute.length
+    ? jobRoute.map((s) => ({
+        id: s.station_id,
+        name: `${s.step_no}. ${s.name}`,
+        group: s.station_group as string,
+      }))
+    : activeStations.map((s) => ({
+        id: s.id,
+        name: s.name,
+        group: s.station_group as string,
+      }));
+  // ตัวเลือกฟอร์มขอแก้ไข: สถานีย่อย (station_id) = ทุกสถานี active · เครื่องจักร = รายการเครื่อง
+  const stationIdEditOptions = activeStations.map((s) => ({ value: s.id, label: s.name }));
   const machineEditOptions = [
     { value: "", label: "— ไม่ระบุเครื่อง —" },
     ...machines.map((m) => ({ value: m.id, label: `${m.code} · ${m.name}` })),
@@ -120,7 +135,9 @@ export default async function JobDetailPage({
   const requisitions = await getRequisitionsForJob(job.id);
   const canRequestMat = hasAnyRole(roles, ["production", "warehouse", "manager"]);
   const canIssueMat = hasAnyRole(roles, ["warehouse", "manager"]);
-  const selectableLots = canRequestMat ? await getSelectableLots() : [];
+  // [ข้อ5] เบิกได้เฉพาะวัตถุดิบใน BOM ของสูตรที่ผูกกับงาน (null = ไม่มีสูตร → ไม่กรอง)
+  const recipeMaterialIds = canRequestMat ? await getRecipeMaterialIds(job.id) : null;
+  const selectableLots = canRequestMat ? await getSelectableLots(recipeMaterialIds) : [];
   const lineClearance = await getLineClearance(job.id);
   const canPerformLc = hasAnyRole(roles, ["production", "manager"]);
   const canCheckLc = hasAnyRole(roles, ["production", "qc", "qa", "manager"]);
@@ -128,15 +145,10 @@ export default async function JobDetailPage({
   const qaSamples = await getQaSamples(job.id);
   const canInprocess = hasAnyRole(roles, ["qc", "manager"]);
   const canSample = hasAnyRole(roles, ["qa", "manager"]);
-  // route ของงาน (snapshot สูตร) → แถบความคืบหน้า + ตัวเลือกสถานีในฟอร์ม in-process
-  const jobRoute = await getJobRoute(job.id);
+  // ตัวเลือกสถานีในฟอร์ม in-process QC (id/ชื่อ) — route ถ้ามี ไม่งั้นทุกสถานี active
   const stationOptions = jobRoute.length
     ? jobRoute.map((s) => ({ id: s.station_id, name: `${s.step_no}. ${s.name}` }))
-    : canInprocess
-      ? (await listStations())
-          .filter((s) => s.is_active)
-          .map((s) => ({ id: s.id, name: s.name }))
-      : [];
+    : activeStations.map((s) => ({ id: s.id, name: s.name }));
   const deviations = await getDeviationsByJob(job.id);
   // F1 — คำขอแก้ไขย้อนหลัง (ประวัติ + badge บนแถวที่มีคำขอค้าง)
   const editRequests = await getEditRequestsForJob(job.id);
@@ -305,7 +317,7 @@ export default async function JobDetailPage({
                 <div key={r.id} className="rounded-lg border bg-muted/20 p-3">
                   <div className="mb-2 flex items-center justify-between gap-2">
                     <span className="text-sm font-medium">
-                      {STATION_ICON[r.station]} {STATION_LABEL[r.station] ?? r.station}
+                      {STATION_ICON[r.station]} {r.station_name ?? STATION_LABEL[r.station] ?? r.station}
                     </span>
                     <span className="text-xs text-muted-foreground">{r.record_date}</span>
                   </div>
@@ -325,7 +337,7 @@ export default async function JobDetailPage({
                         targetId={r.id}
                         jobNo={job.job_no}
                         hasPending={pendingTargets.has(r.id)}
-                        fields={productionEditFields(r, canEditStationMachine, stationEditOptions, machineEditOptions)}
+                        fields={productionEditFields(r, canEditStationMachine, stationIdEditOptions, machineEditOptions)}
                       />
                     </div>
                   )}
@@ -356,7 +368,7 @@ export default async function JobDetailPage({
                       <tr className={`align-top ${r.note ? "" : "border-b last:border-0"}`}>
                         <td className="whitespace-nowrap px-2 py-2">{r.record_date}</td>
                         <td className="whitespace-nowrap px-2 py-2">
-                          {STATION_ICON[r.station]} {STATION_LABEL[r.station] ?? r.station}
+                          {STATION_ICON[r.station]} {r.station_name ?? STATION_LABEL[r.station] ?? r.station}
                         </td>
                         <td className="whitespace-nowrap px-2 py-2 text-muted-foreground">
                           {r.machine_label ?? "—"}
@@ -376,7 +388,7 @@ export default async function JobDetailPage({
                               targetId={r.id}
                               jobNo={job.job_no}
                               hasPending={pendingTargets.has(r.id)}
-                              fields={productionEditFields(r, canEditStationMachine, stationEditOptions, machineEditOptions)}
+                              fields={productionEditFields(r, canEditStationMachine, stationIdEditOptions, machineEditOptions)}
                             />
                           </td>
                         )}
@@ -404,7 +416,12 @@ export default async function JobDetailPage({
 
         <div className="mt-4">
           {canRecord ? (
-            <RecordForm jobId={job.id} jobNo={job.job_no} machines={machines} />
+            <RecordForm
+              jobId={job.id}
+              jobNo={job.job_no}
+              machines={machines}
+              stationOptions={recordStationOptions}
+            />
           ) : (
             <p className="text-xs text-muted-foreground">
               {hasAnyRole(roles, ["production", "manager"])
@@ -426,6 +443,7 @@ export default async function JobDetailPage({
         canIssue={canIssueMat}
         currentProfileId={profile?.id ?? ""}
         canAmend={canAmend}
+        bomLimited={recipeMaterialIds != null}
         pendingTargetIds={[...pendingTargets]}
       />
 

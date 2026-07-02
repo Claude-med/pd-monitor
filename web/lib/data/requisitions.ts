@@ -63,8 +63,38 @@ export async function getRequisitionsForJob(
   });
 }
 
-/** ล็อตที่เลือกเบิกได้ (มีของ + ไม่ใช่ไม่ผ่าน/หมดอายุ) สำหรับฟอร์มขอเบิก */
-export async function getSelectableLots(): Promise<SelectableLot[]> {
+/**
+ * material_id ที่อยู่ใน BOM ของสูตรที่ผูกกับงาน (ข้อ 5)
+ *   null = งานไม่มีสูตร / สูตรไม่มี BOM → ไม่กรอง (แสดงวัตถุดิบทั้งหมด backward-compat)
+ */
+export async function getRecipeMaterialIds(
+  jobId: string,
+): Promise<string[] | null> {
+  const supabase = await createClient();
+  const { data: job } = await supabase
+    .from("jobs")
+    .select("recipe_id")
+    .eq("id", jobId)
+    .maybeSingle();
+  const recipeId = (job as { recipe_id?: string } | null)?.recipe_id;
+  if (!recipeId) return null;
+  const { data } = await supabase
+    .from("recipe_items")
+    .select("material_id")
+    .eq("recipe_id", recipeId);
+  const ids = ((data ?? []) as { material_id: string }[])
+    .map((r) => r.material_id)
+    .filter(Boolean);
+  return ids.length ? ids : null;
+}
+
+/**
+ * ล็อตที่เลือกเบิกได้ (มีของ + ไม่ใช่ไม่ผ่าน/หมดอายุ) สำหรับฟอร์มขอเบิก
+ *   allowedMaterialIds (ถ้ามี) = กรองเฉพาะวัตถุดิบที่อยู่ใน BOM ของสูตร (ข้อ 5)
+ */
+export async function getSelectableLots(
+  allowedMaterialIds?: string[] | null,
+): Promise<SelectableLot[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("material_lots")
@@ -77,10 +107,15 @@ export async function getSelectableLots(): Promise<SelectableLot[]> {
     .order("expiry_date", { ascending: true });
 
   const today = new Date().toISOString().slice(0, 10);
+  const allow =
+    allowedMaterialIds && allowedMaterialIds.length
+      ? new Set(allowedMaterialIds)
+      : null;
   const out: SelectableLot[] = [];
   for (const l of (data ?? []) as any[]) {
     if (l.expiry_date && l.expiry_date < today) continue; // กันล็อตหมดอายุ
     const mat = first(l.material);
+    if (allow && !allow.has(mat?.id)) continue; // กรองตาม BOM ของสูตร
     out.push({
       lot_id: l.id,
       material_id: mat?.id ?? "",
