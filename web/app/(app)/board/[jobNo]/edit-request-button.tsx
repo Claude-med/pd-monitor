@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { EditTargetType } from "@/lib/data/edit-request-constants";
 import { requestEdit } from "./edit-request-actions";
@@ -37,6 +37,16 @@ export function EditRequestButton({
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const router = useRouter();
+
+  // ล็อกไม่ให้หน้าเลื่อนใต้ modal ตอนเปิด (คืนค่าเมื่อปิด/unmount)
+  useEffect(() => {
+    if (!open || typeof document === "undefined") return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
 
   if (hasPending) {
     return (
@@ -88,11 +98,48 @@ export function EditRequestButton({
   }
 
   return (
-    <div className="mt-2 space-y-3 rounded-md border bg-muted/30 p-3 text-left">
-      <p className="text-xs font-medium text-muted-foreground">
-        ขอแก้ไขย้อนหลัง (ต้องได้รับอนุมัติก่อน)
-      </p>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      onClick={() => {
+        setOpen(false);
+        setError(null);
+      }}
+    >
+      <div
+        className="max-h-[85vh] w-full max-w-lg space-y-4 overflow-y-auto rounded-xl border bg-card p-5 text-left shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-2">
+          <p className="text-sm font-semibold">
+            ขอแก้ไขย้อนหลัง{" "}
+            <span className="text-xs font-normal text-muted-foreground">
+              (ต้องได้รับอนุมัติก่อน)
+            </span>
+          </p>
+          <button
+            type="button"
+            aria-label="ปิด"
+            onClick={() => {
+              setOpen(false);
+              setError(null);
+            }}
+            className="-mr-1 -mt-1 rounded-md p-1 text-muted-foreground hover:bg-accent"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {fields.map((f) => (
           <div key={f.key}>
             <label className="mb-1 block text-xs font-medium text-muted-foreground">
@@ -163,6 +210,7 @@ export function EditRequestButton({
         >
           ยกเลิก
         </button>
+      </div>
       </div>
     </div>
   );

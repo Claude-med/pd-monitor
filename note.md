@@ -4,6 +4,33 @@
 
 ---
 
+## 📅 บันทึกวันที่ 3 กรกฎาคม 2569 — แก้ 3 ปัญหา UI จากการใช้งานจริง (frontend ล้วน ไม่มี migration)
+
+### ที่มา
+ผู้ใช้รายงาน 3 ปัญหาจากการใช้จริง → ตรวจโค้ดแล้วเป็นบั๊กจริงทั้งหมด · แผนเต็ม: `~/.claude/plans/web-app-hashed-feather.md`
+
+### ✅ วันนี้ทำอะไรไปบ้าง
+1. **ข้อ 1 — ฟอร์ม "ขอแก้ไข" ไม่ถูกบีบบน PC** (`web/app/(app)/board/[jobNo]/edit-request-button.tsx`)
+   - เดิม panel แก้ไขกางอยู่ *ในช่องตาราง (`<td>`) ที่แคบ* → `grid sm:grid-cols-2` ถูกอัดจนกรอกไม่เห็นครบ
+   - เปลี่ยนเป็น **modal ป็อปอัพกลางจอ** (`fixed inset-0` + กล่อง `max-w-lg` + ปุ่ม x + ล็อก body scroll)
+   - แก้ไฟล์เดียว มีผลครบทั้ง 3 ตาราง (ผลผลิต/เบิกวัตถุดิบ/in-process QC) โดยไม่ต้องแตะไฟล์ตาราง
+2. **ข้อ 2 — sidebar + ปุ่ม logout ค้างในจอ** (`web/components/app-shell.tsx`)
+   - `<aside>` เดสก์ท็อปเพิ่ม `md:sticky md:top-0 md:h-screen` → ไม่ยืดตามหน้ายาวอีก
+   - เมนู (`flex-1 overflow-y-auto`) เลื่อนภายในเอง · บล็อกชื่อผู้ใช้+ปุ่มออก (`border-t`) ปักมุมซ้ายล่างของ viewport เสมอ
+3. **ข้อ 3 — Audit 200 → 30 รายการ + แบ่งหน้า** (`web/lib/data/audit.ts` + `web/app/(app)/audit/page.tsx`)
+   - `getAuditLog` เปลี่ยน `.limit(200)` → `.range()` ดึง `pageSize+1` เช็ก hasNext (default 30/หน้า) · return `{ rows, hasNext }`
+   - หน้า audit: รับ `?page=` + ปุ่ม "← ก่อนหน้า / ถัดไป →" (คงตัวกรอง table/action ข้ามหน้า · กดกรองใหม่ = กลับหน้า 1)
+
+### ✅ verify
+- `cd web && npm run build` ผ่าน · TypeScript เคลียร์ทุก route · dev server บูตไม่มี error
+- ⚠️ **ยังไม่ได้เทสใน browser จริง** (Chrome extension ไม่ได้เชื่อม + ผู้ใช้เทสเองแล้วแจ้งว่าเรียบร้อย)
+
+### ▶️ ครั้งหน้าเริ่มตรงนี้
+- ถ้าผู้ใช้เจอ edge case เพิ่มค่อยปรับ · ไม่มี migration ค้าง (migration ล่าสุดยังเป็น **0037**)
+- งานหลัก/MES-grade ที่เหลือดูบล็อกด้านล่าง (B5–B8) หรือ UAT กับทีม
+
+---
+
 ## 📋 Backlog — gap จาก brief CEO (วิเคราะห์ 23 มิ.ย. 69 จาก PDF ผังระบบ + voice.md)
 > **✅ โพสต์ Notion แล้ว (23 มิ.ย. 69):** หน้า "🗺️ Roadmap หลัง D9 — เติม brief CEO + ยกระดับเป็น MES (สำหรับทีมศึกษา)"
 >   `38892ef2-c18f-81b5-b3d2-e9d9ca793baf` (ใต้หน้าโปรเจคหลัก) — มีรายละเอียดออกแบบ (ตาราง/RPC/RLS) ของ A0–A6 + B1–B8 + ลำดับ D10–D12
@@ -1020,6 +1047,8 @@ vercel --prod       # ตอบ Y / N / ชื่อ project / Enter ตาม�
 ---
 
 ## 📌 สถานะปัจจุบัน
+**🆕 (3 ก.ค. 69) แก้ 3 ปัญหา UI จากการใช้จริง ✅** — ฟอร์ม "ขอแก้ไข" เป็น modal (ไม่ถูกบีบบน PC) ·
+  sidebar+ปุ่ม logout ค้างในจอ (sticky) · Audit 200→30/หน้า + แบ่งหน้า · frontend ล้วน ไม่มี migration (ล่าสุดยัง 0037) · build ผ่าน
 **เฟส 0 (Demo + เอกสาร) = เสร็จแล้ว ✅** | prototype แก้บั๊กครบแล้ว ทดสอบผ่านทุกหน้า
 **ขึ้น GitHub แล้ว ✅ (19 มิ.ย. 69 — บัญชีใหม่)** → 🔗 https://github.com/Claude-med/pd-monitor (Private)
   - บัญชี GitHub: `Claude-med` · branch `master`

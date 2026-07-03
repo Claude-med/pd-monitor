@@ -116,7 +116,7 @@ export function AppShell({
   return (
     <div className="flex min-h-screen w-full">
       {/* Sidebar — desktop */}
-      <aside className="hidden w-64 shrink-0 border-r bg-sidebar md:block">
+      <aside className="hidden w-64 shrink-0 border-r bg-sidebar md:sticky md:top-0 md:block md:h-screen">
         {sidebarInner}
       </aside>
 

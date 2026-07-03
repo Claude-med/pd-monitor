@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getProfile } from "@/lib/auth/dal";
 import { hasAnyRole } from "@/lib/auth/roles";
 import {
@@ -13,6 +14,7 @@ import { fmtDateTime } from "@/lib/format";
 export const metadata = { title: "ประวัติ / Audit — PD Monitor" };
 
 const ACTIONS: AuditAction[] = ["INSERT", "UPDATE", "DELETE"];
+const PAGE_SIZE = 30;
 
 function tableLabel(t: string): string {
   return TABLE_LABEL[t] ?? t;
@@ -21,7 +23,7 @@ function tableLabel(t: string): string {
 export default async function AuditPage({
   searchParams,
 }: {
-  searchParams: Promise<{ table?: string; action?: string }>;
+  searchParams: Promise<{ table?: string; action?: string; page?: string }>;
 }) {
   const profile = await getProfile();
   const roles = profile?.roles ?? [];
@@ -43,8 +45,24 @@ export default async function AuditPage({
     sp.action && (ACTIONS as string[]).includes(sp.action)
       ? (sp.action as AuditAction)
       : undefined;
+  const page = Math.max(1, Number.parseInt(sp.page ?? "1", 10) || 1);
 
-  const rows = await getAuditLog({ table, action, limit: 200 });
+  const { rows, hasNext } = await getAuditLog({
+    table,
+    action,
+    limit: PAGE_SIZE,
+    page,
+  });
+
+  // สร้าง URL ไปหน้าอื่น โดยคงตัวกรอง table/action ไว้
+  const pageHref = (p: number) => {
+    const params = new URLSearchParams();
+    if (table) params.set("table", table);
+    if (action) params.set("action", action);
+    if (p > 1) params.set("page", String(p));
+    const qs = params.toString();
+    return qs ? `/audit?${qs}` : "/audit";
+  };
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -101,7 +119,7 @@ export default async function AuditPage({
       </form>
 
       <p className="text-xs text-muted-foreground">
-        แสดง {rows.length} รายการล่าสุด (สูงสุด 200)
+        หน้า {page} · แสดง {rows.length} รายการ ({PAGE_SIZE}/หน้า)
       </p>
 
       {/* ตาราง */}
@@ -151,6 +169,37 @@ export default async function AuditPage({
         <p className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
           ไม่มีประวัติตามเงื่อนไขที่เลือก
         </p>
+      )}
+
+      {/* แบ่งหน้า */}
+      {(page > 1 || hasNext) && (
+        <div className="flex items-center justify-between gap-2">
+          {page > 1 ? (
+            <Link
+              href={pageHref(page - 1)}
+              className="rounded-md border px-4 py-2 text-sm hover:bg-accent"
+            >
+              ← ก่อนหน้า
+            </Link>
+          ) : (
+            <span className="cursor-not-allowed rounded-md border px-4 py-2 text-sm text-muted-foreground opacity-50">
+              ← ก่อนหน้า
+            </span>
+          )}
+          <span className="text-xs text-muted-foreground">หน้า {page}</span>
+          {hasNext ? (
+            <Link
+              href={pageHref(page + 1)}
+              className="rounded-md border px-4 py-2 text-sm hover:bg-accent"
+            >
+              ถัดไป →
+            </Link>
+          ) : (
+            <span className="cursor-not-allowed rounded-md border px-4 py-2 text-sm text-muted-foreground opacity-50">
+              ถัดไป →
+            </span>
+          )}
+        </div>
       )}
     </div>
   );

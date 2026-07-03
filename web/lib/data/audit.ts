@@ -72,21 +72,33 @@ export type AuditFilters = {
   table?: string;
   action?: AuditAction;
   limit?: number;
+  page?: number; // 1-based
+};
+
+export type AuditPage = {
+  rows: AuditRow[];
+  hasNext: boolean;
 };
 
 /**
- * ประวัติการเปลี่ยนแปลง (audit trail) — ใหม่สุดอยู่บน
+ * ประวัติการเปลี่ยนแปลง (audit trail) — ใหม่สุดอยู่บน · แบ่งหน้า (default 30/หน้า)
  * RLS: อ่านได้เฉพาะ manager/qa/admin (ดู migration 0005)
+ * ดึง pageSize+1 แถวเพื่อรู้ว่ามีหน้าถัดไปไหม โดยไม่ต้องนับ count เพิ่ม
  */
 export async function getAuditLog(
   filters: AuditFilters = {},
-): Promise<AuditRow[]> {
+): Promise<AuditPage> {
+  const pageSize = filters.limit ?? 30;
+  const page = Math.max(1, filters.page ?? 1);
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize; // inclusive → ดึง pageSize+1 แถว
+
   const supabase = await createClient();
   let q = supabase
     .from("audit_log")
     .select(SELECT)
     .order("changed_at", { ascending: false })
-    .limit(filters.limit ?? 200);
+    .range(from, to);
 
   if (filters.table && AUDITED_TABLES.includes(filters.table)) {
     q = q.eq("table_name", filters.table);
@@ -96,5 +108,7 @@ export async function getAuditLog(
   }
 
   const { data } = await q;
-  return (data ?? []).map(shape);
+  const all = data ?? [];
+  const hasNext = all.length > pageSize;
+  return { rows: all.slice(0, pageSize).map(shape), hasNext };
 }
