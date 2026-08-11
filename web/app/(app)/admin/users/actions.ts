@@ -5,17 +5,9 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getProfile, type AppRole } from "@/lib/auth/dal";
 import { hasRole } from "@/lib/auth/roles";
+import { ALL_ROLES } from "@/lib/nav";
 
 export type ActionResult = { ok?: boolean; error?: string };
-
-const VALID_ROLES: AppRole[] = [
-  "production",
-  "qc",
-  "qa",
-  "warehouse",
-  "manager",
-  "admin",
-];
 
 /** กันสิทธิ์: เฉพาะ manager หรือ admin ที่ login เท่านั้น */
 async function requireManager(): Promise<string | null> {
@@ -24,8 +16,13 @@ async function requireManager(): Promise<string | null> {
   return profile.id;
 }
 
+/**
+ * กรองเฉพาะ role ที่มีจริง (กันค่าแปลกปลอม + กันซ้ำ)
+ * ⚠️ ใช้ ALL_ROLES จาก lib/nav เป็นรายชื่อเดียวของทั้งระบบ —
+ *    ห้ามก็อปรายชื่อ role มาไว้ที่นี่ซ้ำ ไม่งั้นเพิ่ม role ใหม่แล้วจะถูกคัดทิ้งเงียบๆ
+ */
 function cleanRoles(roles: string[]): AppRole[] {
-  return VALID_ROLES.filter((r) => roles.includes(r));
+  return ALL_ROLES.filter((r) => roles.includes(r));
 }
 
 /** สร้างบัญชีผู้ใช้ใหม่ (auth + โปรไฟล์ + role) */
