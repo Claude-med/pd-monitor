@@ -1,5 +1,8 @@
 import { getProfile } from "@/lib/auth/dal";
-import { hasRole } from "@/lib/auth/roles";
+import {
+  canManageMachines,
+  canSetMachineSchedule,
+} from "@/lib/data/role-access";
 import { listMachines, type Machine } from "@/lib/data/machines";
 import { getMachineUsage } from "@/lib/data/machine-usage";
 import {
@@ -62,7 +65,9 @@ export default async function MachinesPage({
   const to = validDate(sp.to, todayISO());
 
   const profile = await getProfile();
-  const canManage = hasRole(profile?.roles ?? [], "manager");
+  const roles = profile?.roles ?? [];
+  const canManage = canManageMachines(roles);
+  const canSchedule = canSetMachineSchedule(roles);
   const [machines, usage] = await Promise.all([
     listMachines(),
     getMachineUsage(from, to),
@@ -75,8 +80,12 @@ export default async function MachinesPage({
       <div>
         <h1 className="text-2xl font-bold tracking-tight">เครื่องจักร</h1>
         <p className="text-sm text-muted-foreground">
-          ทะเบียนเครื่องจักร · สถานะ · กำหนดซ่อมบำรุง/สอบเทียบ · รายงานการใช้งาน
-          {canManage ? "" : " (ดูอย่างเดียว — แก้ไขได้เฉพาะผู้บริหาร/ผู้ดูแลระบบ)"}
+          ทะเบียนเครื่องจักร · ห้อง · สถานะ · กำหนดซ่อมบำรุง/สอบเทียบ · รายงานการใช้งาน
+          {!canManage
+            ? " (ดูอย่างเดียว — เพิ่ม/แก้ได้เฉพาะฝ่ายผลิต/วิศวกรรม/ผู้บริหาร)"
+            : canSchedule
+              ? ""
+              : " (กำหนดวันซ่อม/สอบเทียบได้เฉพาะฝ่ายวิศวกรรม/ผู้บริหาร)"}
         </p>
       </div>
 
@@ -177,7 +186,11 @@ export default async function MachinesPage({
       </div>
 
       {/* ทะเบียนเครื่องจักร */}
-      <MachinesView machines={machines} canManage={canManage} />
+      <MachinesView
+        machines={machines}
+        canManage={canManage}
+        canSchedule={canSchedule}
+      />
     </div>
   );
 }

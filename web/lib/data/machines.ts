@@ -6,6 +6,7 @@ export type Machine = {
   code: string;
   name: string;
   station: string | null;
+  room: string | null;
   status: MachineStatus;
   note: string | null;
   last_clean_date: string | null;
@@ -20,7 +21,7 @@ export async function listMachines(): Promise<Machine[]> {
   const { data, error } = await supabase
     .from("machines")
     .select(
-      "id, code, name, station, status, note, last_clean_date, next_maintenance_date, next_calibration_date, is_active",
+      "id, code, name, station, room, status, note, last_clean_date, next_maintenance_date, next_calibration_date, is_active",
     )
     .order("code", { ascending: true });
   if (error || !data) return [];

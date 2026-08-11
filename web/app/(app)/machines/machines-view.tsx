@@ -21,6 +21,7 @@ const EMPTY: MachineValues = {
   code: "",
   name: "",
   station: "",
+  room: "",
   status: "available",
   note: "",
   last_clean_date: "",
@@ -62,9 +63,12 @@ function DueBadge({ date, label }: { date: string | null; label: string }) {
 export function MachinesView({
   machines,
   canManage,
+  canSchedule,
 }: {
   machines: Machine[];
   canManage: boolean;
+  /** ตั้งกำหนดซ่อมบำรุง/สอบเทียบได้ (วิศวกรรม/ผู้บริหาร) */
+  canSchedule: boolean;
 }) {
   const [adding, setAdding] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -88,7 +92,12 @@ export function MachinesView({
           </button>
           {adding && (
             <div className="border-t p-5">
-              <MachineForm initial={EMPTY} onDone={() => setAdding(false)} />
+              <MachineForm
+                initial={EMPTY}
+                mode="create"
+                canSchedule={canSchedule}
+                onDone={() => setAdding(false)}
+              />
             </div>
           )}
         </div>
@@ -117,6 +126,11 @@ export function MachinesView({
                     {m.station && (
                       <span className="rounded bg-secondary px-1.5 py-0.5 text-[10px] text-secondary-foreground">
                         {STATION_LABEL[m.station] ?? m.station}
+                      </span>
+                    )}
+                    {m.room && (
+                      <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                        🚪 {m.room}
                       </span>
                     )}
                   </div>
@@ -153,12 +167,15 @@ export function MachinesView({
                       code: m.code,
                       name: m.name,
                       station: m.station ?? "",
+                      room: m.room ?? "",
                       status: m.status,
                       note: m.note ?? "",
                       last_clean_date: m.last_clean_date ?? "",
                       next_maintenance_date: m.next_maintenance_date ?? "",
                       next_calibration_date: m.next_calibration_date ?? "",
                     }}
+                    mode="edit"
+                    canSchedule={canSchedule}
                     onDone={() => setEditId(null)}
                   />
                 </div>
@@ -173,9 +190,14 @@ export function MachinesView({
 
 function MachineForm({
   initial,
+  mode,
+  canSchedule,
   onDone,
 }: {
   initial: MachineValues;
+  /** create = ฟอร์มเพิ่มเครื่องใหม่ (ไม่มีช่อง "ทำความสะอาดล่าสุด") */
+  mode: "create" | "edit";
+  canSchedule: boolean;
   onDone: () => void;
 }) {
   const [v, setV] = useState<MachineValues>(initial);
@@ -237,6 +259,15 @@ function MachineForm({
           </select>
         </div>
         <div>
+          <label className={labelClass}>ห้อง</label>
+          <input
+            value={v.room}
+            onChange={(e) => set("room", e.target.value)}
+            placeholder="เช่น ห้องตอก 1 / Room 204"
+            className={inputClass}
+          />
+        </div>
+        <div>
           <label className={labelClass}>สถานะ</label>
           <select
             value={v.status}
@@ -250,33 +281,64 @@ function MachineForm({
             ))}
           </select>
         </div>
-        <div>
-          <label className={labelClass}>ทำความสะอาดล่าสุด</label>
-          <input
-            type="date"
-            value={v.last_clean_date}
-            onChange={(e) => set("last_clean_date", e.target.value)}
-            className={inputClass}
-          />
-        </div>
-        <div>
-          <label className={labelClass}>กำหนดซ่อมบำรุงครั้งหน้า</label>
-          <input
-            type="date"
-            value={v.next_maintenance_date}
-            onChange={(e) => set("next_maintenance_date", e.target.value)}
-            className={inputClass}
-          />
-        </div>
-        <div>
-          <label className={labelClass}>กำหนดสอบเทียบ (calibration) ครั้งหน้า</label>
-          <input
-            type="date"
-            value={v.next_calibration_date}
-            onChange={(e) => set("next_calibration_date", e.target.value)}
-            className={inputClass}
-          />
-        </div>
+
+        {/* ทำความสะอาดล่าสุด: มีเฉพาะตอน "แก้ไข" (ตอนเพิ่มเครื่องใหม่ยังไม่มีประวัติ) */}
+        {mode === "edit" && (
+          <div>
+            <label className={labelClass}>ทำความสะอาดล่าสุด</label>
+            <input
+              type="date"
+              value={v.last_clean_date}
+              onChange={(e) => set("last_clean_date", e.target.value)}
+              className={inputClass}
+            />
+          </div>
+        )}
+
+        {/* กำหนดซ่อม/สอบเทียบ: แก้ได้เฉพาะฝ่ายวิศวกรรม/ผู้บริหาร */}
+        {canSchedule ? (
+          <>
+            <div>
+              <label className={labelClass}>กำหนดซ่อมบำรุงครั้งหน้า</label>
+              <input
+                type="date"
+                value={v.next_maintenance_date}
+                onChange={(e) => set("next_maintenance_date", e.target.value)}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>
+                กำหนดสอบเทียบ (calibration) ครั้งหน้า
+              </label>
+              <input
+                type="date"
+                value={v.next_calibration_date}
+                onChange={(e) => set("next_calibration_date", e.target.value)}
+                className={inputClass}
+              />
+            </div>
+          </>
+        ) : (
+          mode === "edit" && (
+            <div className="sm:col-span-2 rounded-md border border-dashed p-3">
+              <p className={labelClass}>
+                กำหนดซ่อมบำรุง / สอบเทียบ (กำหนดโดยฝ่ายวิศวกรรม)
+              </p>
+              <p className="text-sm">
+                ซ่อมบำรุงครั้งหน้า:{" "}
+                <span className="font-medium">
+                  {v.next_maintenance_date || "— ยังไม่กำหนด —"}
+                </span>
+                {" · "}
+                สอบเทียบครั้งหน้า:{" "}
+                <span className="font-medium">
+                  {v.next_calibration_date || "— ยังไม่กำหนด —"}
+                </span>
+              </p>
+            </div>
+          )
+        )}
         <div className="sm:col-span-2">
           <label className={labelClass}>หมายเหตุ</label>
           <input
