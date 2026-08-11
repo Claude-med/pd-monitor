@@ -12,7 +12,10 @@ export type AppRole =
   | "qa"
   | "warehouse"
   | "manager"
-  | "admin";
+  | "admin"
+  | "planner" // ฝ่ายวางแผน (PLN) — สร้างงาน/ยืนยันแผน
+  | "cost" // บัญชีต้นทุน (COST) — ดูต้นทุนค่าแรง
+  | "engineering"; // วิศวกรรม (ENG) — กำหนดซ่อมบำรุง/สอบเทียบ
 
 export type Profile = {
   id: string;

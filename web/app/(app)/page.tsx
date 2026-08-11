@@ -1,5 +1,5 @@
 import { getProfile } from "@/lib/auth/dal";
-import { hasRole } from "@/lib/auth/roles";
+import { canSeeCost } from "@/lib/data/role-access";
 import {
   getDashboardData,
   DEFAULT_LABOR_RATE,
@@ -53,13 +53,13 @@ export default async function DashboardPage({
   searchParams: Promise<{ from?: string; to?: string; rate?: string }>;
 }) {
   const profile = await getProfile();
-  const isManager = hasRole(profile?.roles ?? [], "manager");
+  // ต้นทุนค่าแรง: เห็น/ปรับอัตราได้เฉพาะผู้บริหาร + บัญชีต้นทุน (COST)
+  const showCost = canSeeCost(profile?.roles ?? []);
 
   const sp = await searchParams;
   const from = sp.from && ISO.test(sp.from) ? sp.from : firstOfMonthISO();
   const to = sp.to && ISO.test(sp.to) ? sp.to : todayISO();
 
-  // อัตราค่าแรง: เห็น/ปรับได้เฉพาะผู้บริหาร
   const parsedRate = Number(sp.rate);
   const rate =
     Number.isFinite(parsedRate) && parsedRate >= 0
@@ -108,7 +108,7 @@ export default async function DashboardPage({
         </div>
       </div>
 
-      {/* ตัวกรองช่วงวันที่ (+ อัตราค่าแรง สำหรับผู้บริหาร) */}
+      {/* ตัวกรองช่วงวันที่ (+ อัตราค่าแรง สำหรับผู้บริหาร/บัญชีต้นทุน) */}
       <form method="get" className="flex flex-wrap items-end gap-3">
         <div>
           <label className="mb-1 block text-xs font-medium text-muted-foreground">
@@ -134,7 +134,7 @@ export default async function DashboardPage({
             className="rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
-        {isManager && (
+        {showCost && (
           <div>
             <label className="mb-1 block text-xs font-medium text-muted-foreground">
               ค่าแรง (฿/ชม.)
@@ -190,8 +190,8 @@ export default async function DashboardPage({
         </div>
       </div>
 
-      {/* ต้นทุนค่าแรง (DL cost) — ผู้บริหารเท่านั้น */}
-      {isManager && (
+      {/* ต้นทุนค่าแรง (DL cost) — ผู้บริหาร + บัญชีต้นทุน (COST) */}
+      {showCost && (
         <div>
           <h2 className="mb-2 text-sm font-semibold text-muted-foreground">
             ต้นทุนค่าแรงทางตรง (DL cost) · ที่ {fmt(rate)} ฿/ชม.

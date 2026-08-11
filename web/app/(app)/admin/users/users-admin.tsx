@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { ALL_ROLES, ROLE_LABELS } from "@/lib/nav";
+import { ROLE_ACCESS, COMMON_VIEW } from "@/lib/data/role-access";
 import type { AppRole } from "@/lib/auth/dal";
 import type { AdminUser } from "@/lib/data/admin-users";
 import {
@@ -51,6 +52,194 @@ function RoleChecks({
   );
 }
 
+/** ตัวกรองรายชื่อ: role ใดๆ · ทั้งหมด · ยังไม่กำหนดสิทธิ์ */
+type RoleFilter = AppRole | "all" | "none";
+
+/** แถบสรุป "แต่ละฝ่ายมีกี่บัญชี" — กดชิปเพื่อกรองรายชื่อด้านล่าง */
+function RoleCountBar({
+  users,
+  filter,
+  onFilter,
+}: {
+  users: AdminUser[];
+  filter: RoleFilter;
+  onFilter: (f: RoleFilter) => void;
+}) {
+  const noneCount = users.filter((u) => u.roles.length === 0).length;
+
+  function chipClass(active: boolean) {
+    return [
+      "rounded-full border px-3 py-1 text-sm transition",
+      active
+        ? "border-primary bg-primary/10 font-medium"
+        : "hover:bg-accent",
+    ].join(" ");
+  }
+
+  return (
+    <div className="rounded-xl border bg-card p-4">
+      <p className="mb-2 text-sm font-semibold">จำนวนบัญชีแต่ละฝ่าย</p>
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => onFilter("all")}
+          className={chipClass(filter === "all")}
+        >
+          ทั้งหมด · {users.length}
+        </button>
+        {ALL_ROLES.map((r) => {
+          const n = users.filter((u) => u.roles.includes(r)).length;
+          return (
+            <button
+              key={r}
+              type="button"
+              onClick={() => onFilter(r)}
+              className={chipClass(filter === r)}
+            >
+              {ROLE_LABELS[r]} ·{" "}
+              <span className="tabular-nums font-medium">{n}</span>
+            </button>
+          );
+        })}
+        {noneCount > 0 && (
+          <button
+            type="button"
+            onClick={() => onFilter("none")}
+            className={[
+              chipClass(filter === "none"),
+              filter === "none" ? "" : "text-amber-700 dark:text-amber-400",
+            ].join(" ")}
+          >
+            ยังไม่กำหนดสิทธิ์ · {noneCount}
+          </button>
+        )}
+      </div>
+      <p className="mt-2 text-xs text-muted-foreground">
+        กดชิปเพื่อกรองรายชื่อด้านล่าง · 1 บัญชีมีได้หลายสิทธิ์ →
+        จะถูกนับในทุกฝ่ายที่ได้รับสิทธิ์
+      </p>
+    </div>
+  );
+}
+
+/** แผงอธิบาย "แต่ละสิทธิ์เข้าถึงอะไรได้บ้าง" (พับเก็บได้) */
+function RoleAccessPanel() {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="rounded-xl border bg-card">
+      <button
+        type="button"
+        onClick={() => setOpen((s) => !s)}
+        className="flex w-full items-center justify-between px-5 py-4 text-left"
+      >
+        <span className="font-semibold">
+          📋 แต่ละสิทธิ์ (Role) เข้าถึงอะไรได้บ้าง
+        </span>
+        <span className="text-sm text-muted-foreground">
+          {open ? "ซ่อน" : "เปิด"}
+        </span>
+      </button>
+      {open && (
+        <div className="space-y-4 border-t p-5">
+          <p className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+            ทุกบัญชีที่ล็อกอินเห็นเหมือนกัน (ดูอย่างเดียว): {COMMON_VIEW}
+          </p>
+
+          {/* เดสก์ท็อป = ตาราง */}
+          <div className="hidden overflow-x-auto md:block">
+            <table className="w-full min-w-[720px] text-sm">
+              <thead>
+                <tr className="border-b text-left text-xs text-muted-foreground">
+                  <th className="px-2 py-2 font-medium">สิทธิ์ (Role)</th>
+                  <th className="px-2 py-2 font-medium">หน้าที่หลัก</th>
+                  <th className="px-2 py-2 font-medium">บันทึก / แก้ไขได้</th>
+                  <th className="px-2 py-2 font-medium">เห็นเพิ่ม (ดูอย่างเดียว)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ALL_ROLES.map((r) => {
+                  const a = ROLE_ACCESS[r];
+                  return (
+                    <tr key={r} className="border-b align-top last:border-0">
+                      <td className="px-2 py-2">
+                        <span className="font-medium">{ROLE_LABELS[r]}</span>
+                        <span className="ml-1 rounded bg-secondary px-1.5 py-0.5 text-[10px] text-secondary-foreground">
+                          {a.code}
+                        </span>
+                      </td>
+                      <td className="px-2 py-2 text-muted-foreground">{a.duty}</td>
+                      <td className="px-2 py-2">
+                        <ul className="list-inside list-disc space-y-0.5">
+                          {a.manage.map((m, i) => (
+                            <li key={i}>{m}</li>
+                          ))}
+                        </ul>
+                      </td>
+                      <td className="px-2 py-2 text-muted-foreground">
+                        {a.view.length > 0 ? (
+                          <ul className="list-inside list-disc space-y-0.5">
+                            {a.view.map((v, i) => (
+                              <li key={i}>{v}</li>
+                            ))}
+                          </ul>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* มือถือ = การ์ดเรียงลง */}
+          <div className="space-y-3 md:hidden">
+            {ALL_ROLES.map((r) => {
+              const a = ROLE_ACCESS[r];
+              return (
+                <div key={r} className="rounded-lg border p-3">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{ROLE_LABELS[r]}</span>
+                    <span className="rounded bg-secondary px-1.5 py-0.5 text-[10px] text-secondary-foreground">
+                      {a.code}
+                    </span>
+                  </div>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{a.duty}</p>
+                  <p className="mt-2 text-xs font-medium">บันทึก / แก้ไขได้</p>
+                  <ul className="list-inside list-disc text-sm">
+                    {a.manage.map((m, i) => (
+                      <li key={i}>{m}</li>
+                    ))}
+                  </ul>
+                  {a.view.length > 0 && (
+                    <>
+                      <p className="mt-2 text-xs font-medium">
+                        เห็นเพิ่ม (ดูอย่างเดียว)
+                      </p>
+                      <ul className="list-inside list-disc text-sm text-muted-foreground">
+                        {a.view.map((v, i) => (
+                          <li key={i}>{v}</li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            * ระบบบังคับสิทธิ์จริงที่ฐานข้อมูล (ทุกการบันทึกผ่านฟังก์ชันที่ตรวจสิทธิ์)
+            — ไม่ใช่แค่ซ่อนปุ่มบนหน้าจอ
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function UsersAdmin({
   users,
   currentProfileId,
@@ -60,9 +249,21 @@ export function UsersAdmin({
 }) {
   const [showCreate, setShowCreate] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [filter, setFilter] = useState<RoleFilter>("all");
+
+  const shown =
+    filter === "all"
+      ? users
+      : filter === "none"
+        ? users.filter((u) => u.roles.length === 0)
+        : users.filter((u) => u.roles.includes(filter));
 
   return (
     <div className="space-y-5">
+      {/* ---------- สรุปจำนวนบัญชีต่อฝ่าย + คำอธิบายสิทธิ์ ---------- */}
+      <RoleCountBar users={users} filter={filter} onFilter={setFilter} />
+      <RoleAccessPanel />
+
       {/* ---------- สร้างบัญชีใหม่ ---------- */}
       <div className="rounded-xl border bg-card">
         <button
@@ -85,9 +286,31 @@ export function UsersAdmin({
       {/* ---------- รายชื่อผู้ใช้ ---------- */}
       <div className="space-y-3">
         <p className="text-sm text-muted-foreground">
-          ผู้ใช้ทั้งหมด {users.length} คน
+          {filter === "all" ? (
+            <>ผู้ใช้ทั้งหมด {users.length} คน</>
+          ) : (
+            <>
+              แสดง {shown.length} คน
+              {filter === "none"
+                ? " (ยังไม่กำหนดสิทธิ์)"
+                : ` (สิทธิ์ ${ROLE_LABELS[filter]})`}{" "}
+              จากทั้งหมด {users.length} คน ·{" "}
+              <button
+                type="button"
+                onClick={() => setFilter("all")}
+                className="underline hover:text-foreground"
+              >
+                ล้างตัวกรอง
+              </button>
+            </>
+          )}
         </p>
-        {users.map((u) => (
+        {shown.length === 0 && (
+          <p className="rounded-xl border bg-card p-6 text-center text-sm text-muted-foreground">
+            ไม่มีบัญชีในกลุ่มนี้
+          </p>
+        )}
+        {shown.map((u) => (
           <UserRow
             key={u.id}
             user={u}

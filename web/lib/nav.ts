@@ -55,21 +55,27 @@ export const NAV_ITEMS: NavItem[] = [
   },
 ];
 
-/** ลำดับ role ทั้งหมด (ใช้ในหน้า admin จัดการผู้ใช้) */
+/** ลำดับ role ทั้งหมด (ใช้ในหน้า admin จัดการผู้ใช้) — ตรงกับ enum app_role ใน DB */
 export const ALL_ROLES: AppRole[] = [
+  "planner",
   "production",
   "qc",
   "qa",
   "warehouse",
+  "engineering",
+  "cost",
   "manager",
   "admin",
 ];
 
 export const ROLE_LABELS: Record<AppRole, string> = {
+  planner: "ฝ่ายวางแผน (PLN)",
   production: "ฝ่ายผลิต",
   qc: "QC",
   qa: "QA",
   warehouse: "คลังสินค้า",
+  engineering: "วิศวกรรม (ENG)",
+  cost: "บัญชีต้นทุน (COST)",
   manager: "ผู้บริหาร",
   admin: "ผู้ดูแลระบบ (Admin)",
 };

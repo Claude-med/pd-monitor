@@ -52,7 +52,7 @@ export type Transition = {
 };
 
 export const TRANSITIONS: Transition[] = [
-  { from: "pending_announce", to: "planned", label: "ยืนยันแผนผลิต", roles: ["manager"], kind: "forward" },
+  { from: "pending_announce", to: "planned", label: "ยืนยันแผนผลิต", roles: ["planner", "manager"], kind: "forward" },
   { from: "planned", to: "in_production", label: "เริ่มผลิต", roles: ["production", "manager"], kind: "forward" },
   { from: "in_production", to: "qc", label: "ส่งตรวจ QC", roles: ["production"], kind: "forward" },
   { from: "qc", to: "qa", label: "QC ผ่าน → ส่ง QA", roles: ["qc"], kind: "forward", esign: true, stage: "qc" },

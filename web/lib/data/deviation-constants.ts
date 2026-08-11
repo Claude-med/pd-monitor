@@ -51,6 +51,7 @@ export const NOTE_ROLE_META: Record<string, { label: string; color: string }> = 
   production: { label: "ฝ่ายผลิต", color: "#f59e0b" },
   qc: { label: "QC", color: "#0ea5e9" },
   qa: { label: "QA", color: "#a855f7" },
+  engineering: { label: "วิศวกรรม", color: "#0f766e" },
   manager: { label: "ผู้บริหาร", color: "#64748b" },
 };
 

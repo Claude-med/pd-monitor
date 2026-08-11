@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getProfile } from "@/lib/auth/dal";
-import { hasRole } from "@/lib/auth/roles";
+import { canPlanJobs } from "@/lib/data/role-access";
 import { getProducts } from "@/lib/data/products";
 import { NewJobForm } from "./new-job-form";
 
@@ -8,7 +8,7 @@ export const metadata = { title: "สร้างงานผลิตใหม�
 
 export default async function NewJobPage() {
   const profile = await getProfile();
-  const isManager = hasRole(profile?.roles ?? [], "manager");
+  const canCreate = canPlanJobs(profile?.roles ?? []);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -25,11 +25,11 @@ export default async function NewJobPage() {
         </p>
       </div>
 
-      {isManager ? (
+      {canCreate ? (
         <NewJobForm products={await getProducts()} />
       ) : (
         <p className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
-          เฉพาะผู้บริหาร/ฝ่ายวางแผนสร้างงานผลิตได้ — บัญชีของคุณไม่มีสิทธิ์นี้
+          เฉพาะฝ่ายวางแผน/ผู้บริหารสร้างงานผลิตได้ — บัญชีของคุณไม่มีสิทธิ์นี้
         </p>
       )}
     </div>
