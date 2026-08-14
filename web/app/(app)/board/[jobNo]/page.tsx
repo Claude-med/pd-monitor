@@ -261,6 +261,11 @@ export default async function JobDetailPage({
         } />
         <Field label="วันผลิต" value={job.mfg_date} />
         <Field label="วันหมดอายุ" value={job.exp_date} />
+        <Field label="รูปแบบบรรจุ" value={job.pack_type} />
+        <Field
+          label="ขนาดบรรจุ"
+          value={job.pack_patterns.length ? job.pack_patterns.join(" · ") : null}
+        />
       </dl>
 
       {flag && job.problem_note && (

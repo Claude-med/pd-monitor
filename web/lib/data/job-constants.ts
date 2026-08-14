@@ -87,6 +87,10 @@ export type JobRow = {
   product_name: string | null;
   quantity: number | null;
   unit: string | null;
+  /** รูปแบบบรรจุของงานนี้ (Part 2 — ย้ายจากระดับยามาระดับงาน) */
+  pack_type: string | null;
+  /** ขนาดบรรจุ 1–3 ช่อง — ตรงกับใบแจ้งผลิต F.PLN.01 */
+  pack_patterns: string[];
   /** งานถูกรับเข้าคลัง FG แล้ว (มีรายการใน fg_inventory) — ใช้ซ่อนออกจากบอร์ด */
   fg_received?: boolean;
 };

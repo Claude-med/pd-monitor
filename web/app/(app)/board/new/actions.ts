@@ -13,18 +13,26 @@ export type NewJobValues = {
   planned_start: string;
   planned_end: string;
   lot_no: string;
+  pack_type: string;
+  /** ขนาดบรรจุ 1–3 ช่อง (ตรงกับใบแจ้งผลิต F.PLN.01) */
+  pack_patterns: string[];
 };
 
 export type ActionResult = { ok?: boolean; jobNo?: string; error?: string };
 
-/** สร้างงานผลิตใหม่ (order + job + ล็อตถ้ามี) ผ่าน rpc — DB บังคับสิทธิ์ manager + validate */
+/** สร้างออเดอร์ + งานผลิต + (ถ้าระบุ) ล็อต ในครั้งเดียว */
 export async function createJob(v: NewJobValues): Promise<ActionResult> {
-  const quantity = Number(v.quantity);
-  // job_no เว้นว่างได้ → DB ออกเลขอัตโนมัติ (JOB-YYYY-NNNN)
+  // job_no เว้นว่างได้ — DB จะออกเลขให้อัตโนมัติ (JOB-YYYY-NNNN)
   if (!v.customer.trim()) return { error: "กรุณาระบุลูกค้า" };
   if (!v.product_id) return { error: "กรุณาเลือกผลิตภัณฑ์" };
+  const quantity = Number(v.quantity);
   if (!Number.isFinite(quantity) || quantity <= 0)
     return { error: "จำนวนต้องมากกว่า 0" };
+
+  const packs = (v.pack_patterns ?? [])
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .slice(0, 3);
 
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("create_job_with_order", {
@@ -37,37 +45,13 @@ export async function createJob(v: NewJobValues): Promise<ActionResult> {
     p_planned_start: v.planned_start || null,
     p_planned_end: v.planned_end || null,
     p_lot_no: v.lot_no.trim() || null,
+    p_pack_type: v.pack_type.trim() || null,
+    p_pack_pattern_1: packs[0] ?? null,
+    p_pack_pattern_2: packs[1] ?? null,
+    p_pack_pattern_3: packs[2] ?? null,
   });
-
   if (error) return { error: error.message || "สร้างงานไม่สำเร็จ" };
 
   revalidatePath("/board");
   return { ok: true, jobNo: (data as string) ?? v.job_no.trim() };
-}
-
-/** เพิ่มผลิตภัณฑ์ (ยา) ใหม่ ผ่าน rpc — คืน id เพื่อเลือกในฟอร์มต่อ */
-export async function createProduct(values: {
-  code: string;
-  name: string;
-  dosage_form: string;
-  standard_time_hours: string;
-}): Promise<{ ok?: boolean; id?: string; error?: string }> {
-  if (!values.code.trim()) return { error: "กรุณาระบุรหัสยา" };
-  if (!values.name.trim()) return { error: "กรุณาระบุชื่อยา" };
-  const hours = values.standard_time_hours.trim()
-    ? Number(values.standard_time_hours)
-    : null;
-  if (hours != null && (!Number.isFinite(hours) || hours < 0))
-    return { error: "เวลามาตรฐาน (ชม.) ไม่ถูกต้อง" };
-
-  const supabase = await createClient();
-  const { data, error } = await supabase.rpc("create_product", {
-    p_code: values.code.trim(),
-    p_name: values.name.trim(),
-    p_dosage_form: values.dosage_form.trim() || null,
-    p_standard_time_hours: hours,
-  });
-
-  if (error) return { error: error.message || "เพิ่มผลิตภัณฑ์ไม่สำเร็จ" };
-  return { ok: true, id: data as string };
 }

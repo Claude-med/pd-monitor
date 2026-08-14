@@ -9,6 +9,7 @@ export const metadata = { title: "สร้างงานผลิตใหม�
 export default async function NewJobPage() {
   const profile = await getProfile();
   const canCreate = canPlanJobs(profile?.roles ?? []);
+  const products = canCreate ? await getProducts() : [];
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -26,7 +27,7 @@ export default async function NewJobPage() {
       </div>
 
       {canCreate ? (
-        <NewJobForm products={await getProducts()} />
+        <NewJobForm products={products} />
       ) : (
         <p className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
           เฉพาะฝ่ายวางแผน/ผู้บริหารสร้างงานผลิตได้ — บัญชีของคุณไม่มีสิทธิ์นี้

@@ -108,6 +108,13 @@ export default async function EbrPage({
             <Row label="ล็อต / Batch" value={job.lot_no} />
             <Row label="วันผลิต" value={job.mfg_date} />
             <Row label="วันหมดอายุ" value={job.exp_date} />
+            <Row label="รูปแบบบรรจุ" value={job.pack_type} />
+            <Row
+              label="ขนาดบรรจุ"
+              value={
+                job.pack_patterns.length ? job.pack_patterns.join(" · ") : null
+              }
+            />
             <Row
               label="แผนเริ่ม–เสร็จ"
               value={
