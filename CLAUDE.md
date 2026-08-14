@@ -37,6 +37,8 @@ web app/
 - ➕ demo-feature-suggestions (10 ฟีเจอร์ที่ทีมเสนอ) — `38292ef2-c18f-80d0-acbe-e8f91a874c1c`
 - snapshot ในเครื่อง (อ่านเร็ว ไม่ต้องเรียก MCP) → `docs/requirements-from-notion.md`
 - **ก่อนออกแบบ schema / เริ่มเฟสใหม่ อ่าน `docs/recommendations.md`** (มาตรฐานคุณภาพ GMP-aligned + roadmap ที่ปรับแล้ว)
+- **ก่อนแก้ Part ใหม่ (B เป็นต้นไป) อ่าน `docs/feedback-raw-2026-08.md`** — feedback ลายมือจาก 3 เอกสารของฝ่ายวางแผน/ผลิต/QA-QC
+  (ภาพหน้าต้นฉบับ 41 หน้า อยู่ที่ `docs/feedback-img/`) · ใช้เป็นข้อมูลอ้างอิงคู่กับคำสั่งผู้ใช้ ไม่ใช่ spec ที่ต้องทำตามทั้งหมด
 > โพสต์อะไรกลับ Notion (workspace ทีม) = ถามผู้ใช้ยืนยันก่อนทุกครั้ง
 
 ## ลิงก์/ไฟล์อ้างอิง
