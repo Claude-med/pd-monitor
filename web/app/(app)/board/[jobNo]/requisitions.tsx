@@ -35,7 +35,6 @@ export function Requisitions({
   canIssue,
   currentProfileId,
   canAmend,
-  bomLimited,
   pendingTargetIds,
 }: {
   jobId: string;
@@ -47,7 +46,6 @@ export function Requisitions({
   canIssue: boolean;
   currentProfileId: string;
   canAmend: boolean;
-  bomLimited: boolean;
   pendingTargetIds: string[];
 }) {
   const pendingSet = new Set(pendingTargetIds);
@@ -279,16 +277,10 @@ export function Requisitions({
                     </option>
                   ))}
                 </select>
-                {bomLimited ? (
-                  <p className="mt-1 text-[11px] text-muted-foreground">
-                    แสดงเฉพาะวัตถุดิบที่กำหนดไว้ในสูตร (BOM) ของงานนี้
-                  </p>
-                ) : null}
                 {lots.length === 0 && (
                   <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
-                    {bomLimited
-                      ? "ยังไม่มีล็อตพร้อมเบิกของวัตถุดิบตามสูตร (ต้องมีสต็อก + ไม่หมดอายุ/ไม่ผ่าน)"
-                      : "ยังไม่มีล็อตที่พร้อมเบิก (ต้องมีสต็อก + ไม่หมดอายุ/ไม่ผ่าน) — เพิ่มที่เมนูวัตถุดิบ"}
+                    ยังไม่มีล็อตที่พร้อมเบิก (ต้องมีสต็อก + ไม่หมดอายุ/ไม่ผ่าน) —
+                    เพิ่มที่เมนูวัตถุดิบ
                   </p>
                 )}
               </div>

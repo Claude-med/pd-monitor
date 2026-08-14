@@ -20,7 +20,6 @@ import { listMachines } from "@/lib/data/machines";
 import {
   getRequisitionsForJob,
   getSelectableLots,
-  getRecipeMaterialIds,
 } from "@/lib/data/requisitions";
 import { getLineClearance } from "@/lib/data/line-clearance";
 import { getInprocessChecks, getQaSamples } from "@/lib/data/quality-checks";
@@ -135,9 +134,8 @@ export default async function JobDetailPage({
   const requisitions = await getRequisitionsForJob(job.id);
   const canRequestMat = hasAnyRole(roles, ["production", "warehouse", "manager"]);
   const canIssueMat = hasAnyRole(roles, ["warehouse", "manager"]);
-  // [ข้อ5] เบิกได้เฉพาะวัตถุดิบใน BOM ของสูตรที่ผูกกับงาน (null = ไม่มีสูตร → ไม่กรอง)
-  const recipeMaterialIds = canRequestMat ? await getRecipeMaterialIds(job.id) : null;
-  const selectableLots = canRequestMat ? await getSelectableLots(recipeMaterialIds) : [];
+  // Part 2: เลิกกรองตาม BOM แล้ว — แสดงทุกล็อตที่พร้อมเบิก (มีช่องค้นหาในฟอร์ม)
+  const selectableLots = canRequestMat ? await getSelectableLots() : [];
   const lineClearance = await getLineClearance(job.id);
   const canPerformLc = hasAnyRole(roles, ["production", "manager"]);
   const canCheckLc = hasAnyRole(roles, ["production", "qc", "qa", "manager"]);
@@ -443,7 +441,6 @@ export default async function JobDetailPage({
         canIssue={canIssueMat}
         currentProfileId={profile?.id ?? ""}
         canAmend={canAmend}
-        bomLimited={recipeMaterialIds != null}
         pendingTargetIds={[...pendingTargets]}
       />
 

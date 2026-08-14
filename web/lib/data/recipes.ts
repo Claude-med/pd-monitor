@@ -11,76 +11,36 @@ export type RouteStep = {
   note: string | null;
 };
 
-export type RecipeItem = {
-  id: string;
-  material_id: string;
-  material_code: string;
-  material_name: string;
-  qty: number;
-  unit: string | null;
-  note: string | null;
-};
-
-export type Recipe = {
-  id: string;
-  name: string;
-  batch_size: number | null;
-  batch_unit: string;
-  is_active: boolean;
-  note: string | null;
-  items: RecipeItem[];
-};
-
-export type ProductWithRecipes = {
+/**
+ * ผลิตภัณฑ์ + ขั้นตอนการผลิต (route)
+ * — Part 2: ตัด "สูตร (product_recipes)" และ "รายการวัตถุดิบ (recipe_items)" ออกจาก UI แล้ว
+ *   ตารางยังอยู่ใน DB (เก็บประวัติตาม ALCOA · jobs.recipe_id เป็น FK RESTRICT)
+ * — `dosage_form` แสดงบนจอเป็น "ชนิด" (TAB/CAP/F/C/CRM/LIQ …) ตามที่ทีมผลิตเรียก
+ */
+export type ProductWithRoute = {
   id: string;
   code: string;
   name: string;
   dosage_form: string | null;
-  pack_type: string | null;
-  pack_pattern: string | null;
-  recipes: Recipe[];
+  unit: string;
+  reg_no: string | null;
+  type: string; // fg | rm | pm — ดู product-constants.ts
+  is_active: boolean;
   route: RouteStep[];
 };
 
-export type MaterialOption = {
-  id: string;
-  code: string;
-  name: string;
-  unit: string;
-};
-
-/** วัตถุดิบ/บรรจุภัณฑ์ทั้งหมด (สำหรับ dropdown เลือกใส่ในสูตร) */
-export async function getMaterialOptions(): Promise<MaterialOption[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("materials")
-    .select("id, code, name, unit")
-    .eq("is_active", true)
-    .order("code", { ascending: true });
-  if (error || !data) return [];
-  return data as MaterialOption[];
-}
-
-/** ยา/ผลิตภัณฑ์ทั้งหมด + สูตร + รายการวัตถุดิบในสูตร (BOM) */
-export async function listProductsWithRecipes(): Promise<ProductWithRecipes[]> {
+/** ผลิตภัณฑ์ทั้งหมด (รวมที่ปิดใช้งาน — ให้หน้าจอเลือกกรองเอง) + ลำดับสถานี */
+export async function listProductsWithRoutes(): Promise<ProductWithRoute[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("products")
     .select(
-      `id, code, name, dosage_form, pack_type, pack_pattern,
-       recipes:product_recipes (
-         id, name, batch_size, batch_unit, is_active, note,
-         items:recipe_items (
-           id, material_id, qty, unit, note,
-           material:materials ( code, name )
-         )
-       ),
+      `id, code, name, dosage_form, unit, reg_no, type, is_active,
        route:product_routes (
          id, station_id, step_no, note,
          station:stations ( code, name, station_group )
        )`,
     )
-    .eq("is_active", true)
     .order("code", { ascending: true });
   if (error || !data) return [];
 
@@ -89,34 +49,11 @@ export async function listProductsWithRecipes(): Promise<ProductWithRecipes[]> {
     id: p.id,
     code: p.code,
     name: p.name,
-    dosage_form: p.dosage_form,
-    pack_type: p.pack_type ?? null,
-    pack_pattern: p.pack_pattern ?? null,
-    recipes: ((p.recipes ?? []) as any[])
-      .map((r) => ({
-        id: r.id,
-        name: r.name,
-        batch_size: r.batch_size === null ? null : Number(r.batch_size),
-        batch_unit: r.batch_unit,
-        is_active: r.is_active,
-        note: r.note,
-        items: ((r.items ?? []) as any[])
-          .map((it) => ({
-            id: it.id,
-            material_id: it.material_id,
-            material_code: it.material?.code ?? "—",
-            material_name: it.material?.name ?? "",
-            qty: Number(it.qty),
-            unit: it.unit,
-            note: it.note,
-          }))
-          .sort((a, b) => a.material_code.localeCompare(b.material_code)),
-      }))
-      // สูตรที่ใช้อยู่ขึ้นก่อน แล้วเรียงตามชื่อ
-      .sort((a, b) => {
-        if (a.is_active !== b.is_active) return a.is_active ? -1 : 1;
-        return a.name.localeCompare(b.name);
-      }),
+    dosage_form: p.dosage_form ?? null,
+    unit: p.unit ?? "",
+    reg_no: p.reg_no ?? null,
+    type: p.type ?? "fg",
+    is_active: p.is_active ?? true,
     route: ((p.route ?? []) as any[])
       .map((r) => ({
         id: r.id,

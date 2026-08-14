@@ -4,48 +4,73 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getProfile } from "@/lib/auth/dal";
 import { hasAnyRole } from "@/lib/auth/roles";
+import { canPlanJobs } from "@/lib/data/role-access";
 
 export type ActionResult = { ok?: boolean; id?: string; error?: string };
 
+/** จัดการผลิตภัณฑ์ = ฝ่ายวางแผน/ผู้บริหาร (ตรงกับ can_plan_jobs() ใน DB) */
+async function requirePlanner(): Promise<boolean> {
+  const profile = await getProfile();
+  return !!profile && canPlanJobs(profile.roles);
+}
+
+/** จัดการสถานี/ขั้นตอนการผลิต = ผู้บริหาร (ตรงกับ can_manage_stations() ใน DB) */
 async function requireManager(): Promise<boolean> {
   const profile = await getProfile();
   return !!profile && hasAnyRole(profile.roles, ["manager"]);
 }
 
-/** เพิ่ม/แก้หัวสูตร */
-export async function upsertRecipe(v: {
+/** เพิ่ม/แก้ผลิตภัณฑ์ (ยา · วัตถุดิบ · บรรจุภัณฑ์) */
+export async function upsertProduct(v: {
   id: string | null;
-  product_id: string;
+  code: string;
   name: string;
-  batch_size: string;
-  batch_unit: string;
-  is_active: boolean;
-  note: string;
+  type: string;
+  unit: string;
+  reg_no: string;
+  dosage_form: string;
 }): Promise<ActionResult> {
-  if (!(await requireManager()))
-    return { error: "ไม่มีสิทธิ์ (เฉพาะผู้บริหาร)" };
-  if (!v.product_id) return { error: "ไม่พบยา/ผลิตภัณฑ์" };
-
-  let batchSize: number | null = null;
-  if (v.batch_size.trim() !== "") {
-    batchSize = Number(v.batch_size);
-    if (!Number.isFinite(batchSize) || batchSize < 0)
-      return { error: "ขนาดแบตช์ไม่ถูกต้อง (ห้ามติดลบ)" };
-  }
+  if (!(await requirePlanner()))
+    return { error: "ไม่มีสิทธิ์ (เฉพาะฝ่ายวางแผน/ผู้บริหาร)" };
+  if (!v.code.trim()) return { error: "กรุณาระบุรหัสผลิตภัณฑ์" };
+  if (!v.name.trim()) return { error: "กรุณาระบุชื่อผลิตภัณฑ์" };
+  if (!["fg", "rm", "pm"].includes(v.type))
+    return { error: "กรุณาเลือกประเภทผลิตภัณฑ์" };
 
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("upsert_recipe", {
+  const { data, error } = await supabase.rpc("upsert_product", {
     p_id: v.id,
-    p_product_id: v.product_id,
-    p_name: v.name.trim() || "สูตรมาตรฐาน",
-    p_batch_size: batchSize,
-    p_batch_unit: v.batch_unit.trim() || "เม็ด",
-    p_is_active: v.is_active,
-    p_note: v.note.trim() || null,
+    p_code: v.code.trim(),
+    p_name: v.name.trim(),
+    p_type: v.type,
+    p_unit: v.unit.trim() || "TAB",
+    p_reg_no: v.reg_no.trim() || null,
+    p_dosage_form: v.dosage_form.trim() || null,
   });
-  if (error) return { error: error.message || "บันทึกสูตรไม่สำเร็จ" };
+  if (error) return { error: error.message || "บันทึกผลิตภัณฑ์ไม่สำเร็จ" };
   revalidatePath("/recipes");
+  revalidatePath("/materials");
   return { ok: true, id: data as string };
+}
+
+/** ปิด/เปิดใช้งานผลิตภัณฑ์ — ปุ่ม "ลบ" ใช้ตัวนี้ (ลบจริงไม่ได้ ประวัติ GMP ผูกอยู่) */
+export async function setProductActive(
+  productId: string,
+  isActive: boolean,
+): Promise<ActionResult> {
+  if (!(await requirePlanner()))
+    return { error: "ไม่มีสิทธิ์ (เฉพาะฝ่ายวางแผน/ผู้บริหาร)" };
+  if (!productId) return { error: "ไม่พบผลิตภัณฑ์" };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_product_active", {
+    p_id: productId,
+    p_is_active: isActive,
+  });
+  if (error) return { error: error.message || "เปลี่ยนสถานะไม่สำเร็จ" };
+  revalidatePath("/recipes");
+  revalidatePath("/materials");
+  return { ok: true };
 }
 
 /** เพิ่ม/แก้สถานีย่อย (master) */
@@ -83,14 +108,33 @@ export async function upsertStation(v: {
   return { ok: true, id: data as string };
 }
 
-/** แทนที่ลำดับสถานีของยา (route) ทั้งชุด */
+/** ปิด/เปิดใช้งานสถานี — ปุ่ม "ลบ" ใช้ตัวนี้ (ประวัติการผลิตผูกอยู่ ลบจริงไม่ได้) */
+export async function setStationActive(
+  stationId: string,
+  isActive: boolean,
+): Promise<ActionResult> {
+  if (!(await requireManager()))
+    return { error: "ไม่มีสิทธิ์ (เฉพาะผู้บริหาร)" };
+  if (!stationId) return { error: "ไม่พบสถานี" };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_station_active", {
+    p_id: stationId,
+    p_is_active: isActive,
+  });
+  if (error) return { error: error.message || "เปลี่ยนสถานะไม่สำเร็จ" };
+  revalidatePath("/recipes");
+  return { ok: true };
+}
+
+/** แทนที่ลำดับสถานีของผลิตภัณฑ์ (route) ทั้งชุด */
 export async function setProductRoute(
   productId: string,
   items: { station_id: string; note: string }[],
 ): Promise<ActionResult> {
   if (!(await requireManager()))
     return { error: "ไม่มีสิทธิ์ (เฉพาะผู้บริหาร)" };
-  if (!productId) return { error: "ไม่พบยา/ผลิตภัณฑ์" };
+  if (!productId) return { error: "ไม่พบผลิตภัณฑ์" };
 
   const payload: { station_id: string; note?: string }[] = [];
   const seen = new Set<string>();
@@ -108,64 +152,6 @@ export async function setProductRoute(
     p_items: payload,
   });
   if (error) return { error: error.message || "บันทึกลำดับสถานีไม่สำเร็จ" };
-  revalidatePath("/recipes");
-  return { ok: true };
-}
-
-/** แก้รูปแบบบรรจุของยา */
-export async function updatePackaging(v: {
-  product_id: string;
-  pack_type: string;
-  pack_pattern: string;
-}): Promise<ActionResult> {
-  if (!(await requireManager()))
-    return { error: "ไม่มีสิทธิ์ (เฉพาะผู้บริหาร)" };
-  if (!v.product_id) return { error: "ไม่พบยา/ผลิตภัณฑ์" };
-
-  const supabase = await createClient();
-  const { data, error } = await supabase.rpc("update_product_packaging", {
-    p_product_id: v.product_id,
-    p_pack_type: v.pack_type.trim() || null,
-    p_pack_pattern: v.pack_pattern.trim() || null,
-  });
-  if (error) return { error: error.message || "บันทึกรูปแบบบรรจุไม่สำเร็จ" };
-  revalidatePath("/recipes");
-  return { ok: true, id: data as string };
-}
-
-/** แทนที่รายการวัตถุดิบในสูตร (BOM) ทั้งชุด */
-export async function setRecipeItems(
-  recipeId: string,
-  items: { material_id: string; qty: string; unit: string; note: string }[],
-): Promise<ActionResult> {
-  if (!(await requireManager()))
-    return { error: "ไม่มีสิทธิ์ (เฉพาะผู้บริหาร)" };
-  if (!recipeId) return { error: "ไม่พบสูตร" };
-
-  const payload: { material_id: string; qty: number; unit?: string; note?: string }[] = [];
-  const seen = new Set<string>();
-  for (const it of items) {
-    if (!it.material_id) continue; // ข้ามแถวว่าง
-    if (seen.has(it.material_id))
-      return { error: "มีวัตถุดิบซ้ำกันในสูตร — รวมเป็นรายการเดียว" };
-    seen.add(it.material_id);
-    const qty = Number(it.qty);
-    if (!Number.isFinite(qty) || qty < 0)
-      return { error: "จำนวนวัตถุดิบในสูตรไม่ถูกต้อง (ห้ามว่างหรือติดลบ)" };
-    payload.push({
-      material_id: it.material_id,
-      qty,
-      unit: it.unit.trim() || undefined,
-      note: it.note.trim() || undefined,
-    });
-  }
-
-  const supabase = await createClient();
-  const { error } = await supabase.rpc("set_recipe_items", {
-    p_recipe_id: recipeId,
-    p_items: payload,
-  });
-  if (error) return { error: error.message || "บันทึกรายการวัตถุดิบไม่สำเร็จ" };
   revalidatePath("/recipes");
   return { ok: true };
 }
