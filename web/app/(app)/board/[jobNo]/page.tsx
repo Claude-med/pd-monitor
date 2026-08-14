@@ -435,7 +435,7 @@ export default async function JobDetailPage({
         </div>
       </div>
 
-      {/* เบิกวัตถุดิบ (A2) */}
+      {/* เบิกผลิตภัณฑ์ (A2) */}
       <Requisitions
         jobId={job.id}
         jobNo={job.job_no}

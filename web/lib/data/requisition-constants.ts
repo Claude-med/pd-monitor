@@ -1,4 +1,4 @@
-// ค่าคงที่ใบเบิกวัตถุดิบ — pure (ใช้ได้ทั้ง Server/Client)
+// ค่าคงที่ใบเบิกผลิตภัณฑ์ — pure (ใช้ได้ทั้ง Server/Client)
 // ตรงกับ enum requisition_status ใน DB (0017_requisitions.sql)
 
 export const REQ_STATUSES = [

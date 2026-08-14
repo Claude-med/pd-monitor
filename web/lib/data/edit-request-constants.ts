@@ -12,7 +12,7 @@ export type EditRequestStatus = "pending" | "applied" | "rejected";
 
 export const EDIT_TARGET_LABEL: Record<EditTargetType, string> = {
   production_record: "บันทึกผลผลิต",
-  material_requisition: "ใบเบิกวัตถุดิบ",
+  material_requisition: "ใบเบิกผลิตภัณฑ์",
   inprocess_check: "ผลตรวจ QC ระหว่างผลิต",
 };
 

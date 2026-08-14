@@ -51,11 +51,19 @@ export function Requisitions({
   const pendingSet = new Set(pendingTargetIds);
   const [open, setOpen] = useState(false);
   const [lotId, setLotId] = useState("");
+  const [lotQuery, setLotQuery] = useState("");
   const [qty, setQty] = useState("");
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const router = useRouter();
+
+  // ค้นหาล็อตฝั่ง client — ข้อมูลโหลดมาครบแล้ว (label มีทั้งรหัส ชื่อ และเลขล็อต)
+  // ล็อตที่เลือกไว้แล้วต้องคงอยู่ในลิสต์เสมอ ไม่งั้นค่าใน select จะหลุด
+  const q = lotQuery.trim().toLowerCase();
+  const visibleLots = q
+    ? lots.filter((l) => l.lot_id === lotId || l.label.toLowerCase().includes(q))
+    : lots;
 
   function submit() {
     setError(null);
@@ -63,6 +71,7 @@ export function Requisitions({
       const res = await requestMaterial(jobNo, jobId, lotId, qty, note);
       if (res.ok) {
         setLotId("");
+        setLotQuery("");
         setQty("");
         setNote("");
         setOpen(false);
@@ -82,7 +91,7 @@ export function Requisitions({
     });
   }
 
-  // เตือนช่วงที่ควรมีวัตถุดิบแล้ว (มีแผน/กำลังผลิต) แต่ยังไม่ได้เบิก/จ่าย
+  // เตือนช่วงที่ควรมีผลิตภัณฑ์แล้ว (มีแผน/กำลังผลิต) แต่ยังไม่ได้เบิก/จ่าย
   const issuedCount = requisitions.filter((r) => r.status === "issued").length;
   const requestedCount = requisitions.filter((r) => r.status === "requested").length;
   const shouldHaveMaterials = jobStatus === "planned" || jobStatus === "in_production";
@@ -96,7 +105,7 @@ export function Requisitions({
           }
         : {
             tone: "warn",
-            text: "⚠️ ยังไม่ได้เบิกวัตถุดิบสำหรับงานนี้ — ควรเบิกก่อน/ระหว่างเริ่มผลิต",
+            text: "⚠️ ยังไม่ได้เบิกผลิตภัณฑ์สำหรับงานนี้ — ควรเบิกก่อน/ระหว่างเริ่มผลิต",
           };
   }
 
@@ -146,7 +155,7 @@ export function Requisitions({
   return (
     <div className="rounded-xl border bg-card p-5">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-semibold">เบิกวัตถุดิบ</h2>
+        <h2 className="font-semibold">เบิกผลิตภัณฑ์</h2>
         <span className="text-xs text-muted-foreground">
           {requisitions.length} รายการ
         </span>
@@ -200,7 +209,7 @@ export function Requisitions({
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b text-left text-xs text-muted-foreground">
-                  <th className="px-2 py-2 font-medium">วัตถุดิบ · ล็อต</th>
+                  <th className="px-2 py-2 font-medium">ผลิตภัณฑ์ · ล็อต</th>
                   <th className="px-2 py-2 text-right font-medium">จำนวน</th>
                   <th className="px-2 py-2 font-medium">สถานะ</th>
                   <th className="px-2 py-2 font-medium">ผู้ขอ</th>
@@ -248,7 +257,7 @@ export function Requisitions({
           </div>
         </>
       ) : (
-        <p className="text-sm text-muted-foreground">ยังไม่มีการเบิกวัตถุดิบ</p>
+        <p className="text-sm text-muted-foreground">ยังไม่มีการเบิกผลิตภัณฑ์</p>
       )}
 
       {error && (
@@ -263,24 +272,45 @@ export function Requisitions({
             <div className="space-y-3 rounded-lg border bg-muted/20 p-4">
               <div>
                 <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                  เลือกวัตถุดิบ/ล็อต *
+                  เลือกผลิตภัณฑ์/ล็อต *
                 </label>
+                <input
+                  value={lotQuery}
+                  onChange={(e) => setLotQuery(e.target.value)}
+                  placeholder="🔎 พิมพ์ค้นหา — รหัส · ชื่อ · เลขล็อต"
+                  className="mb-2 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                />
                 <select
                   value={lotId}
                   onChange={(e) => setLotId(e.target.value)}
+                  size={visibleLots.length > 6 ? 8 : undefined}
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
                 >
                   <option value="">— เลือกล็อต (เฉพาะที่พร้อมเบิก) —</option>
-                  {lots.map((l) => (
+                  {visibleLots.map((l) => (
                     <option key={l.lot_id} value={l.lot_id}>
                       {l.label}
                     </option>
                   ))}
                 </select>
+                {lots.length > 0 && (
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    พบ {visibleLots.length.toLocaleString("th-TH")} ล็อต
+                    {lotQuery.trim()
+                      ? ` (จากทั้งหมด ${lots.length.toLocaleString("th-TH")})`
+                      : ""}{" "}
+                    · เรียงตามวันหมดอายุใกล้สุดก่อน
+                  </p>
+                )}
+                {lots.length > 0 && visibleLots.length === 0 && (
+                  <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
+                    ไม่พบล็อตที่ตรงกับ “{lotQuery.trim()}” — ลองพิมพ์รหัสหรือเลขล็อตสั้นลง
+                  </p>
+                )}
                 {lots.length === 0 && (
                   <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
                     ยังไม่มีล็อตที่พร้อมเบิก (ต้องมีสต็อก + ไม่หมดอายุ/ไม่ผ่าน) —
-                    เพิ่มที่เมนูวัตถุดิบ
+                    เพิ่มที่เมนูผลิตภัณฑ์คลัง
                   </p>
                 )}
               </div>
@@ -337,7 +367,7 @@ export function Requisitions({
               onClick={() => setOpen(true)}
               className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
             >
-              + ขอเบิกวัตถุดิบ
+              + ขอเบิกผลิตภัณฑ์
             </button>
           )}
         </div>

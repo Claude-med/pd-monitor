@@ -26,7 +26,7 @@ function first(x: any): any {
   return Array.isArray(x) ? x[0] : x;
 }
 
-/** ใบเบิกวัตถุดิบของงานหนึ่ง (ใหม่ล่าสุดอยู่บน) */
+/** ใบเบิกผลิตภัณฑ์ของงานหนึ่ง (ใหม่ล่าสุดอยู่บน) */
 export async function getRequisitionsForJob(
   jobId: string,
 ): Promise<RequisitionRow[]> {

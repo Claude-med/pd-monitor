@@ -153,8 +153,8 @@ export default async function EbrPage({
           )}
         </Section>
 
-        {/* 3. วัตถุดิบที่เบิกใช้ */}
-        <Section title="3. วัตถุดิบที่เบิกใช้ (RM/PM)">
+        {/* 3. ผลิตภัณฑ์ที่เบิกใช้ */}
+        <Section title="3. ผลิตภัณฑ์ที่เบิกใช้ (RM/PM)">
           {r.requisitions.length > 0 ? (
             <table className="w-full text-sm">
               <thead>
@@ -185,7 +185,7 @@ export default async function EbrPage({
               </tbody>
             </table>
           ) : (
-            <p className="text-sm text-muted-foreground">— ไม่มีการเบิกวัตถุดิบ</p>
+            <p className="text-sm text-muted-foreground">— ไม่มีการเบิกผลิตภัณฑ์</p>
           )}
         </Section>
 

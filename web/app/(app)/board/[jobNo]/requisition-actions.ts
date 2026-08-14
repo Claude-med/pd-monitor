@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 
 export type ReqResult = { ok?: boolean; error?: string };
 
-/** ขอเบิกวัตถุดิบเข้างาน */
+/** ขอเบิกผลิตภัณฑ์เข้างาน */
 export async function requestMaterial(
   jobNo: string,
   jobId: string,
@@ -13,7 +13,7 @@ export async function requestMaterial(
   qty: string,
   note: string,
 ): Promise<ReqResult> {
-  if (!materialLotId) return { error: "กรุณาเลือกล็อตวัตถุดิบ" };
+  if (!materialLotId) return { error: "กรุณาเลือกล็อตผลิตภัณฑ์" };
   const q = Number(qty);
   if (!Number.isFinite(q) || q <= 0) return { error: "จำนวนต้องมากกว่า 0" };
 
