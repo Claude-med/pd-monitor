@@ -81,7 +81,7 @@ export async function getJobTrace(jobId: string): Promise<JobTrace | null> {
     .select(
       `id, qty, status, material_lot_id,
        lot:material_lots!material_lot_id (
-         lot_no, material:materials!material_id ( code, name, unit )
+         lot_no, material:products!product_id ( code, name, unit )
        )`,
     )
     .eq("job_id", jobId)
@@ -174,7 +174,7 @@ export async function searchTrace(query: string): Promise<TraceResult> {
   // --- ขาย้อนกลับ: หา RM lot ที่ตรง → งานที่เบิกใช้ล็อตนี้ (recall) ---
   const { data: matLots } = await supabase
     .from("material_lots")
-    .select(`id, lot_no, material:materials!material_id ( code, name )`)
+    .select(`id, lot_no, material:products!product_id ( code, name )`)
     .ilike("lot_no", `%${q}%`)
     .limit(10);
 

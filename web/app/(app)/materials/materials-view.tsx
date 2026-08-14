@@ -3,17 +3,19 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
-  MATERIAL_TYPES,
-  MATERIAL_TYPE_LABEL,
   MATERIAL_LOT_STATUSES,
   MATERIAL_LOT_STATUS_LABEL,
   MATERIAL_LOT_STATUS_COLOR,
   USABLE_LOT_STATUSES,
   type MaterialLotStatus,
 } from "@/lib/data/material-constants";
+import {
+  PRODUCT_TYPE_SHORT,
+  PRODUCT_TYPE_COLOR,
+} from "@/lib/data/product-constants";
 import { daysUntil } from "@/lib/data/machine-constants";
-import type { MaterialWithLots, MaterialLot } from "@/lib/data/materials";
-import { upsertMaterial, upsertMaterialLot } from "./actions";
+import type { ProductWithLots, MaterialLot } from "@/lib/data/materials";
+import { upsertProductLot } from "./actions";
 
 const inputClass =
   "w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring";
@@ -49,121 +51,91 @@ function ExpiryBadge({ date }: { date: string | null }) {
 }
 
 export function MaterialsView({
-  materials,
+  products,
   canManage,
 }: {
-  materials: MaterialWithLots[];
+  products: ProductWithLots[];
   canManage: boolean;
 }) {
-  const [adding, setAdding] = useState(false);
-  const [editMatId, setEditMatId] = useState<string | null>(null);
   const [addLotFor, setAddLotFor] = useState<string | null>(null);
   const [editLotId, setEditLotId] = useState<string | null>(null);
 
   return (
     <div className="space-y-5">
-      {canManage && (
-        <div className="rounded-xl border bg-card">
-          <button
-            type="button"
-            onClick={() => setAdding((s) => !s)}
-            className="flex w-full items-center justify-between px-5 py-4 text-left"
-          >
-            <span className="font-semibold">＋ เพิ่มวัตถุดิบ/บรรจุภัณฑ์</span>
-            <span className="text-sm text-muted-foreground">{adding ? "ซ่อน" : "เปิด"}</span>
-          </button>
-          {adding && (
-            <div className="border-t p-5">
-              <MaterialForm onDone={() => setAdding(false)} />
-            </div>
-          )}
-        </div>
-      )}
-
       <p className="text-sm text-muted-foreground">
-        วัตถุดิบทั้งหมด {materials.length} รายการ
+        ผลิตภัณฑ์ในคลัง {products.length} รายการ · แก้ข้อมูลผลิตภัณฑ์ได้ที่เมนู
+        “ผลิตภัณฑ์ / ขั้นตอนการผลิต”
       </p>
 
-      {materials.length === 0 ? (
+      {products.length === 0 ? (
         <p className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
-          ยังไม่มีวัตถุดิบในระบบ
-          {canManage ? " — กด “＋ เพิ่มวัตถุดิบ/บรรจุภัณฑ์” ด้านบน" : ""}
+          ยังไม่มีผลิตภัณฑ์ในระบบ — เพิ่มที่เมนู “ผลิตภัณฑ์ / ขั้นตอนการผลิต” ก่อน
         </p>
       ) : (
         <div className="space-y-3">
-          {materials.map((m) => {
-            const usable = m.lots
+          {products.map((p) => {
+            const usable = p.lots
               .filter((l) => USABLE_LOT_STATUSES.has(l.status as MaterialLotStatus))
               .reduce((s, l) => s + Number(l.qty_on_hand), 0);
             return (
-              <div key={m.id} className="rounded-xl border bg-card p-4">
+              <div
+                key={p.id}
+                className={`rounded-xl border bg-card p-4 ${p.is_active ? "" : "opacity-60"}`}
+              >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-medium">{m.code}</span>
-                      <span className="truncate text-sm text-muted-foreground">{m.name}</span>
-                      <span className="rounded bg-secondary px-1.5 py-0.5 text-[10px] text-secondary-foreground">
-                        {MATERIAL_TYPE_LABEL[m.type] ?? m.type}
+                      <span
+                        className="rounded px-1.5 py-0.5 text-[10px] font-medium text-white"
+                        style={{
+                          backgroundColor: PRODUCT_TYPE_COLOR[p.type] ?? "#64748b",
+                        }}
+                      >
+                        {PRODUCT_TYPE_SHORT[p.type] ?? p.type}
                       </span>
+                      <span className="font-medium">{p.code}</span>
+                      <span className="truncate text-sm text-muted-foreground">
+                        {p.name}
+                      </span>
+                      {!p.is_active && (
+                        <span className="rounded bg-secondary px-1.5 py-0.5 text-[10px] text-secondary-foreground">
+                          ปิดใช้งาน
+                        </span>
+                      )}
                     </div>
                     <p className="mt-0.5 text-xs text-muted-foreground">
-                      พร้อมใช้รวม {usable.toLocaleString("th-TH")} {m.unit} · {m.lots.length} ล็อต
+                      หน่วย: {p.unit || "—"}
+                      {p.dosage_form ? <> · ชนิด: {p.dosage_form}</> : null}
+                      {" · "}พร้อมใช้รวม {usable.toLocaleString("th-TH")} {p.unit} ·{" "}
+                      {p.lots.length} ล็อต
                     </p>
                   </div>
                   {canManage && (
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditMatId((id) => (id === m.id ? null : m.id));
-                          setAddLotFor(null);
-                        }}
-                        className="rounded-md border px-3 py-1.5 text-xs hover:bg-accent"
-                      >
-                        {editMatId === m.id ? "ปิด" : "แก้ข้อมูล"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setAddLotFor((id) => (id === m.id ? null : m.id));
-                          setEditMatId(null);
-                          setEditLotId(null);
-                        }}
-                        className="rounded-md border px-3 py-1.5 text-xs hover:bg-accent"
-                      >
-                        {addLotFor === m.id ? "ปิด" : "＋ เพิ่มล็อต"}
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAddLotFor((id) => (id === p.id ? null : p.id));
+                        setEditLotId(null);
+                      }}
+                      className="rounded-md border px-3 py-1.5 text-xs hover:bg-accent"
+                    >
+                      {addLotFor === p.id ? "ปิด" : "＋ เพิ่มล็อต"}
+                    </button>
                   )}
                 </div>
 
-                {canManage && editMatId === m.id && (
-                  <div className="mt-3 border-t pt-3">
-                    <MaterialForm
-                      initial={{
-                        id: m.id,
-                        code: m.code,
-                        name: m.name,
-                        type: m.type,
-                        unit: m.unit,
-                      }}
-                      onDone={() => setEditMatId(null)}
-                    />
-                  </div>
-                )}
-
-                {canManage && addLotFor === m.id && (
+                {canManage && addLotFor === p.id && (
                   <div className="mt-3 border-t pt-3">
                     <LotForm
-                      materialId={m.id}
-                      unit={m.unit}
+                      productId={p.id}
+                      unit={p.unit}
                       onDone={() => setAddLotFor(null)}
                     />
                   </div>
                 )}
 
                 {/* ตารางล็อต */}
-                {m.lots.length > 0 && (
+                {p.lots.length > 0 && (
                   <div className="-mx-2 mt-3 overflow-x-auto">
                     <table className="w-full min-w-[560px] text-sm">
                       <thead>
@@ -176,12 +148,12 @@ export function MaterialsView({
                         </tr>
                       </thead>
                       <tbody>
-                        {m.lots.map((lot) => (
+                        {p.lots.map((lot) => (
                           <LotRow
                             key={lot.id}
                             lot={lot}
-                            unit={m.unit}
-                            materialId={m.id}
+                            unit={p.unit}
+                            productId={p.id}
                             canManage={canManage}
                             editing={editLotId === lot.id}
                             onToggle={() =>
@@ -205,14 +177,14 @@ export function MaterialsView({
 function LotRow({
   lot,
   unit,
-  materialId,
+  productId,
   canManage,
   editing,
   onToggle,
 }: {
   lot: MaterialLot;
   unit: string;
-  materialId: string;
+  productId: string;
   canManage: boolean;
   editing: boolean;
   onToggle: () => void;
@@ -250,11 +222,11 @@ function LotRow({
           <td colSpan={5} className="px-2 pb-3">
             <div className="rounded-md border bg-muted/30 p-3">
               <LotForm
-                materialId={materialId}
+                productId={productId}
                 unit={unit}
                 initial={{
                   id: lot.id,
-                  material_id: materialId,
+                  product_id: productId,
                   lot_no: lot.lot_no,
                   qty: String(lot.qty_on_hand),
                   status: lot.status,
@@ -272,113 +244,9 @@ function LotRow({
   );
 }
 
-type MaterialFormValues = {
-  id: string | null;
-  code: string;
-  name: string;
-  type: string;
-  unit: string;
-};
-
-function MaterialForm({
-  initial,
-  onDone,
-}: {
-  initial?: MaterialFormValues;
-  onDone: () => void;
-}) {
-  const [v, setV] = useState<MaterialFormValues>(
-    initial ?? { id: null, code: "", name: "", type: "rm", unit: "kg" },
-  );
-  const [error, setError] = useState<string | null>(null);
-  const [pending, start] = useTransition();
-  const router = useRouter();
-
-  function submit() {
-    setError(null);
-    start(async () => {
-      const res = await upsertMaterial(v);
-      if (res.ok) {
-        router.refresh();
-        onDone();
-        return;
-      }
-      setError(res.error ?? "บันทึกไม่สำเร็จ");
-    });
-  }
-
-  return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div>
-          <label className={labelClass}>รหัส (code) *</label>
-          <input
-            value={v.code}
-            onChange={(e) => setV((c) => ({ ...c, code: e.target.value }))}
-            placeholder="เช่น RM-001"
-            className={inputClass}
-          />
-        </div>
-        <div>
-          <label className={labelClass}>ชื่อ *</label>
-          <input
-            value={v.name}
-            onChange={(e) => setV((c) => ({ ...c, name: e.target.value }))}
-            placeholder="เช่น แป้งข้าวโพด"
-            className={inputClass}
-          />
-        </div>
-        <div>
-          <label className={labelClass}>ประเภท</label>
-          <select
-            value={v.type}
-            onChange={(e) => setV((c) => ({ ...c, type: e.target.value }))}
-            className={inputClass}
-          >
-            {MATERIAL_TYPES.map((t) => (
-              <option key={t.key} value={t.key}>
-                {t.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className={labelClass}>หน่วย</label>
-          <input
-            value={v.unit}
-            onChange={(e) => setV((c) => ({ ...c, unit: e.target.value }))}
-            placeholder="kg / ชิ้น / ม้วน"
-            className={inputClass}
-          />
-        </div>
-      </div>
-      {error && (
-        <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
-      )}
-      <div className="flex gap-2">
-        <button
-          type="button"
-          disabled={pending}
-          onClick={submit}
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
-        >
-          {pending ? "กำลังบันทึก…" : v.id ? "บันทึกการแก้ไข" : "เพิ่มวัตถุดิบ"}
-        </button>
-        <button
-          type="button"
-          onClick={onDone}
-          className="rounded-md border px-4 py-2 text-sm hover:bg-accent"
-        >
-          ยกเลิก
-        </button>
-      </div>
-    </div>
-  );
-}
-
 type LotFormValues = {
   id: string | null;
-  material_id: string;
+  product_id: string;
   lot_no: string;
   qty: string;
   status: string;
@@ -388,12 +256,12 @@ type LotFormValues = {
 };
 
 function LotForm({
-  materialId,
+  productId,
   unit,
   initial,
   onDone,
 }: {
-  materialId: string;
+  productId: string;
   unit: string;
   initial?: LotFormValues;
   onDone: () => void;
@@ -401,7 +269,7 @@ function LotForm({
   const [v, setV] = useState<LotFormValues>(
     initial ?? {
       id: null,
-      material_id: materialId,
+      product_id: productId,
       lot_no: "",
       qty: "",
       status: "quarantine",
@@ -421,7 +289,7 @@ function LotForm({
   function submit() {
     setError(null);
     start(async () => {
-      const res = await upsertMaterialLot({ ...v, material_id: materialId });
+      const res = await upsertProductLot({ ...v, product_id: productId });
       if (res.ok) {
         router.refresh();
         onDone();

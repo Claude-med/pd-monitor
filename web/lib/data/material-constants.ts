@@ -1,16 +1,8 @@
-// ค่าคงที่วัตถุดิบ/คลัง — ไฟล์นี้ "ไม่มี" server import → ใช้ได้ทั้ง Server/Client
-// ตรงกับ enum material_type / material_lot_status ใน DB (0016_materials.sql)
-
-export const MATERIAL_TYPES = [
-  { key: "rm", label: "วัตถุดิบ (RM)" },
-  { key: "pm", label: "บรรจุภัณฑ์ (PM)" },
-] as const;
-
-export type MaterialType = (typeof MATERIAL_TYPES)[number]["key"];
-
-export const MATERIAL_TYPE_LABEL: Record<string, string> = Object.fromEntries(
-  MATERIAL_TYPES.map((t) => [t.key, t.label]),
-);
+// ค่าคงที่สถานะล็อตในคลัง — ไฟล์นี้ "ไม่มี" server import → ใช้ได้ทั้ง Server/Client
+// ตรงกับ enum material_lot_status ใน DB (0016_materials.sql)
+//
+// Part 2 ก้อน 3: ประเภท RM/PM ย้ายไปอยู่ที่ products.type แล้ว (ดู product-constants.ts)
+// ตาราง material_lots ยังใช้ชื่อเดิม แต่ผูกกับ products แทน materials
 
 export const MATERIAL_LOT_STATUSES = [
   { key: "available", label: "พร้อมใช้", color: "#16a34a" },

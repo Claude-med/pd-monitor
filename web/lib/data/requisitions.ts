@@ -17,7 +17,7 @@ export type RequisitionRow = {
 
 export type SelectableLot = {
   lot_id: string;
-  material_id: string;
+  product_id: string;
   label: string; // "RM-001 แป้ง · ล็อต L1 (คงเหลือ 50 kg)"
 };
 
@@ -37,7 +37,7 @@ export async function getRequisitionsForJob(
       `id, qty, status, note, requested_at, requested_by,
        requester:profiles!requested_by ( full_name ),
        lot:material_lots!material_lot_id (
-         lot_no, material:materials!material_id ( code, name, unit )
+         lot_no, material:products!product_id ( code, name, unit )
        )`,
     )
     .eq("job_id", jobId)
@@ -74,7 +74,7 @@ export async function getSelectableLots(): Promise<SelectableLot[]> {
     .from("material_lots")
     .select(
       `id, lot_no, qty_on_hand, status, expiry_date,
-       material:materials!material_id ( id, code, name, unit )`,
+       material:products!product_id ( id, code, name, unit )`,
     )
     .gt("qty_on_hand", 0)
     .not("status", "in", "(rejected,expired)")
@@ -87,7 +87,7 @@ export async function getSelectableLots(): Promise<SelectableLot[]> {
     const mat = first(l.material);
     out.push({
       lot_id: l.id,
-      material_id: mat?.id ?? "",
+      product_id: mat?.id ?? "",
       label: `${mat?.code ?? "—"} ${mat?.name ?? ""} · ล็อต ${l.lot_no} (คงเหลือ ${Number(
         l.qty_on_hand,
       ).toLocaleString("th-TH")} ${mat?.unit ?? ""})`,

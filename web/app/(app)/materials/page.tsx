@@ -1,44 +1,47 @@
 import { getProfile } from "@/lib/auth/dal";
 import { hasAnyRole } from "@/lib/auth/roles";
-import { listMaterials } from "@/lib/data/materials";
+import { listStockProducts } from "@/lib/data/materials";
 import { daysUntil } from "@/lib/data/machine-constants";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
 import { MaterialsView } from "./materials-view";
 
-export const metadata = { title: "วัตถุดิบ / คลัง — PD Monitor" };
+export const metadata = { title: "ผลิตภัณฑ์คลัง — PD Monitor" };
 
 type Attention = { code: string; lot: string; reason: string };
 
 export default async function MaterialsPage() {
   const profile = await getProfile();
   const canManage = hasAnyRole(profile?.roles ?? [], ["warehouse", "manager"]);
-  const materials = await listMaterials();
+  const all = await listStockProducts();
+  // ที่ปิดใช้งานแล้วซ่อนไว้ เว้นแต่ยังมีล็อตค้างอยู่ (ห้ามซ่อนของที่ยังมีสต็อก)
+  const products = all.filter((p) => p.is_active || p.lots.length > 0);
 
   // แจ้งเตือน: ล็อตหมดอายุ / ใกล้หมดอายุ (≤30 วัน) / ไม่ผ่าน
   const attention: Attention[] = [];
-  for (const m of materials) {
-    for (const lot of m.lots) {
+  for (const p of products) {
+    for (const lot of p.lots) {
       const d = daysUntil(lot.expiry_date);
       if (lot.status === "expired" || (d !== null && d < 0))
-        attention.push({ code: m.code, lot: lot.lot_no, reason: "หมดอายุ" });
+        attention.push({ code: p.code, lot: lot.lot_no, reason: "หมดอายุ" });
       else if (d !== null && d <= 30)
         attention.push({
-          code: m.code,
+          code: p.code,
           lot: lot.lot_no,
           reason: `ใกล้หมดอายุ (อีก ${d} วัน)`,
         });
       else if (lot.status === "rejected")
-        attention.push({ code: m.code, lot: lot.lot_no, reason: "ไม่ผ่าน" });
+        attention.push({ code: p.code, lot: lot.lot_no, reason: "ไม่ผ่าน" });
     }
   }
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
-      <RealtimeRefresh tables={["materials", "material_lots"]} />
+      <RealtimeRefresh tables={["products", "material_lots"]} />
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">วัตถุดิบ / คลัง (RM/PM)</h1>
+        <h1 className="text-2xl font-bold tracking-tight">ผลิตภัณฑ์คลัง</h1>
         <p className="text-sm text-muted-foreground">
-          คลังวัตถุดิบและบรรจุภัณฑ์ · ล็อต/สต็อกคงเหลือ · สถานะ QC · วันหมดอายุ
+          ล็อต/สต็อกคงเหลือของผลิตภัณฑ์ทุกประเภท (ยา · วัตถุดิบ · บรรจุภัณฑ์) ·
+          สถานะ QC · วันหมดอายุ
           {canManage ? "" : " (ดูอย่างเดียว — จัดการได้เฉพาะฝ่ายคลัง/ผู้บริหาร)"}
         </p>
       </div>
@@ -66,7 +69,7 @@ export default async function MaterialsPage() {
         </div>
       )}
 
-      <MaterialsView materials={materials} canManage={canManage} />
+      <MaterialsView products={products} canManage={canManage} />
     </div>
   );
 }

@@ -28,9 +28,9 @@ export const TABLE_LABEL: Record<string, string> = {
   stations: "สถานีการผลิต",
   product_routes: "ขั้นตอนการผลิต (route)",
   job_routes: "ขั้นตอนการผลิตของงาน",
-  materials: "วัตถุดิบ",
-  material_lots: "ล็อตวัตถุดิบ",
-  material_requisitions: "ใบเบิกวัตถุดิบ",
+  materials: "วัตถุดิบ (เลิกใช้แล้ว)",
+  material_lots: "ล็อตผลิตภัณฑ์",
+  material_requisitions: "ใบเบิกผลิตภัณฑ์",
   line_clearances: "Line Clearance",
 };
 
