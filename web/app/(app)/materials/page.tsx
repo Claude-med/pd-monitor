@@ -1,5 +1,6 @@
 import { getProfile } from "@/lib/auth/dal";
 import { hasAnyRole } from "@/lib/auth/roles";
+import { canSetLotStatus } from "@/lib/data/role-access";
 import { listStockProducts } from "@/lib/data/materials";
 import { daysUntil } from "@/lib/data/machine-constants";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
@@ -11,17 +12,21 @@ type Attention = { code: string; lot: string; reason: string };
 
 export default async function MaterialsPage() {
   const profile = await getProfile();
-  const canManage = hasAnyRole(profile?.roles ?? [], ["warehouse", "manager"]);
+  const roles = profile?.roles ?? [];
+  const canManage = hasAnyRole(roles, ["warehouse", "manager"]);
+  // Part 2.1: ตั้งสถานะล็อต = ฝ่ายวางแผน/ผู้บริหาร (ตรงกับ can_set_lot_status() ใน DB)
+  const canSetStatus = canSetLotStatus(roles);
   const all = await listStockProducts();
   // ที่ปิดใช้งานแล้วซ่อนไว้ เว้นแต่ยังมีล็อตค้างอยู่ (ห้ามซ่อนของที่ยังมีสต็อก)
   const products = all.filter((p) => p.is_active || p.lots.length > 0);
 
-  // แจ้งเตือน: ล็อตหมดอายุ / ใกล้หมดอายุ (≤30 วัน) / ไม่ผ่าน
+  // แจ้งเตือน: ล็อตหมดอายุ / ใกล้หมดอายุ (≤30 วัน) — ตัดสถานะ "ไม่ผ่าน" ออก
+  // เพราะ 0046 ยุบสถานะเหลือ 2 ค่าแล้ว (ของที่ไม่พร้อมใช้เห็นได้จากป้ายในตารางล็อตอยู่แล้ว)
   const attention: Attention[] = [];
   for (const p of products) {
     for (const lot of p.lots) {
       const d = daysUntil(lot.expiry_date);
-      if (lot.status === "expired" || (d !== null && d < 0))
+      if (d !== null && d < 0)
         attention.push({ code: p.code, lot: lot.lot_no, reason: "หมดอายุ" });
       else if (d !== null && d <= 30)
         attention.push({
@@ -29,8 +34,6 @@ export default async function MaterialsPage() {
           lot: lot.lot_no,
           reason: `ใกล้หมดอายุ (อีก ${d} วัน)`,
         });
-      else if (lot.status === "rejected")
-        attention.push({ code: p.code, lot: lot.lot_no, reason: "ไม่ผ่าน" });
     }
   }
 
@@ -40,8 +43,7 @@ export default async function MaterialsPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">ผลิตภัณฑ์คลัง</h1>
         <p className="text-sm text-muted-foreground">
-          ล็อต/สต็อกคงเหลือของผลิตภัณฑ์ทุกประเภท (ยา · วัตถุดิบ · บรรจุภัณฑ์) ·
-          สถานะ QC · วันหมดอายุ
+          ล็อต/สต็อกคงเหลือของผลิตภัณฑ์ทุกตัว · สถานะ · วันหมดอายุ
           {canManage ? "" : " (ดูอย่างเดียว — จัดการได้เฉพาะฝ่ายคลัง/ผู้บริหาร)"}
         </p>
       </div>
@@ -65,11 +67,15 @@ export default async function MaterialsPage() {
         </div>
       ) : (
         <div className="rounded-xl border bg-card p-3 text-sm text-muted-foreground">
-          ✅ ไม่มีล็อตที่หมดอายุ/ใกล้หมดอายุ/ไม่ผ่าน
+          ✅ ไม่มีล็อตที่หมดอายุ/ใกล้หมดอายุ
         </div>
       )}
 
-      <MaterialsView products={products} canManage={canManage} />
+      <MaterialsView
+        products={products}
+        canManage={canManage}
+        canSetStatus={canSetStatus}
+      />
     </div>
   );
 }

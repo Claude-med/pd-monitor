@@ -36,6 +36,7 @@ export const ROLE_ACCESS: Record<AppRole, RoleAccess> = {
     manage: [
       "สร้างงานผลิตใหม่ (ออเดอร์ + งาน + ล็อต)",
       "เพิ่ม/แก้/ลบผลิตภัณฑ์ในทะเบียน",
+      "ตั้งสถานะล็อตในคลัง (พร้อมใช้ / ไม่พร้อมใช้)",
       "ยืนยันแผนผลิต (รอแจ้งผลิต → มีแผนแล้ว)",
     ],
     view: ["ความคืบหน้าทุกงานบนบอร์ด"],
@@ -78,7 +79,7 @@ export const ROLE_ACCESS: Record<AppRole, RoleAccess> = {
     duty: "คลังผลิตภัณฑ์ + รับสินค้าสำเร็จรูปเข้าคลัง",
     manage: [
       "เพิ่ม/แก้/ลบผลิตภัณฑ์ในทะเบียน (แก้ขั้นตอนการผลิตไม่ได้)",
-      "ล็อต/สต็อกของผลิตภัณฑ์ทุกตัว",
+      "ล็อต/สต็อกของผลิตภัณฑ์ทุกตัว (ตั้งสถานะล็อตไม่ได้ — ฝ่ายวางแผนเป็นคนปลด)",
       "จ่ายของตามใบเบิก (ตัดสต็อก)",
       "รับ FG เข้าคลัง",
     ],
@@ -138,6 +139,14 @@ export function canManageProducts(roles: AppRole[]): boolean {
 /** เพิ่ม/แก้ทะเบียนเครื่องจักร — ตรงกับ can_manage_machines() ใน DB */
 export function canManageMachines(roles: AppRole[]): boolean {
   return hasAnyRole(roles, ["production", "engineering", "manager"]);
+}
+
+/**
+ * ตั้งสถานะล็อต "พร้อมใช้ / ไม่พร้อมใช้" — ตรงกับ can_set_lot_status() ใน DB (0046)
+ * ฝ่ายคลังเพิ่ม/แก้ล็อตได้ แต่ปลดสถานะเป็นหน้าที่ฝ่ายวางแผน
+ */
+export function canSetLotStatus(roles: AppRole[]): boolean {
+  return hasAnyRole(roles, ["planner", "manager"]);
 }
 
 /** ตั้งกำหนดซ่อมบำรุง/สอบเทียบ — ตรงกับ can_set_machine_schedule() ใน DB */

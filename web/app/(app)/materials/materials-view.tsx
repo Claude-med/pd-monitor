@@ -49,9 +49,12 @@ function ExpiryBadge({ date }: { date: string | null }) {
 export function MaterialsView({
   products,
   canManage,
+  canSetStatus,
 }: {
   products: ProductWithLots[];
   canManage: boolean;
+  /** ตั้งสถานะล็อตได้ (ฝ่ายวางแผน/ผู้บริหาร) — ตรงกับ can_set_lot_status() ใน DB */
+  canSetStatus: boolean;
 }) {
   const [addLotFor, setAddLotFor] = useState<string | null>(null);
   const [editLotId, setEditLotId] = useState<string | null>(null);
@@ -117,6 +120,7 @@ export function MaterialsView({
                     <LotForm
                       productId={p.id}
                       unit={p.unit}
+                      canSetStatus={canSetStatus}
                       onDone={() => setAddLotFor(null)}
                     />
                   </div>
@@ -132,6 +136,7 @@ export function MaterialsView({
                           <th className="px-2 py-1.5 text-right font-medium">คงเหลือ</th>
                           <th className="px-2 py-1.5 font-medium">สถานะ</th>
                           <th className="px-2 py-1.5 font-medium">วันหมดอายุ</th>
+                          <th className="px-2 py-1.5 font-medium">หมายเหตุ</th>
                           {canManage && <th className="px-2 py-1.5" />}
                         </tr>
                       </thead>
@@ -143,6 +148,7 @@ export function MaterialsView({
                             unit={p.unit}
                             productId={p.id}
                             canManage={canManage}
+                            canSetStatus={canSetStatus}
                             editing={editLotId === lot.id}
                             onToggle={() =>
                               setEditLotId((id) => (id === lot.id ? null : lot.id))
@@ -167,6 +173,7 @@ function LotRow({
   unit,
   productId,
   canManage,
+  canSetStatus,
   editing,
   onToggle,
 }: {
@@ -174,6 +181,7 @@ function LotRow({
   unit: string;
   productId: string;
   canManage: boolean;
+  canSetStatus: boolean;
   editing: boolean;
   onToggle: () => void;
 }) {
@@ -193,6 +201,7 @@ function LotRow({
             <ExpiryBadge date={lot.expiry_date} />
           </div>
         </td>
+        <td className="px-2 py-2 text-muted-foreground">{lot.note || "—"}</td>
         {canManage && (
           <td className="px-2 py-2 text-right">
             <button
@@ -207,11 +216,12 @@ function LotRow({
       </tr>
       {canManage && editing && (
         <tr>
-          <td colSpan={5} className="px-2 pb-3">
+          <td colSpan={6} className="px-2 pb-3">
             <div className="rounded-md border bg-muted/30 p-3">
               <LotForm
                 productId={productId}
                 unit={unit}
+                canSetStatus={canSetStatus}
                 initial={{
                   id: lot.id,
                   product_id: productId,
@@ -246,11 +256,13 @@ type LotFormValues = {
 function LotForm({
   productId,
   unit,
+  canSetStatus,
   initial,
   onDone,
 }: {
   productId: string;
   unit: string;
+  canSetStatus: boolean;
   initial?: LotFormValues;
   onDone: () => void;
 }) {
@@ -311,45 +323,73 @@ function LotForm({
             className={inputClass}
           />
         </div>
-        <div>
-          <label className={labelClass}>สถานะ QC</label>
-          <select
-            value={v.status}
-            onChange={(e) => set("status", e.target.value)}
-            className={inputClass}
-          >
-            {MATERIAL_LOT_STATUSES.map((s) => (
-              <option key={s.key} value={s.key}>
-                {s.label}
-              </option>
-            ))}
-          </select>
+        <div className="sm:col-span-2">
+          <label className={labelClass}>สถานะ</label>
+          {canSetStatus ? (
+            <div className="flex flex-wrap gap-2">
+              {MATERIAL_LOT_STATUSES.map((s) => {
+                const on = v.status === s.key;
+                return (
+                  <button
+                    key={s.key}
+                    type="button"
+                    onClick={() => set("status", s.key)}
+                    className={`rounded-full border px-3 py-1.5 text-sm transition ${
+                      on
+                        ? "border-transparent font-medium text-white"
+                        : "hover:bg-accent"
+                    }`}
+                    style={on ? { backgroundColor: s.color } : undefined}
+                  >
+                    {on ? "✓ " : ""}
+                    {s.label}
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            /* ฝ่ายคลังเห็นสถานะแต่กดเปลี่ยนไม่ได้ — DB ก็กันไว้อีกชั้น (can_set_lot_status) */
+            <div className="flex flex-wrap items-center gap-2">
+              <LotStatusBadge status={v.status} />
+              <span className="text-xs text-muted-foreground">
+                ฝ่ายวางแผนเป็นผู้ปลดสถานะ — ล็อตที่เพิ่มใหม่จะเป็น “ไม่พร้อมใช้” จนกว่าจะปลด
+              </span>
+            </div>
+          )}
         </div>
-        <div>
-          <label className={labelClass}>วันรับเข้า</label>
-          <input
-            type="date"
-            value={v.received_date}
-            onChange={(e) => set("received_date", e.target.value)}
-            className={inputClass}
-          />
-        </div>
-        <div>
-          <label className={labelClass}>วันหมดอายุ</label>
-          <input
-            type="date"
-            value={v.expiry_date}
-            onChange={(e) => set("expiry_date", e.target.value)}
-            className={inputClass}
-          />
-        </div>
-        <div>
-          <label className={labelClass}>หมายเหตุ</label>
-          <input
-            value={v.note}
-            onChange={(e) => set("note", e.target.value)}
-            className={inputClass}
-          />
+      </div>
+
+      {/* หมายเหตุ + วันที่ของล็อต */}
+      <div className="space-y-3 rounded-md border bg-background/50 p-3">
+        <p className="text-xs font-medium text-muted-foreground">หมายเหตุ</p>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <label className={labelClass}>วันรับเข้า</label>
+            <input
+              type="date"
+              value={v.received_date}
+              onChange={(e) => set("received_date", e.target.value)}
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className={labelClass}>วันหมดอายุ</label>
+            <input
+              type="date"
+              value={v.expiry_date}
+              onChange={(e) => set("expiry_date", e.target.value)}
+              className={inputClass}
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <label className={labelClass}>หมายเหตุเพิ่มเติม</label>
+            <input
+              value={v.note}
+              onChange={(e) => set("note", e.target.value)}
+              placeholder="เช่น ผู้ส่งของ · เลขใบส่ง · ปล่อยได้บางส่วน"
+              className={inputClass}
+            />
+          </div>
         </div>
       </div>
       {error && (

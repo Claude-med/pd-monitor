@@ -64,8 +64,10 @@ export async function getRequisitionsForJob(
 }
 
 /**
- * ล็อตที่เลือกเบิกได้ (มีของ + ไม่ใช่ไม่ผ่าน/หมดอายุ) สำหรับฟอร์มขอเบิก
- *   Part 2: เลิกกรองตาม BOM ของสูตรแล้ว (โรงงานไม่ได้ใช้ BOM) — แสดงทุกล็อตที่พร้อมเบิก
+ * ล็อตที่เลือกเบิกได้ สำหรับฟอร์มขอเบิก
+ *   Part 2:   เลิกกรองตาม BOM ของสูตรแล้ว (โรงงานไม่ได้ใช้ BOM) — แสดงทุกล็อตที่พร้อมเบิก
+ *   Part 2.1: สถานะต้องเป็น "พร้อมใช้" เท่านั้น — ให้ตรงกับด่านใน request_material (0046)
+ *             ของเดิมกันแค่ไม่ผ่าน/หมดอายุ ทำให้เลือกล็อตที่ยังไม่ปล่อยได้แล้วไปตายตอนคลังจ่าย
  *   เรียงตามวันหมดอายุใกล้สุดก่อน (FEFO)
  */
 export async function getSelectableLots(): Promise<SelectableLot[]> {
@@ -77,7 +79,7 @@ export async function getSelectableLots(): Promise<SelectableLot[]> {
        material:products!product_id ( id, code, name, unit )`,
     )
     .gt("qty_on_hand", 0)
-    .not("status", "in", "(rejected,expired)")
+    .eq("status", "available")
     .order("expiry_date", { ascending: true });
 
   const today = new Date().toISOString().slice(0, 10);
