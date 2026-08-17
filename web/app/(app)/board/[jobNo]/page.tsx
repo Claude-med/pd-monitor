@@ -37,6 +37,7 @@ import {
 } from "@/lib/data/edit-request-constants";
 import { getProfile } from "@/lib/auth/dal";
 import { hasAnyRole } from "@/lib/auth/roles";
+import { canPlanJobs } from "@/lib/data/role-access";
 import { fmtDateTime } from "@/lib/format";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
 import { JobActions } from "./job-actions";
@@ -47,6 +48,7 @@ import { LineClearancePanel } from "./line-clearance";
 import { QualityChecks } from "./quality-checks";
 import { Deviations } from "./deviations";
 import { EditRequestButton, type EditField } from "./edit-request-button";
+import { MissingRouteBanner } from "./missing-route";
 import type { ProductionRecordRow } from "@/lib/data/station-constants";
 
 function fmtQty(n: number | null): string {
@@ -113,18 +115,14 @@ export default async function JobDetailPage({
   // สถานีย่อยทั้งหมด (active) + route ของงาน → ใช้ทำตัวเลือกสถานีในฟอร์มต่างๆ
   const jobRoute = await getJobRoute(job.id);
   const activeStations = (await listStations()).filter((s) => s.is_active);
-  // ฟอร์มบันทึกผลผลิต [ข้อ5]: เลือกสถานีตาม route (ถ้ามี) · ไม่งั้น = ทุกสถานี active
-  const recordStationOptions = jobRoute.length
-    ? jobRoute.map((s) => ({
-        id: s.station_id,
-        name: `${s.step_no}. ${s.name}`,
-        group: s.station_group as string,
-      }))
-    : activeStations.map((s) => ({
-        id: s.id,
-        name: s.name,
-        group: s.station_group as string,
-      }));
+  // ฟอร์มบันทึกผลผลิต [ข้อ5]: เลือกได้เฉพาะสถานีใน route ของงานเท่านั้น
+  // Part 2.1: ตัด fallback "ทุกสถานี active" ออก — ของเดิมทำให้งานที่ไม่มี route
+  // เลือกสถานีไหนก็ได้ และผู้ใช้ไม่มีทางรู้ว่างานนั้นไม่มีขั้นตอนการผลิต
+  const recordStationOptions = jobRoute.map((s) => ({
+    id: s.station_id,
+    name: `${s.step_no}. ${s.name}`,
+    group: s.station_group as string,
+  }));
   // ตัวเลือกฟอร์มขอแก้ไข: สถานีย่อย (station_id) = ทุกสถานี active · เครื่องจักร = รายการเครื่อง
   const stationIdEditOptions = activeStations.map((s) => ({ value: s.id, label: s.name }));
   const machineEditOptions = [
@@ -143,10 +141,11 @@ export default async function JobDetailPage({
   const qaSamples = await getQaSamples(job.id);
   const canInprocess = hasAnyRole(roles, ["qc", "manager"]);
   const canSample = hasAnyRole(roles, ["qa", "manager"]);
-  // ตัวเลือกสถานีในฟอร์ม in-process QC (id/ชื่อ) — route ถ้ามี ไม่งั้นทุกสถานี active
-  const stationOptions = jobRoute.length
-    ? jobRoute.map((s) => ({ id: s.station_id, name: `${s.step_no}. ${s.name}` }))
-    : activeStations.map((s) => ({ id: s.id, name: s.name }));
+  // ตัวเลือกสถานีในฟอร์ม in-process QC — ตาม route ของงานเท่านั้น (ตัด fallback เหมือนกัน)
+  const stationOptions = jobRoute.map((s) => ({
+    id: s.station_id,
+    name: `${s.step_no}. ${s.name}`,
+  }));
   const deviations = await getDeviationsByJob(job.id);
   // F1 — คำขอแก้ไขย้อนหลัง (ประวัติ + badge บนแถวที่มีคำขอค้าง)
   const editRequests = await getEditRequestsForJob(job.id);
@@ -209,6 +208,15 @@ export default async function JobDetailPage({
           </span>
         )}
       </div>
+
+      {/* Part 2.1 — งานที่ไม่มีขั้นตอนการผลิต (job_routes ว่าง) ต้องซ่อมก่อนถึงจะบันทึกผลได้ */}
+      {jobRoute.length === 0 && (
+        <MissingRouteBanner
+          jobNo={job.job_no}
+          jobId={job.id}
+          canFix={canPlanJobs(roles)}
+        />
+      )}
 
       {/* แถบสถานะ (stepper) */}
       <div className="flex flex-wrap gap-2">

@@ -311,8 +311,9 @@ export function RecordForm({
                 ))}
               </select>
             ) : (
-              <p className="rounded-md border border-dashed px-3 py-2 text-xs text-muted-foreground">
-                ยังไม่มีสถานีในระบบ — ตั้งค่าสถานี/สูตรที่หน้า “สูตรการผลิต / BOM” ก่อน
+              <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
+                ⚠️ งานนี้ยังไม่มีขั้นตอนการผลิต — ดูแถบเตือนด้านบนของหน้างาน
+                แล้วให้ฝ่ายวางแผนกดเติมให้ก่อน
               </p>
             )}
             {fieldErrors.station_id && (

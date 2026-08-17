@@ -36,6 +36,11 @@ export function NewJobForm({ products }: { products: ProductOption[] }) {
     setV((cur) => ({ ...cur, [k]: val }));
   }
 
+  // Part 2.1: ยาที่ยังไม่ได้ตั้งขั้นตอนการผลิต สร้างงานไม่ได้
+  // (ด่านจริงอยู่ที่ DB — ตรงนี้แค่กันไม่ให้ผู้ใช้กรอกทั้งฟอร์มแล้วเจอ error ตอนท้าย)
+  const picked = products.find((p) => p.id === v.product_id);
+  const missingRoute = !!picked && !picked.has_route;
+
   /** เลือกยา → เติมหน่วยจากทะเบียนผลิตภัณฑ์ให้อัตโนมัติ (แก้ทับได้) */
   function selectProduct(id: string) {
     const p = products.find((x) => x.id === id);
@@ -117,12 +122,21 @@ export function NewJobForm({ products }: { products: ProductOption[] }) {
               <option key={p.id} value={p.id}>
                 {p.code} · {p.name}
                 {p.dosage_form ? ` (${p.dosage_form})` : ""}
+                {p.has_route ? "" : "  ⚠️ ยังไม่ได้ตั้งขั้นตอนการผลิต"}
               </option>
             ))}
           </select>
           {products.length === 0 && (
             <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
               ยังไม่มียาในระบบ — เพิ่มที่เมนู “ผลิตภัณฑ์ / ขั้นตอนการผลิต” ก่อน
+            </p>
+          )}
+          {missingRoute && (
+            <p className="mt-1.5 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+              ⚠️ <strong>{picked?.code}</strong> ยังไม่ได้ตั้งขั้นตอนการผลิต — สร้างงานไม่ได้
+              <br />
+              ไปตั้งที่เมนู “ผลิตภัณฑ์ / ขั้นตอนการผลิต” ก่อน ไม่งั้นงานนี้จะบันทึกผลผลิตและตรวจ
+              in-process QC ไม่ได้
             </p>
           )}
         </div>
@@ -259,7 +273,7 @@ export function NewJobForm({ products }: { products: ProductOption[] }) {
       <div className="flex gap-2">
         <button
           type="button"
-          disabled={pending}
+          disabled={pending || missingRoute}
           onClick={submit}
           className="rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
         >

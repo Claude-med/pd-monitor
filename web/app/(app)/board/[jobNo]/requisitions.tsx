@@ -54,6 +54,7 @@ export function Requisitions({
   const [lotQuery, setLotQuery] = useState("");
   const [qty, setQty] = useState("");
   const [note, setNote] = useState("");
+  const [okMsg, setOkMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const router = useRouter();
@@ -67,14 +68,16 @@ export function Requisitions({
 
   function submit() {
     setError(null);
+    setOkMsg(null);
     start(async () => {
       const res = await requestMaterial(jobNo, jobId, lotId, qty, note);
       if (res.ok) {
+        // Part 2.1: คงคำค้น + ฟอร์มเปิดค้างไว้ — คนเบิกมักเบิกหลายล็อตจากคำค้นเดิมติดกัน
+        // ล้างเฉพาะช่องที่เป็นของ "รายการนี้" เท่านั้น
         setLotId("");
-        setLotQuery("");
         setQty("");
         setNote("");
-        setOpen(false);
+        setOkMsg("✓ ส่งคำขอเบิกแล้ว — เลือกล็อตถัดไปได้เลย");
         router.refresh();
         return;
       }
@@ -280,10 +283,11 @@ export function Requisitions({
                   placeholder="🔎 พิมพ์ค้นหา — รหัส · ชื่อ · เลขล็อต"
                   className="mb-2 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
                 />
+                {/* Part 2.1: ตัด size={8} ออก — size>1 ทำให้ <select> กลายเป็นกล่องรายการ
+                    กางค้าง (listbox) ที่ไม่มีพฤติกรรมหุบ · และสลับ 8↔1 แถวกลางคันตอนพิมพ์กรอง */}
                 <select
                   value={lotId}
                   onChange={(e) => setLotId(e.target.value)}
-                  size={visibleLots.length > 6 ? 8 : undefined}
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
                 >
                   <option value="">— เลือกล็อต (เฉพาะที่พร้อมเบิก) —</option>
@@ -351,12 +355,20 @@ export function Requisitions({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setOpen(false)}
+                  onClick={() => {
+                    setOkMsg(null);
+                    setOpen(false);
+                  }}
                   className="rounded-md border px-4 py-2 text-sm hover:bg-accent"
                 >
                   ปิด
                 </button>
               </div>
+              {okMsg && (
+                <p className="rounded-md bg-emerald-500/10 px-3 py-2 text-xs text-emerald-700 dark:text-emerald-400">
+                  {okMsg}
+                </p>
+              )}
               <p className="text-xs text-muted-foreground">
                 ขอเบิกก่อน → ฝ่ายคลังกด “จ่าย” จึงตัดสต็อก (กันล็อตไม่ผ่าน/หมดอายุ/สต็อกไม่พอ)
               </p>

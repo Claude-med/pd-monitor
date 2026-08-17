@@ -150,6 +150,16 @@ export function QualityChecks({
           </div>
         )}
 
+        {/* Part 2.1: route ว่าง = เตือน ไม่ใช่ซ่อนแถบเงียบๆ (ด่านตรวจ QC จะไม่ทำงาน) */}
+        {route.length === 0 && (
+          <div className="mb-4 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-800 dark:text-amber-300">
+            ⚠️ งานนี้ไม่มีขั้นตอนการผลิต — บันทึกผลตรวจ in-process ไม่ได้ และ
+            <strong> ด่าน &ldquo;ต้องตรวจครบทุกสถานีก่อนส่ง QC&rdquo; จะไม่ทำงาน</strong>
+            <br />
+            ให้ฝ่ายวางแผนกดเติมขั้นตอนการผลิตจากแถบเตือนด้านบนของหน้างานก่อน
+          </div>
+        )}
+
         {checks.length > 0 ? (
           <>
             {/* มือถือ: การ์ด */}
