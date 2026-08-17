@@ -20,7 +20,6 @@ export type ProductWithLots = {
   id: string;
   code: string;
   name: string;
-  type: string; // fg | rm | pm
   unit: string;
   dosage_form: string | null; // แสดงเป็น "ชนิด"
   is_active: boolean;
@@ -33,7 +32,7 @@ export async function listStockProducts(): Promise<ProductWithLots[]> {
   const { data, error } = await supabase
     .from("products")
     .select(
-      `id, code, name, type, unit, dosage_form, is_active,
+      `id, code, name, unit, dosage_form, is_active,
        lots:material_lots ( id, lot_no, qty_on_hand, status, received_date, expiry_date, note )`,
     )
     .order("code", { ascending: true });
@@ -44,7 +43,6 @@ export async function listStockProducts(): Promise<ProductWithLots[]> {
     id: p.id,
     code: p.code,
     name: p.name,
-    type: p.type ?? "fg",
     unit: p.unit ?? "",
     dosage_form: p.dosage_form ?? null,
     is_active: p.is_active ?? true,

@@ -4,15 +4,25 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getProfile } from "@/lib/auth/dal";
 import { hasAnyRole } from "@/lib/auth/roles";
-import { canPlanJobs } from "@/lib/data/role-access";
+import { canManageProducts } from "@/lib/data/role-access";
 
 export type ActionResult = { ok?: boolean; id?: string; error?: string };
 
-/** จัดการผลิตภัณฑ์ = ฝ่ายวางแผน/ผู้บริหาร (ตรงกับ can_plan_jobs() ใน DB) */
-async function requirePlanner(): Promise<boolean> {
+/** ผลลัพธ์ปุ่ม "ลบ" — RPC บอกกลับมาว่าลบจริงได้ หรือเปลี่ยนเป็นปิดใช้งานแทน */
+export type DeleteResult = {
+  ok?: boolean;
+  action?: "deleted" | "deactivated";
+  message?: string;
+  error?: string;
+};
+
+/** จัดการผลิตภัณฑ์ = วางแผน/คลัง/ผู้บริหาร (ตรงกับ can_manage_products() ใน DB — 0044) */
+async function requireProductManager(): Promise<boolean> {
   const profile = await getProfile();
-  return !!profile && canPlanJobs(profile.roles);
+  return !!profile && canManageProducts(profile.roles);
 }
+
+const NO_PRODUCT_PERM = "ไม่มีสิทธิ์ (เฉพาะฝ่ายวางแผน/ฝ่ายคลัง/ผู้บริหาร)";
 
 /** จัดการสถานี/ขั้นตอนการผลิต = ผู้บริหาร (ตรงกับ can_manage_stations() ใน DB) */
 async function requireManager(): Promise<boolean> {
@@ -20,29 +30,24 @@ async function requireManager(): Promise<boolean> {
   return !!profile && hasAnyRole(profile.roles, ["manager"]);
 }
 
-/** เพิ่ม/แก้ผลิตภัณฑ์ (ยา · วัตถุดิบ · บรรจุภัณฑ์) */
+/** เพิ่ม/แก้ผลิตภัณฑ์ */
 export async function upsertProduct(v: {
   id: string | null;
   code: string;
   name: string;
-  type: string;
   unit: string;
   reg_no: string;
   dosage_form: string;
 }): Promise<ActionResult> {
-  if (!(await requirePlanner()))
-    return { error: "ไม่มีสิทธิ์ (เฉพาะฝ่ายวางแผน/ผู้บริหาร)" };
+  if (!(await requireProductManager())) return { error: NO_PRODUCT_PERM };
   if (!v.code.trim()) return { error: "กรุณาระบุรหัสผลิตภัณฑ์" };
   if (!v.name.trim()) return { error: "กรุณาระบุชื่อผลิตภัณฑ์" };
-  if (!["fg", "rm", "pm"].includes(v.type))
-    return { error: "กรุณาเลือกประเภทผลิตภัณฑ์" };
 
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("upsert_product", {
     p_id: v.id,
     p_code: v.code.trim(),
     p_name: v.name.trim(),
-    p_type: v.type,
     p_unit: v.unit.trim() || "TAB",
     p_reg_no: v.reg_no.trim() || null,
     p_dosage_form: v.dosage_form.trim() || null,
@@ -53,13 +58,12 @@ export async function upsertProduct(v: {
   return { ok: true, id: data as string };
 }
 
-/** ปิด/เปิดใช้งานผลิตภัณฑ์ — ปุ่ม "ลบ" ใช้ตัวนี้ (ลบจริงไม่ได้ ประวัติ GMP ผูกอยู่) */
+/** เปิดใช้งานผลิตภัณฑ์ที่เคยปิดไป — ปุ่ม "กู้คืน" */
 export async function setProductActive(
   productId: string,
   isActive: boolean,
 ): Promise<ActionResult> {
-  if (!(await requirePlanner()))
-    return { error: "ไม่มีสิทธิ์ (เฉพาะฝ่ายวางแผน/ผู้บริหาร)" };
+  if (!(await requireProductManager())) return { error: NO_PRODUCT_PERM };
   if (!productId) return { error: "ไม่พบผลิตภัณฑ์" };
 
   const supabase = await createClient();
@@ -71,6 +75,28 @@ export async function setProductActive(
   revalidatePath("/recipes");
   revalidatePath("/materials");
   return { ok: true };
+}
+
+/**
+ * ปุ่ม "ลบ" ผลิตภัณฑ์ — RPC ลบจริงถ้ายังไม่มีใครใช้ · ติดแล้วปิดใช้งานให้อัตโนมัติ (0044)
+ * ผลลัพธ์ที่คืนมาบอกว่าเกิดอะไรขึ้น เพื่อให้หน้าจอแจ้งผู้ใช้ได้ถูก
+ */
+export async function deleteProduct(productId: string): Promise<DeleteResult> {
+  if (!(await requireProductManager())) return { error: NO_PRODUCT_PERM };
+  if (!productId) return { error: "ไม่พบผลิตภัณฑ์" };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("delete_product", { p_id: productId });
+  if (error) return { error: error.message || "ลบผลิตภัณฑ์ไม่สำเร็จ" };
+
+  const res = (data ?? {}) as { action?: string; message?: string };
+  revalidatePath("/recipes");
+  revalidatePath("/materials");
+  return {
+    ok: true,
+    action: res.action === "deleted" ? "deleted" : "deactivated",
+    message: res.message ?? "ทำรายการแล้ว",
+  };
 }
 
 /** เพิ่ม/แก้สถานีย่อย (master) */
@@ -108,7 +134,7 @@ export async function upsertStation(v: {
   return { ok: true, id: data as string };
 }
 
-/** ปิด/เปิดใช้งานสถานี — ปุ่ม "ลบ" ใช้ตัวนี้ (ประวัติการผลิตผูกอยู่ ลบจริงไม่ได้) */
+/** เปิดใช้งานสถานีที่เคยปิดไป — ปุ่ม "กู้คืน" */
 export async function setStationActive(
   stationId: string,
   isActive: boolean,
@@ -125,6 +151,25 @@ export async function setStationActive(
   if (error) return { error: error.message || "เปลี่ยนสถานะไม่สำเร็จ" };
   revalidatePath("/recipes");
   return { ok: true };
+}
+
+/** ปุ่ม "ลบ" สถานี — ลบจริงถ้ายังไม่มีประวัติการผลิตผูกอยู่ · ติดแล้วปิดใช้งานแทน (0044) */
+export async function deleteStation(stationId: string): Promise<DeleteResult> {
+  if (!(await requireManager()))
+    return { error: "ไม่มีสิทธิ์ (เฉพาะผู้บริหาร)" };
+  if (!stationId) return { error: "ไม่พบสถานี" };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("delete_station", { p_id: stationId });
+  if (error) return { error: error.message || "ลบสถานีไม่สำเร็จ" };
+
+  const res = (data ?? {}) as { action?: string; message?: string };
+  revalidatePath("/recipes");
+  return {
+    ok: true,
+    action: res.action === "deleted" ? "deleted" : "deactivated",
+    message: res.message ?? "ทำรายการแล้ว",
+  };
 }
 
 /** แทนที่ลำดับสถานีของผลิตภัณฑ์ (route) ทั้งชุด */

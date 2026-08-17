@@ -1,6 +1,6 @@
 import { getProfile } from "@/lib/auth/dal";
 import { hasAnyRole } from "@/lib/auth/roles";
-import { canPlanJobs } from "@/lib/data/role-access";
+import { canManageProducts as canManageProductsFor } from "@/lib/data/role-access";
 import { listProductsWithRoutes } from "@/lib/data/recipes";
 import { listStations } from "@/lib/data/stations";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
@@ -11,7 +11,7 @@ export const metadata = { title: "ผลิตภัณฑ์ / ขั้นต�
 export default async function RecipesPage() {
   const profile = await getProfile();
   const roles = profile?.roles ?? [];
-  const canManageProducts = canPlanJobs(roles);
+  const canManageProducts = canManageProductsFor(roles);
   const canManageStations = hasAnyRole(roles, ["manager"]);
   const [products, stations] = await Promise.all([
     listProductsWithRoutes(),
@@ -26,8 +26,7 @@ export default async function RecipesPage() {
           ผลิตภัณฑ์ / ขั้นตอนการผลิต
         </h1>
         <p className="text-sm text-muted-foreground">
-          ทะเบียนผลิตภัณฑ์ (ยา · วัตถุดิบ · บรรจุภัณฑ์) · หน่วย/ชนิด/REG NO. ·
-          ลำดับสถานีการผลิตของแต่ละตัว
+          ทะเบียนผลิตภัณฑ์ · หน่วย/ชนิด/REG NO. · ลำดับสถานีการผลิตของแต่ละตัว
           {canManageProducts ? "" : " (ดูอย่างเดียว)"}
         </p>
       </div>

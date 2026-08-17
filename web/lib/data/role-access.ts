@@ -5,8 +5,9 @@ import { hasAnyRole } from "@/lib/auth/roles";
  * แหล่งความจริงเดียวของ "สิทธิ์แต่ละ role" ฝั่งแอป (Part A)
  * — ไม่มี server import → ใช้ได้ทั้ง Server และ Client Components
  *
- * ⚠️ helper ด้านล่างต้อง "ตรงกับ guard ใน DB" เสมอ (migration 0039):
+ * ⚠️ helper ด้านล่างต้อง "ตรงกับ guard ใน DB" เสมอ (migration 0039 · 0044):
  *      canPlanJobs()          ↔ public.can_plan_jobs()
+ *      canManageProducts()    ↔ public.can_manage_products()
  *      canManageMachines()    ↔ public.can_manage_machines()
  *      canSetMachineSchedule()↔ public.can_set_machine_schedule()
  *    DB เป็นด่านบังคับจริง · ฝั่งแอปใช้ตัดสินว่าจะ "แสดงปุ่ม/ช่องกรอก" ไหน
@@ -34,7 +35,7 @@ export const ROLE_ACCESS: Record<AppRole, RoleAccess> = {
     duty: "วางแผนการผลิต — เปิดงานเข้าระบบ",
     manage: [
       "สร้างงานผลิตใหม่ (ออเดอร์ + งาน + ล็อต)",
-      "เพิ่ม/แก้/ปิดใช้งานผลิตภัณฑ์ (ยา · วัตถุดิบ · บรรจุภัณฑ์)",
+      "เพิ่ม/แก้/ลบผลิตภัณฑ์ในทะเบียน",
       "ยืนยันแผนผลิต (รอแจ้งผลิต → มีแผนแล้ว)",
     ],
     view: ["ความคืบหน้าทุกงานบนบอร์ด"],
@@ -76,7 +77,8 @@ export const ROLE_ACCESS: Record<AppRole, RoleAccess> = {
     code: "WH",
     duty: "คลังผลิตภัณฑ์ + รับสินค้าสำเร็จรูปเข้าคลัง",
     manage: [
-      "ล็อต/สต็อกของผลิตภัณฑ์ทุกประเภท (ยา · RM · PM)",
+      "เพิ่ม/แก้/ลบผลิตภัณฑ์ในทะเบียน (แก้ขั้นตอนการผลิตไม่ได้)",
+      "ล็อต/สต็อกของผลิตภัณฑ์ทุกตัว",
       "จ่ายของตามใบเบิก (ตัดสต็อก)",
       "รับ FG เข้าคลัง",
     ],
@@ -120,9 +122,17 @@ export const ROLE_ACCESS: Record<AppRole, RoleAccess> = {
   },
 };
 
-/** สร้างงานผลิต / เพิ่มยา / ยืนยันแผนผลิต — ตรงกับ can_plan_jobs() ใน DB */
+/** สร้างงานผลิต / ยืนยันแผนผลิต — ตรงกับ can_plan_jobs() ใน DB */
 export function canPlanJobs(roles: AppRole[]): boolean {
   return hasAnyRole(roles, ["planner", "manager"]);
+}
+
+/**
+ * เพิ่ม/แก้/ลบทะเบียนผลิตภัณฑ์ — ตรงกับ can_manage_products() ใน DB (0044)
+ * ฝ่ายคลังจัดการผลิตภัณฑ์ได้ แต่ "ขั้นตอนการผลิต (route)" ยังเป็นผู้บริหารเท่านั้น
+ */
+export function canManageProducts(roles: AppRole[]): boolean {
+  return hasAnyRole(roles, ["planner", "warehouse", "manager"]);
 }
 
 /** เพิ่ม/แก้ทะเบียนเครื่องจักร — ตรงกับ can_manage_machines() ใน DB */

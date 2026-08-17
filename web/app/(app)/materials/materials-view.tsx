@@ -9,10 +9,6 @@ import {
   USABLE_LOT_STATUSES,
   type MaterialLotStatus,
 } from "@/lib/data/material-constants";
-import {
-  PRODUCT_TYPE_SHORT,
-  PRODUCT_TYPE_COLOR,
-} from "@/lib/data/product-constants";
 import { daysUntil } from "@/lib/data/machine-constants";
 import type { ProductWithLots, MaterialLot } from "@/lib/data/materials";
 import { upsertProductLot } from "./actions";
@@ -85,14 +81,6 @@ export function MaterialsView({
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span
-                        className="rounded px-1.5 py-0.5 text-[10px] font-medium text-white"
-                        style={{
-                          backgroundColor: PRODUCT_TYPE_COLOR[p.type] ?? "#64748b",
-                        }}
-                      >
-                        {PRODUCT_TYPE_SHORT[p.type] ?? p.type}
-                      </span>
                       <span className="font-medium">{p.code}</span>
                       <span className="truncate text-sm text-muted-foreground">
                         {p.name}

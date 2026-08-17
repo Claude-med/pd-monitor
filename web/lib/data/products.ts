@@ -9,9 +9,9 @@ export type ProductOption = {
 };
 
 /**
- * ตัวเลือกยาสำหรับหน้าสร้างงานผลิต
- * — Part 2: กรองเฉพาะ type = 'fg' (ยา/สินค้าสำเร็จรูป)
- *   เพราะตาราง products ตอนนี้เก็บวัตถุดิบ (rm) และบรรจุภัณฑ์ (pm) รวมอยู่ด้วย
+ * ตัวเลือกผลิตภัณฑ์สำหรับหน้าสร้างงานผลิต
+ * — Part 2.1: ทีมเลิกใช้การแยกประเภท ยา/RM/PM แล้ว (drop products.type ใน 0044)
+ *   จึงแสดงผลิตภัณฑ์ที่เปิดใช้งานทุกตัว
  */
 export async function getProducts(): Promise<ProductOption[]> {
   const supabase = await createClient();
@@ -19,7 +19,6 @@ export async function getProducts(): Promise<ProductOption[]> {
     .from("products")
     .select("id, code, name, dosage_form, unit")
     .eq("is_active", true)
-    .eq("type", "fg")
     .order("code", { ascending: true });
   if (error || !data) return [];
   return data as ProductOption[];

@@ -5,17 +5,14 @@ import { useRouter } from "next/navigation";
 import type { ProductWithRoute } from "@/lib/data/recipes";
 import type { Station } from "@/lib/data/stations";
 import { STATIONS, STATION_LABEL } from "@/lib/data/station-constants";
-import {
-  PRODUCT_TYPES,
-  PRODUCT_TYPE_SHORT,
-  PRODUCT_TYPE_COLOR,
-  PRODUCT_UNITS,
-} from "@/lib/data/product-constants";
+import { PRODUCT_UNITS } from "@/lib/data/product-constants";
 import {
   upsertProduct,
   setProductActive,
+  deleteProduct,
   upsertStation,
   setStationActive,
+  deleteStation,
   setProductRoute,
 } from "./actions";
 
@@ -163,7 +160,7 @@ function StationMasterPanel({ stations }: { stations: Station[] }) {
             <div className="rounded-md border bg-muted/30 p-3">
               <StationForm
                 onDone={() => setAddOpen(false)}
-                nextSeq={(stations.at(-1)?.seq ?? 0) + 10}
+                nextSeq={stations.reduce((max, s) => Math.max(max, s.seq), 0) + 1}
               />
             </div>
           )}
@@ -211,18 +208,37 @@ function StationRow({
   onToggle: () => void;
 }) {
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const router = useRouter();
 
-  function toggleActive() {
+  /** ปุ่ม "ลบ" = ลบจริงถ้ายังไม่มีประวัติผูก · ติดแล้ว RPC ปิดใช้งานให้แทน (0044) */
+  function remove() {
     setError(null);
+    setNotice(null);
     start(async () => {
-      const res = await setStationActive(station.id, !station.is_active);
+      const res = await deleteStation(station.id);
+      if (res.ok) {
+        // ลบจริง = แถวหายไปเลย ไม่ต้องขึ้นข้อความค้าง · ปิดใช้งานแทน = ต้องบอกเหตุผล
+        if (res.action === "deactivated") setNotice(res.message ?? null);
+        router.refresh();
+        return;
+      }
+      setError(res.error ?? "ลบสถานีไม่สำเร็จ");
+    });
+  }
+
+  /** ปุ่ม "กู้คืน" = เปิดใช้งานสถานีที่เคยปิดไป */
+  function restore() {
+    setError(null);
+    setNotice(null);
+    start(async () => {
+      const res = await setStationActive(station.id, true);
       if (res.ok) {
         router.refresh();
         return;
       }
-      setError(res.error ?? "เปลี่ยนสถานะไม่สำเร็จ");
+      setError(res.error ?? "กู้คืนไม่สำเร็จ");
     });
   }
 
@@ -254,7 +270,7 @@ function StationRow({
             <button
               type="button"
               disabled={pending}
-              onClick={toggleActive}
+              onClick={station.is_active ? remove : restore}
               className={`rounded-md border px-2 py-1 text-xs hover:bg-accent disabled:opacity-50 ${
                 station.is_active ? "text-destructive" : ""
               }`}
@@ -269,6 +285,15 @@ function StationRow({
           <td colSpan={6} className="px-2 pb-2">
             <p className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
               {error}
+            </p>
+          </td>
+        </tr>
+      )}
+      {notice && (
+        <tr>
+          <td colSpan={6} className="px-2 pb-2">
+            <p className="rounded-md bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+              ⚠️ {notice}
             </p>
           </td>
         </tr>
@@ -423,18 +448,37 @@ function ProductCard({
 }) {
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const router = useRouter();
 
-  function toggleActive() {
+  /** ปุ่ม "ลบ" = ลบจริงถ้ายังไม่มีใครใช้ · ติดแล้ว RPC ปิดใช้งานให้แทน (0044) */
+  function remove() {
     setError(null);
+    setNotice(null);
     start(async () => {
-      const res = await setProductActive(product.id, !product.is_active);
+      const res = await deleteProduct(product.id);
+      if (res.ok) {
+        // ลบจริง = การ์ดหายไปเลย · ปิดใช้งานแทน = ต้องบอกว่าติดอะไรอยู่
+        if (res.action === "deactivated") setNotice(res.message ?? null);
+        router.refresh();
+        return;
+      }
+      setError(res.error ?? "ลบผลิตภัณฑ์ไม่สำเร็จ");
+    });
+  }
+
+  /** ปุ่ม "กู้คืน" = เปิดใช้งานผลิตภัณฑ์ที่เคยปิดไป */
+  function restore() {
+    setError(null);
+    setNotice(null);
+    start(async () => {
+      const res = await setProductActive(product.id, true);
       if (res.ok) {
         router.refresh();
         return;
       }
-      setError(res.error ?? "เปลี่ยนสถานะไม่สำเร็จ");
+      setError(res.error ?? "กู้คืนไม่สำเร็จ");
     });
   }
 
@@ -445,12 +489,6 @@ function ProductCard({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <span
-              className="rounded px-1.5 py-0.5 text-[10px] font-medium text-white"
-              style={{ backgroundColor: PRODUCT_TYPE_COLOR[product.type] ?? "#64748b" }}
-            >
-              {PRODUCT_TYPE_SHORT[product.type] ?? product.type}
-            </span>
             <span className="font-medium">{product.code}</span>
             <span className="truncate text-sm text-muted-foreground">
               {product.name}
@@ -479,7 +517,7 @@ function ProductCard({
             <button
               type="button"
               disabled={pending}
-              onClick={toggleActive}
+              onClick={product.is_active ? remove : restore}
               className={`rounded-md border px-3 py-1.5 text-xs hover:bg-accent disabled:opacity-50 ${
                 product.is_active ? "text-destructive" : ""
               }`}
@@ -493,6 +531,12 @@ function ProductCard({
       {error && (
         <p className="mt-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {error}
+        </p>
+      )}
+
+      {notice && (
+        <p className="mt-2 rounded-md bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
+          ⚠️ {notice}
         </p>
       )}
 
@@ -522,7 +566,6 @@ function ProductForm({
     id: product?.id ?? null,
     code: product?.code ?? "",
     name: product?.name ?? "",
-    type: product?.type ?? "fg",
     unit: product?.unit ?? "TAB",
     reg_no: product?.reg_no ?? "",
     dosage_form: product?.dosage_form ?? "",
@@ -571,20 +614,6 @@ function ProductForm({
             placeholder="เช่น FEBRATE-200"
             className={inputClass}
           />
-        </div>
-        <div>
-          <label className={labelClass}>ประเภท *</label>
-          <select
-            value={v.type}
-            onChange={(e) => setV((c) => ({ ...c, type: e.target.value }))}
-            className={inputClass}
-          >
-            {PRODUCT_TYPES.map((t) => (
-              <option key={t.key} value={t.key}>
-                {t.label}
-              </option>
-            ))}
-          </select>
         </div>
         <div>
           <label className={labelClass}>หน่วย</label>
