@@ -5,11 +5,7 @@ import { useRouter } from "next/navigation";
 import type { CustomerOption } from "@/lib/data/customers";
 import { upsertCustomer, deleteCustomer } from "./customer-actions";
 
-/**
- * ช่องเลือกลูกค้า + ปุ่มจัดการทะเบียน (Part 3 ก้อน 1)
- * — ก้อนนี้ส่งค่าออกเป็น "ชื่อ" เพราะ RPC สร้างงานยังรับ p_customer เป็น text
- *   (ก้อน 2 จะเปลี่ยนไปส่ง customer_id พร้อมรื้อ RPC ทั้งตัว)
- */
+/** ช่องเลือกลูกค้า + ปุ่มจัดการทะเบียน (Part 3) — ส่งค่าออกเป็น customer_id */
 
 const inputClass =
   "w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring";
@@ -29,8 +25,9 @@ export function CustomerPicker({
   onChange,
 }: {
   customers: CustomerOption[];
+  /** customer_id ที่เลือกอยู่ */
   value: string;
-  onChange: (name: string) => void;
+  onChange: (customerId: string) => void;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -44,7 +41,7 @@ export function CustomerPicker({
         >
           <option value="">— เลือกลูกค้า —</option>
           {customers.map((c) => (
-            <option key={c.id} value={c.name}>
+            <option key={c.id} value={c.id}>
               {c.name}
             </option>
           ))}
@@ -68,7 +65,7 @@ export function CustomerPicker({
       {open && (
         <CustomerManagerModal
           customers={customers}
-          selectedName={value}
+          selectedId={value}
           onClearSelected={() => onChange("")}
           onClose={() => setOpen(false)}
         />
@@ -79,12 +76,12 @@ export function CustomerPicker({
 
 function CustomerManagerModal({
   customers,
-  selectedName,
+  selectedId,
   onClearSelected,
   onClose,
 }: {
   customers: CustomerOption[];
-  selectedName: string;
+  selectedId: string;
   onClearSelected: () => void;
   onClose: () => void;
 }) {
@@ -136,9 +133,7 @@ function CustomerManagerModal({
     start(async () => {
       const res = await upsertCustomer(id, editName);
       if (res.error) return setError(res.error);
-      // ชื่อที่เลือกอยู่เปลี่ยนไปด้วย → อัปเดตค่าในฟอร์มให้ตรง
-      const old = customers.find((c) => c.id === id)?.name;
-      if (old && old === selectedName) onClearSelected();
+      // ค่าที่เลือกในฟอร์มเป็น id จึงไม่ต้องแก้ — แค่ชื่อที่แสดงเปลี่ยน
       reset();
       setNotice("แก้ชื่อลูกค้าแล้ว (ใบสั่งผลิตที่ผูกอยู่อัปเดตตามให้อัตโนมัติ)");
       router.refresh();
@@ -162,7 +157,7 @@ function CustomerManagerModal({
         });
         return;
       }
-      if (name === selectedName) onClearSelected();
+      if (id === selectedId) onClearSelected();
       reset();
       setNotice(res.message ?? "ลบลูกค้าแล้ว");
       router.refresh();
@@ -175,7 +170,7 @@ function CustomerManagerModal({
     start(async () => {
       const res = await deleteCustomer(blocked.id, reassignTo);
       if (res.error) return setError(res.error);
-      if (blocked.name === selectedName) onClearSelected();
+      if (blocked.id === selectedId) onClearSelected();
       reset();
       setNotice(res.message ?? "ย้ายงานแล้วลบลูกค้าเรียบร้อย");
       router.refresh();

@@ -251,6 +251,9 @@ export default async function JobDetailPage({
       {/* ข้อมูลงาน */}
       <dl className="grid grid-cols-2 gap-4 rounded-xl border bg-card p-5 sm:grid-cols-3">
         <Field label="ลูกค้า" value={job.customer} />
+        <Field label="ใบคำขอ" value={job.request_no} />
+        <Field label="C.P.O DATE" value={job.cpo_date} />
+        <Field label="Status" value={job.sub_status} />
         <Field label="ออเดอร์" value={job.order_no} />
         <Field label="ผลิตภัณฑ์" value={job.product_name} />
         <Field

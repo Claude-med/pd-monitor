@@ -71,6 +71,9 @@ export function availableTransitions(
   );
 }
 
+/** จำนวนใบสูงสุดต่อการสร้าง 1 ครั้ง — ต้องตรงกับด่านใน create_production_jobs (0048) */
+export const MAX_JOBS_PER_CREATE = 50;
+
 export type JobRow = {
   id: string;
   job_no: string;
@@ -87,6 +90,12 @@ export type JobRow = {
   product_name: string | null;
   quantity: number | null;
   unit: string | null;
+  /** ใบคำขอ — เลขที่ใบสั่งผลิตจากลูกค้า (Part 3) · ใบที่สร้างพร้อมกันใช้เลขนี้ร่วมกัน */
+  request_no: string | null;
+  /** C.P.O DATE — วันที่ลูกค้าสั่งผลิต (Part 3) */
+  cpo_date: string | null;
+  /** Status ข้อความอิสระ (Part 3) — ⚠️ ไม่เกี่ยวกับด่าน GMP · flow จริงคุมด้วย status (enum) */
+  sub_status: string | null;
   /** รูปแบบบรรจุของงานนี้ (Part 2 — ย้ายจากระดับยามาระดับงาน) */
   pack_type: string | null;
   /** ขนาดบรรจุ 1–3 ช่อง — ตรงกับใบแจ้งผลิต F.PLN.01 */

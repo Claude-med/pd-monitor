@@ -96,6 +96,9 @@ export default async function EbrPage({
           <div className="grid gap-1 sm:grid-cols-2">
             <Row label="ผลิตภัณฑ์" value={job.product_name} />
             <Row label="ลูกค้า" value={job.customer} />
+            <Row label="ใบคำขอ" value={job.request_no} />
+            <Row label="C.P.O DATE" value={job.cpo_date} />
+            <Row label="Status" value={job.sub_status} />
             <Row label="ออเดอร์" value={job.order_no} />
             <Row
               label="จำนวนสั่งผลิต"
