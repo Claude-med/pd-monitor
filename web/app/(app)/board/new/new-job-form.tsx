@@ -3,7 +3,9 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { ProductOption } from "@/lib/data/products";
+import type { CustomerOption } from "@/lib/data/customers";
 import { PACK_TYPES } from "@/lib/data/packaging-constants";
+import { CustomerPicker } from "./customer-picker";
 import { createJob, type NewJobValues } from "./actions";
 
 const MAX_PACKS = 3;
@@ -26,7 +28,13 @@ const inputClass =
   "w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring";
 const labelClass = "mb-1 block text-xs font-medium text-muted-foreground";
 
-export function NewJobForm({ products }: { products: ProductOption[] }) {
+export function NewJobForm({
+  products,
+  customers,
+}: {
+  products: ProductOption[];
+  customers: CustomerOption[];
+}) {
   const [v, setV] = useState<NewJobValues>(EMPTY);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -98,14 +106,13 @@ export function NewJobForm({ products }: { products: ProductOption[] }) {
           />
         </div>
 
-        {/* ลูกค้า */}
+        {/* ลูกค้า — Part 3 ก้อน 1: เลือกจากทะเบียน ไม่พิมพ์อิสระแล้ว */}
         <div>
-          <label className={labelClass}>ลูกค้า *</label>
-          <input
+          <label className={labelClass}>ลูกค้า / หน่วยงาน *</label>
+          <CustomerPicker
+            customers={customers}
             value={v.customer}
-            onChange={(e) => set("customer", e.target.value)}
-            placeholder="ชื่อลูกค้า / หน่วยงาน"
-            className={inputClass}
+            onChange={(name) => set("customer", name)}
           />
         </div>
 
