@@ -7,6 +7,7 @@ import {
   canManageMachines,
   canSetMachineSchedule,
 } from "@/lib/data/role-access";
+import type { MachineStatus } from "@/lib/data/machine-constants";
 
 export type MachineValues = {
   id: string | null;
@@ -22,6 +23,33 @@ export type MachineValues = {
 };
 
 export type ActionResult = { ok?: boolean; id?: string; error?: string };
+
+/**
+ * เปลี่ยน "สถานะเครื่องจักร" อย่างเดียว — กดจากการ์ดได้เลย (migration 0052)
+ *
+ * ⚠️ ห้ามเรียก upsertMachine เพื่อเปลี่ยนสถานะ — ตัวนั้นเขียนทับทุกคอลัมน์
+ *    ถ้าหน้าจอถือ snapshot เก่าอยู่จะทับ ห้อง/หมายเหตุ/กำหนดซ่อม ทิ้งโดยไม่รู้ตัว
+ * สิทธิ์เท่าเดิม: ฝ่ายผลิต / วิศวกรรม / ผู้บริหาร (DB เป็นด่านจริง)
+ */
+export async function setMachineStatus(
+  machineId: string,
+  status: MachineStatus,
+): Promise<ActionResult> {
+  const profile = await getProfile();
+  if (!profile || !canManageMachines(profile.roles))
+    return { error: "ไม่มีสิทธิ์ (เฉพาะฝ่ายผลิต/วิศวกรรม/ผู้บริหาร)" };
+  if (!machineId) return { error: "ไม่พบเครื่องจักรที่เลือก" };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_machine_status", {
+    p_machine_id: machineId,
+    p_status: status,
+  });
+  if (error) return { error: error.message || "เปลี่ยนสถานะไม่สำเร็จ" };
+
+  revalidatePath("/machines");
+  return { ok: true };
+}
 
 /**
  * เพิ่ม/แก้เครื่องจักร ผ่าน rpc — DB บังคับสิทธิ์ + validate (migration 0039)

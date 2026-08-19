@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { STATIONS, STATION_LABEL } from "@/lib/data/station-constants";
 import {
@@ -8,9 +8,14 @@ import {
   MACHINE_STATUS_LABEL,
   MACHINE_STATUS_COLOR,
   daysUntil,
+  type MachineStatus,
 } from "@/lib/data/machine-constants";
 import type { Machine } from "@/lib/data/machines";
-import { upsertMachine, type MachineValues } from "./actions";
+import {
+  upsertMachine,
+  setMachineStatus,
+  type MachineValues,
+} from "./actions";
 
 const inputClass =
   "w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring";
@@ -58,6 +63,89 @@ function DueBadge({ date, label }: { date: string | null; label: string }) {
       </span>
     );
   return null;
+}
+
+/**
+ * ชิปสถานะกดเปลี่ยนได้บนการ์ด (0052) — เห็นเฉพาะคนมีสิทธิ์จัดการเครื่องจักร
+ *
+ * เปลี่ยนสถานะเป็นงานที่ทำบ่อยที่สุดของหน้านี้ ของเดิมต้องเปิดฟอร์มแก้ทั้งใบก่อน
+ * (แพทเทิร์นเดียวกับ LotStatusPicker ในหน้าคลัง — RPC แคบ แก้เฉพาะคอลัมน์ status)
+ */
+function MachineStatusPicker({
+  machineId,
+  status,
+}: {
+  machineId: string;
+  status: MachineStatus;
+}) {
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  const router = useRouter();
+
+  function pick(next: MachineStatus) {
+    if (next === status || pending) return;
+    setError(null);
+    start(async () => {
+      const res = await setMachineStatus(machineId, next);
+      if (res.error) return setError(res.error);
+      router.refresh();
+    });
+  }
+
+  return (
+    <div className="space-y-1">
+      <div className="flex flex-wrap gap-1">
+        {MACHINE_STATUSES.map((s) => {
+          const on = status === s.key;
+          return (
+            <button
+              key={s.key}
+              type="button"
+              disabled={pending}
+              onClick={() => pick(s.key)}
+              aria-pressed={on}
+              className="rounded px-2 py-0.5 text-xs font-medium transition disabled:opacity-50"
+              style={
+                on
+                  ? { backgroundColor: s.color, color: "#fff" }
+                  : { border: `1px solid ${s.color}`, color: s.color }
+              }
+            >
+              {pending && !on ? "…" : s.label}
+            </button>
+          );
+        })}
+      </div>
+      {error && <p className="text-[11px] text-destructive">{error}</p>}
+    </div>
+  );
+}
+
+/** ช่องข้อมูลบนการ์ด — เห็นได้ทุก role ไม่ต้องกด "แก้ไข" */
+function Field({
+  label,
+  value,
+  empty = "—",
+  children,
+}: {
+  label: string;
+  value: string | null;
+  empty?: string;
+  children?: ReactNode;
+}) {
+  return (
+    <div>
+      <dt className="text-[11px] text-muted-foreground">{label}</dt>
+      <dd className="mt-0.5 flex flex-wrap items-center gap-1.5 text-sm">
+        {value ? (
+          <span>{value}</span>
+        ) : (
+          <span className="text-muted-foreground">{empty}</span>
+        )}
+        {children}
+      </dd>
+    </div>
+  );
 }
 
 export function MachinesView({
@@ -116,48 +204,83 @@ export function MachinesView({
         <div className="space-y-3">
           {machines.map((m) => (
             <div key={m.id} className="rounded-xl border bg-card">
-              <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-medium">{m.code}</span>
-                    <span className="truncate text-sm text-muted-foreground">
-                      {m.name}
-                    </span>
-                    {m.station && (
-                      <span className="rounded bg-secondary px-1.5 py-0.5 text-[10px] text-secondary-foreground">
-                        {STATION_LABEL[m.station] ?? m.station}
+              <div className="space-y-3 px-5 py-3">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium">{m.code}</span>
+                      <span className="truncate text-sm text-muted-foreground">
+                        {m.name}
                       </span>
-                    )}
-                    {m.room && (
-                      <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                        🚪 {m.room}
-                      </span>
-                    )}
+                      {!m.is_active && (
+                        <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                          ปิดใช้งาน
+                        </span>
+                      )}
+                    </div>
+                    {/* สถานะ — คนมีสิทธิ์กดเปลี่ยนได้ตรงนี้เลย ไม่ต้องเปิดฟอร์ม */}
+                    <div className="mt-1.5">
+                      {canManage ? (
+                        <MachineStatusPicker
+                          machineId={m.id}
+                          status={m.status}
+                        />
+                      ) : (
+                        <StatusBadge status={m.status} />
+                      )}
+                    </div>
                   </div>
-                  <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                    <DueBadge date={m.next_maintenance_date} label="ซ่อม" />
-                    <DueBadge date={m.next_calibration_date} label="สอบเทียบ" />
-                  </div>
-                  {m.note && (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      📝 {m.note}
-                    </p>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <StatusBadge status={m.status} />
                   {canManage && (
                     <button
                       type="button"
                       onClick={() =>
                         setEditId((id) => (id === m.id ? null : m.id))
                       }
-                      className="rounded-md border px-3 py-1.5 text-sm hover:bg-accent"
+                      className="shrink-0 rounded-md border px-3 py-1.5 text-sm hover:bg-accent"
                     >
-                      {editId === m.id ? "ปิด" : "แก้ไข"}
+                      {editId === m.id ? "ปิด" : "แก้ไขทะเบียน"}
                     </button>
                   )}
                 </div>
+
+                {/* รายละเอียดครบบนการ์ด — เห็นได้ทุก role ไม่ต้องมีสิทธิ์แก้ไข */}
+                <dl className="grid grid-cols-2 gap-x-4 gap-y-2 border-t pt-3 sm:grid-cols-3">
+                  <Field
+                    label="สถานี"
+                    value={
+                      m.station ? (STATION_LABEL[m.station] ?? m.station) : null
+                    }
+                    empty="— ไม่ระบุ —"
+                  />
+                  <Field label="ห้อง" value={m.room} empty="— ไม่ระบุ —" />
+                  <Field
+                    label="ทำความสะอาดล่าสุด"
+                    value={m.last_clean_date}
+                    empty="— ยังไม่บันทึก —"
+                  />
+                  <Field
+                    label="กำหนดซ่อมบำรุงครั้งหน้า"
+                    value={m.next_maintenance_date}
+                    empty="— ยังไม่กำหนด —"
+                  >
+                    <DueBadge date={m.next_maintenance_date} label="ซ่อม" />
+                  </Field>
+                  <Field
+                    label="กำหนดสอบเทียบครั้งหน้า"
+                    value={m.next_calibration_date}
+                    empty="— ยังไม่กำหนด —"
+                  >
+                    <DueBadge date={m.next_calibration_date} label="สอบเทียบ" />
+                  </Field>
+                  {m.note && (
+                    <div className="col-span-2 sm:col-span-3">
+                      <dt className="text-[11px] text-muted-foreground">
+                        หมายเหตุ
+                      </dt>
+                      <dd className="mt-0.5 text-sm">📝 {m.note}</dd>
+                    </div>
+                  )}
+                </dl>
               </div>
               {canManage && editId === m.id && (
                 <div className="border-t p-5">
