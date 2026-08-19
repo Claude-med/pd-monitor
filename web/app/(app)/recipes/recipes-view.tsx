@@ -10,11 +10,14 @@ import {
   upsertProduct,
   setProductActive,
   deleteProduct,
+  previewDeleteProduct,
+  forceDeleteProduct,
   upsertStation,
   setStationActive,
   deleteStation,
   setProductRoute,
 } from "./actions";
+import type { DeleteImpact, DeletePreview } from "./actions";
 
 const inputClass =
   "w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring";
@@ -27,17 +30,23 @@ export function RecipesView({
   stations,
   canManageProducts,
   canManageStations,
+  canForceDelete,
 }: {
   products: ProductWithRoute[];
   stations: Station[];
   canManageProducts: boolean;
   canManageStations: boolean;
+  canForceDelete: boolean;
 }) {
   const [showInactive, setShowInactive] = useState(false);
   const [adding, setAdding] = useState(false);
 
   const inactiveCount = products.filter((p) => !p.is_active).length;
-  const visible = showInactive ? products : products.filter((p) => p.is_active);
+  // ติ๊ก "แสดงที่ปิดใช้งานแล้ว" → ดันตัวที่ปิดใช้งานขึ้นบนสุด (จะได้จัดการทีเดียวจบ)
+  // sort ของ JS เป็น stable → ลำดับ code เดิมภายในแต่ละกลุ่มยังอยู่
+  const visible = showInactive
+    ? products.slice().sort((a, b) => Number(a.is_active) - Number(b.is_active))
+    : products.filter((p) => p.is_active);
 
   return (
     <div className="space-y-4">
@@ -48,17 +57,21 @@ export function RecipesView({
           ผลิตภัณฑ์ {visible.length} รายการ
         </p>
         <div className="flex flex-wrap items-center gap-3">
-          {inactiveCount > 0 && (
-            <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <input
-                type="checkbox"
-                checked={showInactive}
-                onChange={(e) => setShowInactive(e.target.checked)}
-                className="h-4 w-4"
-              />
-              แสดงที่ปิดใช้งานแล้ว ({inactiveCount})
-            </label>
-          )}
+          {/* แสดงเสมอ — ของเดิมซ่อนตอนไม่มีตัวปิดใช้งาน ทำให้ผู้ใช้ไม่รู้ว่ามีตัวกรองนี้อยู่ */}
+          <label
+            className={`flex items-center gap-1.5 text-xs ${
+              inactiveCount > 0 ? "text-muted-foreground" : "text-muted-foreground/50"
+            }`}
+          >
+            <input
+              type="checkbox"
+              checked={showInactive}
+              disabled={inactiveCount === 0}
+              onChange={(e) => setShowInactive(e.target.checked)}
+              className="h-4 w-4"
+            />
+            แสดงที่ปิดใช้งานแล้ว ({inactiveCount})
+          </label>
           {canManageProducts && (
             <button
               type="button"
@@ -91,6 +104,7 @@ export function RecipesView({
               stations={stations}
               canManageProducts={canManageProducts}
               canManageStations={canManageStations}
+              canForceDelete={canForceDelete}
             />
           ))}
         </div>
@@ -440,17 +454,31 @@ function ProductCard({
   stations,
   canManageProducts,
   canManageStations,
+  canForceDelete,
 }: {
   product: ProductWithRoute;
   stations: Station[];
   canManageProducts: boolean;
   canManageStations: boolean;
+  canForceDelete: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // แผงถามยืนยันก่อนลบ (เดิมกดปุ๊บทำงานทันที ไม่มีทางถอย)
+  const [confirming, setConfirming] = useState(false);
+  // แผง "ลบถาวร": null = ปิด · object = เปิดพร้อมผลแจกแจงจาก DB
+  const [preview, setPreview] = useState<DeletePreview | null>(null);
+  const [password, setPassword] = useState("");
   const [pending, start] = useTransition();
   const router = useRouter();
+
+  function closePanels() {
+    setConfirming(false);
+    setPreview(null);
+    setPassword("");
+    setError(null);
+  }
 
   /** ปุ่ม "ลบ" = ลบจริงถ้ายังไม่มีใครใช้ · ติดแล้ว RPC ปิดใช้งานให้แทน (0044) */
   function remove() {
@@ -461,10 +489,37 @@ function ProductCard({
       if (res.ok) {
         // ลบจริง = การ์ดหายไปเลย · ปิดใช้งานแทน = ต้องบอกว่าติดอะไรอยู่
         if (res.action === "deactivated") setNotice(res.message ?? null);
+        setConfirming(false);
         router.refresh();
         return;
       }
       setError(res.error ?? "ลบผลิตภัณฑ์ไม่สำเร็จ");
+    });
+  }
+
+  /** ปุ่ม "ลบถาวร" ขั้นที่ 1 — ถาม DB ก่อนว่าติดอะไร / อะไรจะหายตาม (0050) */
+  function openForceDelete() {
+    setError(null);
+    setNotice(null);
+    setPassword("");
+    start(async () => {
+      const res = await previewDeleteProduct(product.id);
+      if (res.error) return setError(res.error);
+      setPreview(res);
+    });
+  }
+
+  /** ปุ่ม "ลบถาวร" ขั้นที่ 2 — ยืนยันรหัสผ่านแล้วลบจริง */
+  function confirmForceDelete() {
+    setError(null);
+    start(async () => {
+      const res = await forceDeleteProduct(product.id, password);
+      if (res.ok) {
+        closePanels();
+        router.refresh();
+        return;
+      }
+      setError(res.error ?? "ลบถาวรไม่สำเร็จ");
     });
   }
 
@@ -484,7 +539,11 @@ function ProductCard({
 
   return (
     <div
-      className={`rounded-xl border bg-card p-4 ${product.is_active ? "" : "opacity-60"}`}
+      className={
+        product.is_active
+          ? "rounded-xl border bg-card p-4"
+          : "rounded-xl border-2 border-amber-400 bg-amber-50/40 p-4 dark:bg-amber-950/20"
+      }
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
@@ -517,16 +576,73 @@ function ProductCard({
             <button
               type="button"
               disabled={pending}
-              onClick={product.is_active ? remove : restore}
+              onClick={
+                product.is_active ? () => setConfirming((c) => !c) : restore
+              }
               className={`rounded-md border px-3 py-1.5 text-xs hover:bg-accent disabled:opacity-50 ${
                 product.is_active ? "text-destructive" : ""
               }`}
             >
               {pending ? "…" : product.is_active ? "ลบ" : "กู้คืน"}
             </button>
+            {/* ลบถาวร — เฉพาะตัวที่ปิดใช้งานแล้ว + ผู้บริหาร (0050) */}
+            {!product.is_active && canForceDelete && (
+              <button
+                type="button"
+                disabled={pending}
+                onClick={preview ? closePanels : openForceDelete}
+                className="rounded-md border border-red-300 px-3 py-1.5 text-xs text-red-700 hover:bg-red-50 disabled:opacity-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950/30"
+              >
+                {pending && !preview ? "กำลังตรวจ…" : preview ? "ปิด" : "🗑️ ลบถาวร"}
+              </button>
+            )}
           </div>
         )}
       </div>
+
+      {/* ถามยืนยันก่อนลบ (ปุ่ม "ลบ" ปกติ) */}
+      {confirming && (
+        <div className="mt-3 space-y-2 rounded-md border border-red-300 bg-red-50/60 p-3 dark:bg-red-950/20">
+          <p className="text-sm font-medium text-red-800 dark:text-red-300">
+            ลบผลิตภัณฑ์ {product.code} ?
+          </p>
+          <p className="text-xs text-red-700 dark:text-red-400">
+            ถ้ายังไม่มีใครใช้ = ลบออกจากระบบเลย · ถ้ามีงาน/ล็อตผูกอยู่ =
+            ระบบจะเปลี่ยนเป็นปิดใช้งานให้แทน แล้วบอกว่าติดอะไร
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              disabled={pending}
+              onClick={remove}
+              className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
+            >
+              {pending ? "กำลังลบ…" : "ยืนยันลบ"}
+            </button>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={closePanels}
+              className="rounded-md border px-3 py-1.5 text-xs hover:bg-accent disabled:opacity-50"
+            >
+              ยกเลิก
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ลบถาวร — แจกแจงผลกระทบ แล้วยืนยันด้วยรหัสผ่าน */}
+      {preview && (
+        <ForceDeletePanel
+          preview={preview}
+          code={product.code}
+          password={password}
+          setPassword={setPassword}
+          pending={pending}
+          onConfirm={confirmForceDelete}
+          onCancel={closePanels}
+        />
+      )}
 
       {error && (
         <p className="mt-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -551,6 +667,122 @@ function ProductCard({
         stations={stations}
         canManage={canManageStations}
       />
+    </div>
+  );
+}
+
+/** ลิสต์ผลกระทบ 1 กลุ่ม — ใช้ทั้งฝั่ง "ลบไม่ได้เพราะ" และ "จะหายตามไปด้วย" */
+function ImpactList({ items }: { items: DeleteImpact[] }) {
+  return (
+    <ul className="ml-4 list-disc space-y-0.5">
+      {items.map((it) => (
+        <li key={it.label}>
+          {it.label} <strong>{it.count.toLocaleString("th-TH")}</strong> {it.unit}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/**
+ * แผง "ลบถาวร" (0050) — แจกแจงก่อนเสมอ แล้วค่อยให้ยืนยันด้วยรหัสผ่าน
+ * ลบไม่ได้ = แสดงเหตุผลอย่างเดียว ไม่มีช่องรหัสผ่านให้กรอก
+ */
+function ForceDeletePanel({
+  preview,
+  code,
+  password,
+  setPassword,
+  pending,
+  onConfirm,
+  onCancel,
+}: {
+  preview: DeletePreview;
+  code: string;
+  password: string;
+  setPassword: (v: string) => void;
+  pending: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const blockers = preview.blockers ?? [];
+  const cascades = preview.cascades ?? [];
+  const canDelete = !!preview.can_delete;
+
+  return (
+    <div className="mt-3 space-y-3 rounded-md border-2 border-red-400 bg-red-50/60 p-3 dark:bg-red-950/20">
+      <p className="text-sm font-medium text-red-800 dark:text-red-300">
+        🗑️ ลบผลิตภัณฑ์ {code} ออกจากระบบถาวร
+      </p>
+
+      {blockers.length > 0 && (
+        <div className="rounded-md bg-background/60 p-2 text-xs text-red-700 dark:text-red-400">
+          <p className="font-medium">ลบถาวรไม่ได้ เพราะยังมี:</p>
+          <ImpactList items={blockers} />
+          <p className="mt-1.5">
+            ข้อมูลการผลิตต้องเก็บไว้ตามหลัก GMP — ผลิตภัณฑ์นี้ปิดใช้งานไว้ได้
+            แต่ลบทิ้งไม่ได้
+          </p>
+        </div>
+      )}
+
+      {cascades.length > 0 && (
+        <div className="rounded-md bg-background/60 p-2 text-xs text-amber-800 dark:text-amber-300">
+          <p className="font-medium">
+            ⚠️ สิ่งที่จะถูกลบตามไปด้วย{canDelete ? "" : " (ถ้าลบได้)"}:
+          </p>
+          <ImpactList items={cascades} />
+        </div>
+      )}
+
+      {canDelete && cascades.length === 0 && (
+        <p className="text-xs text-muted-foreground">
+          ผลิตภัณฑ์นี้ไม่มีข้อมูลอื่นผูกอยู่เลย — ลบได้ทันที
+        </p>
+      )}
+
+      {canDelete && (
+        <>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">
+              ยืนยันรหัสผ่านเพื่อลบถาวร (จำเป็น)
+            </label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+              placeholder="รหัสผ่านบัญชีของคุณ"
+              className={inputClass}
+            />
+          </div>
+          <p className="text-xs text-red-700 dark:text-red-400">
+            การลบถาวรย้อนกลับไม่ได้ (ยังมีร่องรอยในหน้า &ldquo;ประวัติ /
+            Audit&rdquo; แต่กู้ข้อมูลคืนไม่ได้)
+          </p>
+        </>
+      )}
+
+      <div className="flex gap-2">
+        {canDelete && (
+          <button
+            type="button"
+            disabled={pending || !password.trim()}
+            onClick={onConfirm}
+            className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
+          >
+            {pending ? "กำลังลบ…" : "ยืนยันลบถาวร"}
+          </button>
+        )}
+        <button
+          type="button"
+          disabled={pending}
+          onClick={onCancel}
+          className="rounded-md border px-3 py-1.5 text-xs hover:bg-accent disabled:opacity-50"
+        >
+          {canDelete ? "ยกเลิก" : "ปิด"}
+        </button>
+      </div>
     </div>
   );
 }

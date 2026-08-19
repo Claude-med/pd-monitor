@@ -13,6 +13,8 @@ export default async function RecipesPage() {
   const roles = profile?.roles ?? [];
   const canManageProducts = canManageProductsFor(roles);
   const canManageStations = hasAnyRole(roles, ["manager"]);
+  // "ลบถาวร" สูงกว่าปุ่มลบปกติ — ตรงกับ guard has_role('manager') ใน force_delete_product (0050)
+  const canForceDelete = hasAnyRole(roles, ["manager"]);
   const [products, stations] = await Promise.all([
     listProductsWithRoutes(),
     listStations(),
@@ -36,6 +38,7 @@ export default async function RecipesPage() {
         stations={stations}
         canManageProducts={canManageProducts}
         canManageStations={canManageStations}
+        canForceDelete={canForceDelete}
       />
     </div>
   );

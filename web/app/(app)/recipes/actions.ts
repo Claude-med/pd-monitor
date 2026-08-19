@@ -1,8 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
-import { getProfile } from "@/lib/auth/dal";
+import { getProfile, getUser } from "@/lib/auth/dal";
 import { hasAnyRole } from "@/lib/auth/roles";
 import { canManageProducts } from "@/lib/data/role-access";
 
@@ -97,6 +98,79 @@ export async function deleteProduct(productId: string): Promise<DeleteResult> {
     action: res.action === "deleted" ? "deleted" : "deactivated",
     message: res.message ?? "ทำรายการแล้ว",
   };
+}
+
+/** 1 บรรทัดในลิสต์ "ลบไม่ได้เพราะ…" / "จะถูกลบตามไปด้วย…" */
+export type DeleteImpact = { label: string; count: number; unit: string };
+
+export type DeletePreview = {
+  code?: string;
+  name?: string;
+  is_active?: boolean;
+  can_delete?: boolean;
+  blockers?: DeleteImpact[];
+  cascades?: DeleteImpact[];
+  error?: string;
+};
+
+/**
+ * ดูก่อน "ลบถาวร" — แจกแจงว่าติดอะไร และอะไรจะหายตามไปด้วย (0050)
+ * อ่านอย่างเดียว ไม่แก้ข้อมูล → เรียกได้ทุกคนที่จัดการผลิตภัณฑ์ได้
+ */
+export async function previewDeleteProduct(
+  productId: string,
+): Promise<DeletePreview> {
+  if (!(await requireProductManager())) return { error: NO_PRODUCT_PERM };
+  if (!productId) return { error: "ไม่พบผลิตภัณฑ์" };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("preview_delete_product", {
+    p_id: productId,
+  });
+  if (error) return { error: error.message || "ดูข้อมูลก่อนลบไม่สำเร็จ" };
+  return (data ?? {}) as DeletePreview;
+}
+
+/**
+ * ลบผลิตภัณฑ์ถาวร — ผู้บริหารเท่านั้น + ยืนยันรหัสผ่านซ้ำ (กันลบผิดตัว)
+ * DB (force_delete_product) เป็นด่านจริง: สิทธิ์ · ต้องปิดใช้งานอยู่ก่อน · นับ blocker ใหม่ตอนกด
+ * การยืนยันรหัส = พิสูจน์ว่า "คนหน้าจอ = เจ้าของบัญชี" (แพตเทิร์นเดียวกับ deleteJob)
+ */
+export async function forceDeleteProduct(
+  productId: string,
+  password: string,
+): Promise<DeleteResult> {
+  const profile = await getProfile();
+  if (!profile || !hasAnyRole(profile.roles, ["manager"]))
+    return { error: "ไม่มีสิทธิ์ (เฉพาะผู้บริหาร)" };
+  if (!productId) return { error: "ไม่พบผลิตภัณฑ์" };
+  if (!password.trim()) return { error: "กรุณากรอกรหัสผ่านเพื่อยืนยันการลบถาวร" };
+
+  const user = await getUser();
+  if (!user?.email) return { error: "ยังไม่ได้เข้าสู่ระบบ" };
+
+  // ยืนยันรหัสผ่านด้วย client แยก (ไม่แตะ cookie/session ปัจจุบัน)
+  const verifier = createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+  const { error: authError } = await verifier.auth.signInWithPassword({
+    email: user.email,
+    password,
+  });
+  if (authError) return { error: "รหัสผ่านไม่ถูกต้อง — ลบถาวรไม่สำเร็จ" };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("force_delete_product", {
+    p_id: productId,
+  });
+  if (error) return { error: error.message || "ลบถาวรไม่สำเร็จ" };
+
+  const res = (data ?? {}) as { message?: string };
+  revalidatePath("/recipes");
+  revalidatePath("/materials");
+  return { ok: true, action: "deleted", message: res.message ?? "ลบถาวรแล้ว" };
 }
 
 /** เพิ่ม/แก้สถานีย่อย (master) */
