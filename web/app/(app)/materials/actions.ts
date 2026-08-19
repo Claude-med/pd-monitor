@@ -4,12 +4,40 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getProfile } from "@/lib/auth/dal";
 import { hasAnyRole } from "@/lib/auth/roles";
+import { canSetLotStatus } from "@/lib/data/role-access";
 
 export type ActionResult = { ok?: boolean; id?: string; error?: string };
 
 async function requireWarehouse(): Promise<boolean> {
   const profile = await getProfile();
   return !!profile && hasAnyRole(profile.roles, ["warehouse", "manager"]);
+}
+
+/**
+ * ตั้งสถานะล็อต "พร้อมใช้ / ไม่พร้อมใช้" — ฝ่ายวางแผน/ผู้บริหาร (migration 0051)
+ *
+ * ⚠️ ห้ามใช้ requireWarehouse() ซ้ำที่นี่ — นั่นคือชั้นที่กันฝ่ายวางแผนออกไป
+ *    ทำให้ล็อตไม่มีใครปลด แล้วเบิกของไม่ได้ทั้งระบบ
+ * แก้ได้เฉพาะสถานะ · จำนวนคงเหลือ/เลขล็อตยังเป็นของฝ่ายคลัง (DB เป็นด่านจริง)
+ */
+export async function setLotStatus(
+  lotId: string,
+  status: "available" | "quarantine",
+): Promise<ActionResult> {
+  const profile = await getProfile();
+  if (!profile || !canSetLotStatus(profile.roles))
+    return { error: "ไม่มีสิทธิ์ (เฉพาะฝ่ายวางแผน/ผู้บริหาร)" };
+  if (!lotId) return { error: "ไม่พบล็อตที่เลือก" };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_lot_status", {
+    p_lot_id: lotId,
+    p_status: status,
+  });
+  if (error) return { error: error.message || "ตั้งสถานะล็อตไม่สำเร็จ" };
+
+  revalidatePath("/materials");
+  return { ok: true };
 }
 
 /**

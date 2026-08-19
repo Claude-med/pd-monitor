@@ -11,7 +11,7 @@ import {
 } from "@/lib/data/material-constants";
 import { daysUntil } from "@/lib/data/machine-constants";
 import type { ProductWithLots, MaterialLot } from "@/lib/data/materials";
-import { upsertProductLot } from "./actions";
+import { upsertProductLot, setLotStatus } from "./actions";
 
 const inputClass =
   "w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring";
@@ -25,6 +25,56 @@ function LotStatusBadge({ status }: { status: string }) {
     >
       {MATERIAL_LOT_STATUS_LABEL[status] ?? status}
     </span>
+  );
+}
+
+/**
+ * ชิปสถานะกดเปลี่ยนได้บนแถวล็อต (0051) — เห็นเฉพาะฝ่ายวางแผน/ผู้บริหาร
+ *
+ * ของเดิมสถานะแก้ได้เฉพาะในฟอร์ม "แก้ล็อต" ซึ่งเปิดได้เฉพาะฝ่ายคลัง
+ * → ฝ่ายวางแผนที่มีสิทธิ์ตั้งสถานะกลับไม่มีปุ่มให้กดเลย (deadlock ของ Part 2.1)
+ */
+function LotStatusPicker({ lotId, status }: { lotId: string; status: string }) {
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  const router = useRouter();
+
+  function pick(next: string) {
+    if (next === status || pending) return;
+    setError(null);
+    start(async () => {
+      const res = await setLotStatus(lotId, next as "available" | "quarantine");
+      if (res.error) return setError(res.error);
+      router.refresh();
+    });
+  }
+
+  return (
+    <div className="space-y-1">
+      <div className="flex flex-wrap gap-1">
+        {MATERIAL_LOT_STATUSES.map((s) => {
+          const on = status === s.key;
+          return (
+            <button
+              key={s.key}
+              type="button"
+              disabled={pending}
+              onClick={() => pick(s.key)}
+              aria-pressed={on}
+              className="rounded px-2 py-0.5 text-xs font-medium transition disabled:opacity-50"
+              style={
+                on
+                  ? { backgroundColor: s.color, color: "#fff" }
+                  : { border: `1px solid ${s.color}`, color: s.color }
+              }
+            >
+              {pending && !on ? "…" : s.label}
+            </button>
+          );
+        })}
+      </div>
+      {error && <p className="text-[11px] text-destructive">{error}</p>}
+    </div>
   );
 }
 
@@ -58,21 +108,44 @@ export function MaterialsView({
 }) {
   const [addLotFor, setAddLotFor] = useState<string | null>(null);
   const [editLotId, setEditLotId] = useState<string | null>(null);
+  const [showInactive, setShowInactive] = useState(false);
+
+  // ปิดใช้งาน "และไม่มีล็อตค้าง" เท่านั้นที่ซ่อนได้ — ของที่ยังมีสต็อกต้องเห็นเสมอ
+  const hidable = products.filter((p) => !p.is_active && p.lots.length === 0);
+  const visible = showInactive
+    ? products
+    : products.filter((p) => p.is_active || p.lots.length > 0);
 
   return (
     <div className="space-y-5">
-      <p className="text-sm text-muted-foreground">
-        ผลิตภัณฑ์ในคลัง {products.length} รายการ · แก้ข้อมูลผลิตภัณฑ์ได้ที่เมนู
-        “ผลิตภัณฑ์ / ขั้นตอนการผลิต”
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm text-muted-foreground">
+          ผลิตภัณฑ์ในคลัง {visible.length} รายการ · แก้ข้อมูลผลิตภัณฑ์ได้ที่เมนู
+          “ผลิตภัณฑ์ / ขั้นตอนการผลิต”
+        </p>
+        <label
+          className={`flex items-center gap-1.5 text-xs ${
+            hidable.length > 0 ? "text-muted-foreground" : "text-muted-foreground/50"
+          }`}
+        >
+          <input
+            type="checkbox"
+            checked={showInactive}
+            disabled={hidable.length === 0}
+            onChange={(e) => setShowInactive(e.target.checked)}
+            className="h-4 w-4"
+          />
+          แสดงที่ปิดใช้งานแล้ว ({hidable.length})
+        </label>
+      </div>
 
-      {products.length === 0 ? (
+      {visible.length === 0 ? (
         <p className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
           ยังไม่มีผลิตภัณฑ์ในระบบ — เพิ่มที่เมนู “ผลิตภัณฑ์ / ขั้นตอนการผลิต” ก่อน
         </p>
       ) : (
         <div className="space-y-3">
-          {products.map((p) => {
+          {visible.map((p) => {
             const usable = p.lots
               .filter((l) => USABLE_LOT_STATUSES.has(l.status as MaterialLotStatus))
               .reduce((s, l) => s + Number(l.qty_on_hand), 0);
@@ -193,7 +266,11 @@ function LotRow({
           {Number(lot.qty_on_hand).toLocaleString("th-TH")} {unit}
         </td>
         <td className="px-2 py-2">
-          <LotStatusBadge status={lot.status} />
+          {canSetStatus ? (
+            <LotStatusPicker lotId={lot.id} status={lot.status} />
+          ) : (
+            <LotStatusBadge status={lot.status} />
+          )}
         </td>
         <td className="whitespace-nowrap px-2 py-2">
           <div className="flex flex-col gap-1">

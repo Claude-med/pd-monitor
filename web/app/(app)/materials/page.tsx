@@ -16,9 +16,9 @@ export default async function MaterialsPage() {
   const canManage = hasAnyRole(roles, ["warehouse", "manager"]);
   // Part 2.1: ตั้งสถานะล็อต = ฝ่ายวางแผน/ผู้บริหาร (ตรงกับ can_set_lot_status() ใน DB)
   const canSetStatus = canSetLotStatus(roles);
-  const all = await listStockProducts();
-  // ที่ปิดใช้งานแล้วซ่อนไว้ เว้นแต่ยังมีล็อตค้างอยู่ (ห้ามซ่อนของที่ยังมีสต็อก)
-  const products = all.filter((p) => p.is_active || p.lots.length > 0);
+  // ส่งทั้งหมดเข้า view แล้วให้ผู้ใช้ติ๊กเองว่าจะแสดงที่ปิดใช้งานไหม (0051)
+  // กติกาเดิมยังอยู่: ปิดใช้งานแต่ยังมีล็อตค้าง = แสดงเสมอ (ห้ามซ่อนของที่ยังมีสต็อก)
+  const products = await listStockProducts();
 
   // แจ้งเตือน: ล็อตหมดอายุ / ใกล้หมดอายุ (≤30 วัน) — ตัดสถานะ "ไม่ผ่าน" ออก
   // เพราะ 0046 ยุบสถานะเหลือ 2 ค่าแล้ว (ของที่ไม่พร้อมใช้เห็นได้จากป้ายในตารางล็อตอยู่แล้ว)
@@ -44,7 +44,11 @@ export default async function MaterialsPage() {
         <h1 className="text-2xl font-bold tracking-tight">ผลิตภัณฑ์คลัง</h1>
         <p className="text-sm text-muted-foreground">
           ล็อต/สต็อกคงเหลือของผลิตภัณฑ์ทุกตัว · สถานะ · วันหมดอายุ
-          {canManage ? "" : " (ดูอย่างเดียว — จัดการได้เฉพาะฝ่ายคลัง/ผู้บริหาร)"}
+          {canManage
+            ? ""
+            : canSetStatus
+              ? " (ตั้งสถานะล็อตได้ — เพิ่ม/แก้ล็อตเป็นของฝ่ายคลัง)"
+              : " (ดูอย่างเดียว)"}
         </p>
       </div>
 
