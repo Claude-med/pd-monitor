@@ -5,10 +5,12 @@ import { hasAnyRole } from "@/lib/auth/roles";
  * แหล่งความจริงเดียวของ "สิทธิ์แต่ละ role" ฝั่งแอป (Part A)
  * — ไม่มี server import → ใช้ได้ทั้ง Server และ Client Components
  *
- * ⚠️ helper ด้านล่างต้อง "ตรงกับ guard ใน DB" เสมอ (migration 0039 · 0044):
+ * ⚠️ helper ด้านล่างต้อง "ตรงกับ guard ใน DB" เสมอ (migration 0039 · 0044 · 0046 · 0049):
  *      canPlanJobs()          ↔ public.can_plan_jobs()
  *      canManageProducts()    ↔ public.can_manage_products()
  *      canManageMachines()    ↔ public.can_manage_machines()
+ *      canSetLotStatus()      ↔ public.can_set_lot_status()
+ *      canSetJobLot()         ↔ public.can_set_job_lot()
  *      canSetMachineSchedule()↔ public.can_set_machine_schedule()
  *    DB เป็นด่านบังคับจริง · ฝั่งแอปใช้ตัดสินว่าจะ "แสดงปุ่ม/ช่องกรอก" ไหน
  *    (canSeeCost เป็นการอ่านล้วน — คุมที่แอปอย่างเดียว ไม่มี guard ใน DB)
@@ -34,7 +36,7 @@ export const ROLE_ACCESS: Record<AppRole, RoleAccess> = {
     code: "PLN",
     duty: "วางแผนการผลิต — เปิดงานเข้าระบบ",
     manage: [
-      "สร้างงานผลิตใหม่ (ออเดอร์ + งาน + ล็อต)",
+      "สร้างงานผลิตใหม่ทีละหลายใบ (ออเดอร์ + งาน · เลขล็อตเป็นของฝ่ายผลิต)",
       "เพิ่ม/แก้/ลบผลิตภัณฑ์ในทะเบียน",
       "ตั้งสถานะล็อตในคลัง (พร้อมใช้ / ไม่พร้อมใช้)",
       "ยืนยันแผนผลิต (รอแจ้งผลิต → มีแผนแล้ว)",
@@ -45,6 +47,7 @@ export const ROLE_ACCESS: Record<AppRole, RoleAccess> = {
     code: "PROD",
     duty: "ผลิตจริงหน้างาน — บันทึกผลผลิตรายวัน",
     manage: [
+      "กรอก LOT No. ให้งาน (ก่อนเริ่มผลิต)",
       "ทำ Line Clearance (ผู้ปฏิบัติ) → เริ่มผลิต",
       "บันทึกผลผลิตรายสถานี (เข้า/ออก/ของเสีย/ชั่วโมง/จำนวนคน)",
       "ขอเบิกผลิตภัณฑ์ (วัตถุดิบ/บรรจุภัณฑ์) · ส่งตรวจ QC",
@@ -147,6 +150,14 @@ export function canManageMachines(roles: AppRole[]): boolean {
  */
 export function canSetLotStatus(roles: AppRole[]): boolean {
   return hasAnyRole(roles, ["planner", "manager"]);
+}
+
+/**
+ * กรอก LOT No. (Batch NO.) ให้งานผลิต — ตรงกับ can_set_job_lot() ใน DB (0049)
+ * ฝ่ายผลิตเป็นคนรู้เลขล็อตจริงหน้างาน · ฝ่ายวางแผนกรอกตอนสร้างงานไม่ได้
+ */
+export function canSetJobLot(roles: AppRole[]): boolean {
+  return hasAnyRole(roles, ["production", "manager"]);
 }
 
 /** ตั้งกำหนดซ่อมบำรุง/สอบเทียบ — ตรงกับ can_set_machine_schedule() ใน DB */

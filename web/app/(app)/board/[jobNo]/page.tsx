@@ -37,11 +37,12 @@ import {
 } from "@/lib/data/edit-request-constants";
 import { getProfile } from "@/lib/auth/dal";
 import { hasAnyRole } from "@/lib/auth/roles";
-import { canPlanJobs } from "@/lib/data/role-access";
+import { canPlanJobs, canSetJobLot } from "@/lib/data/role-access";
 import { fmtDateTime } from "@/lib/format";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
 import { JobActions } from "./job-actions";
 import { DeleteJobButton } from "./delete-job-button";
+import { JobLotForm } from "./job-lot-form";
 import { RecordForm } from "./record-form";
 import { Requisitions } from "./requisitions";
 import { LineClearancePanel } from "./line-clearance";
@@ -164,6 +165,7 @@ export default async function JobDetailPage({
       <RealtimeRefresh
         tables={[
           "jobs",
+          "batches",
           "production_records",
           "approvals",
           "material_requisitions",
@@ -264,7 +266,7 @@ export default async function JobDetailPage({
               : null
           }
         />
-        <Field label="Lot / Batch" value={job.lot_no} />
+        <Field label="LOT No. (Batch NO.)" value={job.lot_no} />
         <Field label="แผนเริ่ม–เสร็จ" value={
           job.planned_start || job.planned_end
             ? `${job.planned_start ?? "—"} → ${job.planned_end ?? "—"}`
@@ -278,6 +280,18 @@ export default async function JobDetailPage({
           value={job.pack_patterns.length ? job.pack_patterns.join(" · ") : null}
         />
       </dl>
+
+      {/* LOT No. (Batch NO.) — ฝ่ายผลิตกรอกเองก่อนเริ่มผลิต (0049) */}
+      {canSetJobLot(roles) && (
+        <JobLotForm
+          jobNo={job.job_no}
+          jobId={job.id}
+          lotNo={job.lot_no}
+          mfgDate={job.mfg_date}
+          expDate={job.exp_date}
+          locked={curIdx >= STATUS_INDEX.in_production}
+        />
+      )}
 
       {flag && job.problem_note && (
         <div className="rounded-xl border border-l-4 bg-card p-4" style={{ borderLeftColor: flag.color }}>
