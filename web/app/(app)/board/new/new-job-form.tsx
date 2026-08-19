@@ -15,11 +15,9 @@ const EMPTY: NewJobValues = {
   customer_id: "",
   product_id: "",
   quantity: "",
-  unit: "เม็ด",
   due_date: "",
   request_no: "",
   cpo_date: "",
-  sub_status: "",
   pack_type: "",
   pack_patterns: [""],
   count: "1",
@@ -50,16 +48,8 @@ export function NewJobForm({
   // (ด่านจริงอยู่ที่ DB — ตรงนี้แค่กันไม่ให้ผู้ใช้กรอกทั้งฟอร์มแล้วเจอ error ตอนท้าย)
   const picked = products.find((p) => p.id === v.product_id);
   const missingRoute = !!picked && !picked.has_route;
-
-  /** เลือกยา → เติมหน่วยจากทะเบียนผลิตภัณฑ์ให้อัตโนมัติ (แก้ทับได้) */
-  function selectProduct(id: string) {
-    const p = products.find((x) => x.id === id);
-    setV((cur) => ({
-      ...cur,
-      product_id: id,
-      unit: p?.unit ? p.unit : cur.unit,
-    }));
-  }
+  // Part 3.1: หน่วยล็อกตามทะเบียนยา — แสดงอย่างเดียว ไม่เก็บใน state และไม่ส่งไป server
+  // (server อ่านหน่วยจากทะเบียนเองใน createJobs)
 
   function setPack(idx: number, val: string) {
     setV((cur) => ({
@@ -178,7 +168,7 @@ export function NewJobForm({
           <label className={labelClass}>ผลิตภัณฑ์ (ยา) *</label>
           <select
             value={v.product_id}
-            onChange={(e) => selectProduct(e.target.value)}
+            onChange={(e) => set("product_id", e.target.value)}
             className={inputClass}
           >
             <option value="">— เลือกยา —</option>
@@ -220,12 +210,14 @@ export function NewJobForm({
         </div>
         <div>
           <label className={labelClass}>หน่วย</label>
-          <input
-            value={v.unit}
-            onChange={(e) => set("unit", e.target.value)}
-            placeholder="เม็ด / แคปซูล / ขวด"
-            className={inputClass}
-          />
+          <div className="rounded-md border border-dashed bg-muted/40 px-3 py-2 text-sm">
+            {picked?.unit || (
+              <span className="text-muted-foreground">— เลือกยาก่อน —</span>
+            )}
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            ล็อกตามทะเบียนยา — แก้ได้ที่เมนู “ผลิตภัณฑ์ / ขั้นตอนการผลิต”
+          </p>
         </div>
 
         {/* ใบคำขอ + C.P.O DATE */}
@@ -306,7 +298,7 @@ export function NewJobForm({
           </div>
         </div>
 
-        {/* กำหนดส่ง + Status */}
+        {/* กำหนดส่ง */}
         <div>
           <label className={labelClass}>กำหนดส่ง (due date)</label>
           <input
@@ -316,16 +308,6 @@ export function NewJobForm({
             className={inputClass}
           />
         </div>
-        <div>
-          <label className={labelClass}>Status</label>
-          <input
-            value={v.sub_status}
-            onChange={(e) => set("sub_status", e.target.value)}
-            placeholder="เช่น รอวัตถุดิบ / UNPLAN"
-            className={inputClass}
-          />
-        </div>
-
         {/* จำนวนใบที่จะสร้าง */}
         <div className="sm:col-span-2">
           <label className={labelClass}>จำนวนใบที่จะสร้าง</label>

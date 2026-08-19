@@ -74,6 +74,13 @@ export function availableTransitions(
 /** จำนวนใบสูงสุดต่อการสร้าง 1 ครั้ง — ต้องตรงกับด่านใน create_production_jobs (0048) */
 export const MAX_JOBS_PER_CREATE = 50;
 
+/**
+ * ค่าเริ่มต้นของช่อง "Status" (sub_status) ตอนสร้างงานใหม่ (Part 3.1)
+ * — ฝ่ายวางแผนไม่ต้องพิมพ์เองแล้ว งานที่เพิ่งสร้างยังไม่มีแผนเสมอ
+ * ⚠️ ไม่เกี่ยวกับด่าน GMP · flow จริงคุมด้วย JobStatus (enum) เท่านั้น
+ */
+export const DEFAULT_JOB_SUB_STATUS = "ไม่มีแผน";
+
 export type JobRow = {
   id: string;
   job_no: string;
