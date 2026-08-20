@@ -66,11 +66,17 @@ as $$
     ('exp_date',       'วันหมดอายุ',           'lot',  null)
 $$;
 
+-- ปิดประตู: ตัวนี้ไม่มี guard ในตัว (เป็นแค่ตารางกติกาให้ update_job_details ใช้)
+-- ⚠️ revoke from public อย่างเดียว "ไม่พอ" — Supabase ตั้ง default privileges แจก execute
+--    ให้ anon/authenticated ทุกฟังก์ชันใหม่ · ตรวจด้วย REST แล้วพบว่า anon เรียกได้จริง
+--    (บทเรียนเดียวกับ product_delete_report ใน 0050:136-139)
+--    security definer ของ update_job_details รันด้วยสิทธิ์เจ้าของ จึงยังเรียกตัวนี้ได้ตามปกติ
 revoke execute on function public.job_field_rules() from public;
-grant execute on function public.job_field_rules() to authenticated;
+revoke execute on function public.job_field_rules() from anon;
+revoke execute on function public.job_field_rules() from authenticated;
 
 comment on function public.job_field_rules() is
-  'กติกาสิทธิ์+ด่านล็อกรายช่องของ update_job_details (Part C) — แหล่งความจริงเดียว ฝั่งแอปมีสำเนาที่ lib/data/job-field-rules.ts';
+  'ภายใน (revoke จาก public/anon/authenticated แล้ว) — กติกาสิทธิ์+ด่านล็อกรายช่องของ update_job_details (Part C) · ฝั่งแอปมีสำเนาที่ lib/data/job-field-rules.ts';
 
 -- ------------------------------------------------------------
 -- (3) update_job_details
