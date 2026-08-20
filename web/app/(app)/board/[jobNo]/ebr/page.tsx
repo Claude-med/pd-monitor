@@ -41,7 +41,9 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex gap-2 text-sm">
       <span className="w-32 shrink-0 text-muted-foreground">{label}</span>
-      <span className="font-medium">{value ?? "—"}</span>
+      <span className="font-medium">
+        {value === null || value === undefined || value === "" ? "—" : value}
+      </span>
     </div>
   );
 }
@@ -94,14 +96,16 @@ export default async function EbrPage({
         {/* 1. ข้อมูลงาน */}
         <Section title="1. ข้อมูลงาน / ล็อต">
           <div className="grid gap-1 sm:grid-cols-2">
+            <Row label="Job No." value={job.job_no} />
             <Row label="ผลิตภัณฑ์" value={job.product_name} />
+            <Row label="Reg No." value={job.reg_no} />
             <Row label="ลูกค้า" value={job.customer} />
             <Row label="ใบคำขอ" value={job.request_no} />
             <Row label="C.P.O DATE" value={job.cpo_date} />
+            <Row label="กำหนดส่ง" value={job.due_date} />
             <Row label="Status" value={job.sub_status} />
-            <Row label="ออเดอร์" value={job.order_no} />
             <Row
-              label="จำนวนสั่งผลิต"
+              label="Batch Size"
               value={
                 job.quantity != null
                   ? `${fmt(job.quantity)} ${job.unit ?? ""}`.trim()
@@ -113,9 +117,17 @@ export default async function EbrPage({
             <Row label="วันหมดอายุ" value={job.exp_date} />
             <Row label="รูปแบบบรรจุ" value={job.pack_type} />
             <Row
-              label="ขนาดบรรจุ"
+              label="Packing Size"
               value={
-                job.pack_patterns.length ? job.pack_patterns.join(" · ") : null
+                job.pack_patterns.length ? (
+                  <span className="block">
+                    {job.pack_patterns.map((p, i) => (
+                      <span key={i} className="block">
+                        ({i + 1}) {p}
+                      </span>
+                    ))}
+                  </span>
+                ) : null
               }
             />
             <Row

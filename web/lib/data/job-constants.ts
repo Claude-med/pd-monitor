@@ -95,8 +95,14 @@ export type JobRow = {
   order_no: string | null;
   customer: string | null;
   product_name: string | null;
+  /** เลขทะเบียนตำรับยา — มาจากทะเบียนผลิตภัณฑ์ (แก้ที่หน้าผลิตภัณฑ์เท่านั้น ห้ามแก้ที่งาน) */
+  reg_no: string | null;
   quantity: number | null;
   unit: string | null;
+  /** กำหนดส่ง (orders.due_date) — Part C ยกมาแสดง/แก้ในหน้ารายละเอียดงาน */
+  due_date: string | null;
+  /** ลูกค้าในทะเบียน (orders.customer_id) — customer เป็น snapshot ชื่อ ณ วันสั่ง (0047) */
+  customer_id: string | null;
   /** ใบคำขอ — เลขที่ใบสั่งผลิตจากลูกค้า (Part 3) · ใบที่สร้างพร้อมกันใช้เลขนี้ร่วมกัน */
   request_no: string | null;
   /** C.P.O DATE — วันที่ลูกค้าสั่งผลิต (Part 3) */

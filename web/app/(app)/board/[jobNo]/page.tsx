@@ -83,10 +83,14 @@ function productionEditFields(
 }
 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
+  // ⚠️ ต้องดัก "" ด้วย ไม่ใช่แค่ null — ของเดิมใช้ `value ?? "—"` ทำให้ค่าว่าง
+  //    ที่เป็นสตริงว่างโผล่เป็นช่องเปล่า ผู้ใช้แยกไม่ออกว่า "ไม่มีข้อมูล" หรือ "จอเพี้ยน"
+  const shown =
+    value === null || value === undefined || value === "" ? "—" : value;
   return (
     <div>
       <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="mt-0.5 text-sm font-medium">{value ?? "—"}</dd>
+      <dd className="mt-0.5 text-sm font-medium">{shown}</dd>
     </div>
   );
 }
@@ -252,14 +256,18 @@ export default async function JobDetailPage({
 
       {/* ข้อมูลงาน */}
       <dl className="grid grid-cols-2 gap-4 rounded-xl border bg-card p-5 sm:grid-cols-3">
+        {/* Job No. = jobs.job_no ตรงๆ — orders.order_no คือ 'ORD-' + job_no เสมอ (0048)
+            จึงไม่ต้องตัด prefix ด้วย string ให้เสี่ยงพลาด */}
+        <Field label="Job No." value={job.job_no} />
         <Field label="ลูกค้า" value={job.customer} />
         <Field label="ใบคำขอ" value={job.request_no} />
         <Field label="C.P.O DATE" value={job.cpo_date} />
+        <Field label="กำหนดส่ง (due date)" value={job.due_date} />
         <Field label="Status" value={job.sub_status} />
-        <Field label="ออเดอร์" value={job.order_no} />
         <Field label="ผลิตภัณฑ์" value={job.product_name} />
+        <Field label="Reg No." value={job.reg_no} />
         <Field
-          label="จำนวน"
+          label="Batch Size"
           value={
             job.quantity != null
               ? `${job.quantity.toLocaleString("th-TH")} ${job.unit ?? ""}`.trim()
@@ -275,9 +283,20 @@ export default async function JobDetailPage({
         <Field label="วันผลิต" value={job.mfg_date} />
         <Field label="วันหมดอายุ" value={job.exp_date} />
         <Field label="รูปแบบบรรจุ" value={job.pack_type} />
+        {/* Packing Size — แยกบรรทัด (1)(2)(3) ให้เห็นว่าเป็นคนละช่องกัน (ตรงกับใบแจ้งผลิต F.PLN.01) */}
         <Field
-          label="ขนาดบรรจุ"
-          value={job.pack_patterns.length ? job.pack_patterns.join(" · ") : null}
+          label="Packing Size"
+          value={
+            job.pack_patterns.length ? (
+              <span className="block space-y-0.5">
+                {job.pack_patterns.map((p, i) => (
+                  <span key={i} className="block">
+                    ({i + 1}) {p}
+                  </span>
+                ))}
+              </span>
+            ) : null
+          }
         />
       </dl>
 
