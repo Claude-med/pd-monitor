@@ -12,6 +12,9 @@ import { hasAnyRole } from "@/lib/auth/roles";
  *      canSetLotStatus()      ↔ public.can_set_lot_status()
  *      canSetJobLot()         ↔ public.can_set_job_lot()
  *      canSetMachineSchedule()↔ public.can_set_machine_schedule()
+ *      canEditJobPlanFields()      ↔ can_plan_jobs()      (ใช้ใน update_job_details · 0054)
+ *      canEditJobProductionFields()↔ can_set_job_lot()    (ใช้ใน update_job_details · 0054)
+ *      canManageJobSubStatuses()   ↔ แค่ล็อกอิน            (ทะเบียนสถานะงาน · 0053)
  *    DB เป็นด่านบังคับจริง · ฝั่งแอปใช้ตัดสินว่าจะ "แสดงปุ่ม/ช่องกรอก" ไหน
  *    (canSeeCost เป็นการอ่านล้วน — คุมที่แอปอย่างเดียว ไม่มี guard ใน DB)
  */
@@ -162,6 +165,30 @@ export function canSetLotStatus(roles: AppRole[]): boolean {
  */
 export function canSetJobLot(roles: AppRole[]): boolean {
   return hasAnyRole(roles, ["production", "manager"]);
+}
+
+/**
+ * แก้ข้อมูลงานฝั่ง "วางแผน" ในหน้ารายละเอียดงาน — Batch Size · บรรจุ · ลูกค้า · กำหนดส่ง ฯลฯ
+ * ใช้ can_plan_jobs() ตัวเดิมใน DB (0054 ไม่ได้สร้าง helper ใหม่)
+ */
+export function canEditJobPlanFields(roles: AppRole[]): boolean {
+  return canPlanJobs(roles);
+}
+
+/**
+ * แก้ข้อมูลงานฝั่ง "ผลิต" — LOT No. · แผนเริ่ม-เสร็จ
+ * ใช้ can_set_job_lot() ตัวเดิมใน DB (0049)
+ */
+export function canEditJobProductionFields(roles: AppRole[]): boolean {
+  return canSetJobLot(roles);
+}
+
+/**
+ * จัดการทะเบียนสถานะงาน (เพิ่ม/แก้/ลบใน dropdown Status) — 0053
+ * ทีมยืนยันว่าให้ "ทุกฝ่ายที่ล็อกอิน" ทำได้ · DB guard แค่ current_profile_id() is not null
+ */
+export function canManageJobSubStatuses(roles: AppRole[]): boolean {
+  return roles.length > 0;
 }
 
 /** ตั้งกำหนดซ่อมบำรุง/สอบเทียบ — ตรงกับ can_set_machine_schedule() ใน DB */

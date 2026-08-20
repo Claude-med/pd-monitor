@@ -37,12 +37,15 @@ import {
 } from "@/lib/data/edit-request-constants";
 import { getProfile } from "@/lib/auth/dal";
 import { hasAnyRole } from "@/lib/auth/roles";
-import { canPlanJobs, canSetJobLot } from "@/lib/data/role-access";
+import { canPlanJobs } from "@/lib/data/role-access";
+import { listJobSubStatuses } from "@/lib/data/job-sub-statuses";
+import { listCustomers } from "@/lib/data/customers";
 import { fmtDateTime } from "@/lib/format";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
 import { JobActions } from "./job-actions";
 import { DeleteJobButton } from "./delete-job-button";
-import { JobLotForm } from "./job-lot-form";
+import { LotNotice } from "./lot-notice";
+import { JobInfoCard } from "./job-info-card";
 import { RecordForm } from "./record-form";
 import { Requisitions } from "./requisitions";
 import { LineClearancePanel } from "./line-clearance";
@@ -80,19 +83,6 @@ function productionEditFields(
         ]
       : []),
   ];
-}
-
-function Field({ label, value }: { label: string; value: React.ReactNode }) {
-  // ⚠️ ต้องดัก "" ด้วย ไม่ใช่แค่ null — ของเดิมใช้ `value ?? "—"` ทำให้ค่าว่าง
-  //    ที่เป็นสตริงว่างโผล่เป็นช่องเปล่า ผู้ใช้แยกไม่ออกว่า "ไม่มีข้อมูล" หรือ "จอเพี้ยน"
-  const shown =
-    value === null || value === undefined || value === "" ? "—" : value;
-  return (
-    <div>
-      <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="mt-0.5 text-sm font-medium">{shown}</dd>
-    </div>
-  );
 }
 
 export default async function JobDetailPage({
@@ -135,6 +125,13 @@ export default async function JobDetailPage({
     ...machines.map((m) => ({ value: m.id, label: `${m.code} · ${m.name}` })),
   ];
   const requisitions = await getRequisitionsForJob(job.id);
+  // Part C — การ์ดข้อมูลงานแก้ไขได้: ต้องมีทะเบียนสถานะ + ทะเบียนลูกค้าไว้ทำ dropdown
+  const [subStatuses, customers] = await Promise.all([
+    listJobSubStatuses(),
+    listCustomers(),
+  ]);
+  // ใบเบิกที่คลังจ่ายแล้ว — ใช้เตือนตอนแก้ Batch Size (โหลดอยู่แล้ว ไม่ต้อง query เพิ่ม)
+  const issuedReqCount = requisitions.filter((r) => r.status === "issued").length;
   const canRequestMat = hasAnyRole(roles, ["production", "warehouse", "manager"]);
   const canIssueMat = hasAnyRole(roles, ["warehouse", "manager"]);
   // Part 2: เลิกกรองตาม BOM แล้ว — แสดงทุกล็อตที่พร้อมเบิก (มีช่องค้นหาในฟอร์ม)
@@ -169,7 +166,9 @@ export default async function JobDetailPage({
       <RealtimeRefresh
         tables={[
           "jobs",
+          "orders",
           "batches",
+          "job_sub_statuses",
           "production_records",
           "approvals",
           "material_requisitions",
@@ -254,63 +253,18 @@ export default async function JobDetailPage({
         })}
       </div>
 
-      {/* ข้อมูลงาน */}
-      <dl className="grid grid-cols-2 gap-4 rounded-xl border bg-card p-5 sm:grid-cols-3">
-        {/* Job No. = jobs.job_no ตรงๆ — orders.order_no คือ 'ORD-' + job_no เสมอ (0048)
-            จึงไม่ต้องตัด prefix ด้วย string ให้เสี่ยงพลาด */}
-        <Field label="Job No." value={job.job_no} />
-        <Field label="ลูกค้า" value={job.customer} />
-        <Field label="ใบคำขอ" value={job.request_no} />
-        <Field label="C.P.O DATE" value={job.cpo_date} />
-        <Field label="กำหนดส่ง (due date)" value={job.due_date} />
-        <Field label="Status" value={job.sub_status} />
-        <Field label="ผลิตภัณฑ์" value={job.product_name} />
-        <Field label="Reg No." value={job.reg_no} />
-        <Field
-          label="Batch Size"
-          value={
-            job.quantity != null
-              ? `${job.quantity.toLocaleString("th-TH")} ${job.unit ?? ""}`.trim()
-              : null
-          }
-        />
-        <Field label="LOT No. (Batch NO.)" value={job.lot_no} />
-        <Field label="แผนเริ่ม–เสร็จ" value={
-          job.planned_start || job.planned_end
-            ? `${job.planned_start ?? "—"} → ${job.planned_end ?? "—"}`
-            : null
-        } />
-        <Field label="วันผลิต" value={job.mfg_date} />
-        <Field label="วันหมดอายุ" value={job.exp_date} />
-        <Field label="รูปแบบบรรจุ" value={job.pack_type} />
-        {/* Packing Size — แยกบรรทัด (1)(2)(3) ให้เห็นว่าเป็นคนละช่องกัน (ตรงกับใบแจ้งผลิต F.PLN.01) */}
-        <Field
-          label="Packing Size"
-          value={
-            job.pack_patterns.length ? (
-              <span className="block space-y-0.5">
-                {job.pack_patterns.map((p, i) => (
-                  <span key={i} className="block">
-                    ({i + 1}) {p}
-                  </span>
-                ))}
-              </span>
-            ) : null
-          }
-        />
-      </dl>
+      {/* ข้อมูลงาน — อ่าน/แก้ไขในการ์ดเดียว สิทธิ์รายช่องตามฝ่าย (Part C) */}
+      <JobInfoCard
+        job={job}
+        roles={roles}
+        isManager={hasAnyRole(roles, ["manager", "admin"])}
+        subStatuses={subStatuses}
+        customers={customers}
+        issuedReqCount={issuedReqCount}
+      />
 
-      {/* LOT No. (Batch NO.) — ฝ่ายผลิตกรอกเองก่อนเริ่มผลิต (0049) */}
-      {canSetJobLot(roles) && (
-        <JobLotForm
-          jobNo={job.job_no}
-          jobId={job.id}
-          lotNo={job.lot_no}
-          mfgDate={job.mfg_date}
-          expDate={job.exp_date}
-          locked={curIdx >= STATUS_INDEX.in_production}
-        />
-      )}
+      {/* ไม่มีเลขล็อต = กดเริ่มผลิตไม่ได้ (ด่าน 0049) — ช่องกรอกอยู่ในการ์ดข้อมูลงานด้านบน */}
+      <LotNotice lotNo={job.lot_no} status={job.status} />
 
       {flag && job.problem_note && (
         <div className="rounded-xl border border-l-4 bg-card p-4" style={{ borderLeftColor: flag.color }}>

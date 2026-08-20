@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getBatchRecord } from "@/lib/data/ebr";
-import { STATUS_LABEL } from "@/lib/data/job-constants";
+import { STATUS_LABEL, formatSubStatus } from "@/lib/data/job-constants";
 import { STATION_LABEL, STATION_ICON } from "@/lib/data/station-constants";
 import {
   SEVERITY_LABEL,
@@ -103,7 +103,7 @@ export default async function EbrPage({
             <Row label="ใบคำขอ" value={job.request_no} />
             <Row label="C.P.O DATE" value={job.cpo_date} />
             <Row label="กำหนดส่ง" value={job.due_date} />
-            <Row label="Status" value={job.sub_status} />
+            <Row label="Status" value={formatSubStatus(job.sub_status, job.plan_month)} />
             <Row
               label="Batch Size"
               value={
