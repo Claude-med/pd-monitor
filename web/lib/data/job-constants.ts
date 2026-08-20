@@ -109,6 +109,8 @@ export type JobRow = {
   cpo_date: string | null;
   /** Status ข้อความอิสระ (Part 3) — ⚠️ ไม่เกี่ยวกับด่าน GMP · flow จริงคุมด้วย status (enum) */
   sub_status: string | null;
+  /** เดือนที่ลงแผนผลิต (Part C) — วันที่ 1 ของเดือน · คู่กับ sub_status ที่ requires_plan_month */
+  plan_month: string | null;
   /** รูปแบบบรรจุของงานนี้ (Part 2 — ย้ายจากระดับยามาระดับงาน) */
   pack_type: string | null;
   /** ขนาดบรรจุ 1–3 ช่อง — ตรงกับใบแจ้งผลิต F.PLN.01 */
@@ -116,3 +118,32 @@ export type JobRow = {
   /** งานถูกรับเข้าคลัง FG แล้ว (มีรายการใน fg_inventory) — ใช้ซ่อนออกจากบอร์ด */
   fg_received?: boolean;
 };
+
+/**
+ * แสดงเดือนแผนแบบที่ทีมเขียนในใบงาน: '2026-08-01' → '08/26' (ค.ศ. 2 หลัก)
+ * ⚠️ ตัดด้วย string ล้วน ห้ามผ่าน new Date() — timezone ทำให้เลื่อนวัน/เดือนได้ (บทเรียน 0048)
+ */
+export function formatPlanMonth(planMonth: string | null): string | null {
+  if (!planMonth || planMonth.length < 7) return null;
+  return `${planMonth.slice(5, 7)}/${planMonth.slice(2, 4)}`;
+}
+
+/** ค่าที่โผล่บนจอของช่อง Status — 'มีแผน' + '2026-08-01' → 'มีแผน08/26' */
+export function formatSubStatus(
+  subStatus: string | null,
+  planMonth: string | null,
+): string | null {
+  if (!subStatus) return null;
+  const mm = formatPlanMonth(planMonth);
+  return mm ? `${subStatus}${mm}` : subStatus;
+}
+
+/** ค่าที่ input type="month" ต้องการ: '2026-08-01' → '2026-08' */
+export function toMonthInput(planMonth: string | null): string {
+  return planMonth ? planMonth.slice(0, 7) : "";
+}
+
+/** ค่าที่ DB ต้องการ (วันที่ 1 ของเดือน): '2026-08' → '2026-08-01' */
+export function fromMonthInput(value: string): string | null {
+  return value && value.length >= 7 ? `${value.slice(0, 7)}-01` : null;
+}

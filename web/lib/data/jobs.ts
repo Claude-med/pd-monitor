@@ -6,7 +6,7 @@ export * from "@/lib/data/job-constants";
 
 const SELECT = `
   id, job_no, status, problem, problem_note, planned_start, planned_end,
-  request_no, cpo_date, sub_status,
+  request_no, cpo_date, sub_status, plan_month,
   pack_type, pack_pattern_1, pack_pattern_2, pack_pattern_3,
   batches ( lot_no, manufacture_date, expiry_date ),
   orders ( order_no, customer, customer_id, quantity, unit, due_date, products ( name, reg_no ) )
@@ -45,6 +45,7 @@ function shape(r: any): JobRow {
     request_no: r.request_no ?? null,
     cpo_date: r.cpo_date ?? null,
     sub_status: r.sub_status ?? null,
+    plan_month: r.plan_month ?? null,
     pack_type: r.pack_type ?? null,
     pack_patterns: [r.pack_pattern_1, r.pack_pattern_2, r.pack_pattern_3].filter(
       (p): p is string => !!p,
