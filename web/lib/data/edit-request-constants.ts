@@ -12,7 +12,9 @@ export type EditRequestStatus = "pending" | "applied" | "rejected";
 
 export const EDIT_TARGET_LABEL: Record<EditTargetType, string> = {
   production_record: "บันทึกผลผลิต",
-  material_requisition: "ใบเบิกผลิตภัณฑ์",
+  // ระบบเบิกเดิมถูกยกเลิกใน Part C.2 — คงค่าไว้เพราะ enum edit_target_type ใน DB
+  // ลบค่าทิ้งไม่ได้ (Postgres ไม่มี ALTER TYPE ... DROP VALUE) และแถวเก่ายังอ้างถึง
+  material_requisition: "ใบเบิกผลิตภัณฑ์ (ระบบเดิม — ยกเลิกแล้ว)",
   inprocess_check: "ผลตรวจ QC ระหว่างผลิต",
 };
 

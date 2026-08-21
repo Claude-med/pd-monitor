@@ -17,10 +17,7 @@ import {
 } from "@/lib/data/station-constants";
 import { getApprovalsForJob } from "@/lib/data/approvals";
 import { listMachines } from "@/lib/data/machines";
-import {
-  getRequisitionsForJob,
-  getSelectableLots,
-} from "@/lib/data/requisitions";
+import { getJobMaterials } from "@/lib/data/job-materials";
 import { getLineClearance } from "@/lib/data/line-clearance";
 import { getInprocessChecks, getQaSamples } from "@/lib/data/quality-checks";
 import { getJobRoute, listStations } from "@/lib/data/stations";
@@ -37,7 +34,11 @@ import {
 } from "@/lib/data/edit-request-constants";
 import { getProfile } from "@/lib/auth/dal";
 import { hasAnyRole } from "@/lib/auth/roles";
-import { canPlanJobs } from "@/lib/data/role-access";
+import {
+  canPlanJobs,
+  canEditJobMaterials,
+  canSetJobMaterialStatus,
+} from "@/lib/data/role-access";
 import { listJobSubStatuses } from "@/lib/data/job-sub-statuses";
 import { listCustomers } from "@/lib/data/customers";
 import { fmtDateTime } from "@/lib/format";
@@ -47,7 +48,7 @@ import { DeleteJobButton } from "./delete-job-button";
 import { LotNotice } from "./lot-notice";
 import { JobInfoCard } from "./job-info-card";
 import { RecordForm } from "./record-form";
-import { Requisitions } from "./requisitions";
+import { JobMaterials } from "./job-materials";
 import { LineClearancePanel } from "./line-clearance";
 import { QualityChecks } from "./quality-checks";
 import { Deviations } from "./deviations";
@@ -124,18 +125,17 @@ export default async function JobDetailPage({
     { value: "", label: "— ไม่ระบุเครื่อง —" },
     ...machines.map((m) => ({ value: m.id, label: `${m.code} · ${m.name}` })),
   ];
-  const requisitions = await getRequisitionsForJob(job.id);
+  const jobMaterials = await getJobMaterials(job.id);
   // Part C — การ์ดข้อมูลงานแก้ไขได้: ต้องมีทะเบียนสถานะ + ทะเบียนลูกค้าไว้ทำ dropdown
   const [subStatuses, customers] = await Promise.all([
     listJobSubStatuses(),
     listCustomers(),
   ]);
-  // ใบเบิกที่คลังจ่ายแล้ว — ใช้เตือนตอนแก้ Batch Size (โหลดอยู่แล้ว ไม่ต้อง query เพิ่ม)
-  const issuedReqCount = requisitions.filter((r) => r.status === "issued").length;
-  const canRequestMat = hasAnyRole(roles, ["production", "warehouse", "manager"]);
-  const canIssueMat = hasAnyRole(roles, ["warehouse", "manager"]);
-  // Part 2: เลิกกรองตาม BOM แล้ว — แสดงทุกล็อตที่พร้อมเบิก (มีช่องค้นหาในฟอร์ม)
-  const selectableLots = canRequestMat ? await getSelectableLots() : [];
+  // จำนวนรายการเบิก — ใช้เตือนตอนแก้ Batch Size (โหลดอยู่แล้ว ไม่ต้อง query เพิ่ม)
+  const materialCount = jobMaterials.length;
+  // Part C.2: ฝ่ายผลิตลงรายการ · ฝ่ายคลังกดสถานะ — คนละสิทธิ์กันคนละ helper
+  const canEditMat = canEditJobMaterials(roles);
+  const canSetMatStatus = canSetJobMaterialStatus(roles);
   const lineClearance = await getLineClearance(job.id);
   const canPerformLc = hasAnyRole(roles, ["production", "manager"]);
   const canCheckLc = hasAnyRole(roles, ["production", "qc", "qa", "manager"]);
@@ -171,7 +171,7 @@ export default async function JobDetailPage({
           "job_sub_statuses",
           "production_records",
           "approvals",
-          "material_requisitions",
+          "job_materials",
           "line_clearances",
           "inprocess_checks",
           "qa_samples",
@@ -260,7 +260,7 @@ export default async function JobDetailPage({
         isManager={hasAnyRole(roles, ["manager", "admin"])}
         subStatuses={subStatuses}
         customers={customers}
-        issuedReqCount={issuedReqCount}
+        materialCount={materialCount}
       />
 
       {/* ไม่มีเลขล็อต = กดเริ่มผลิตไม่ได้ (ด่าน 0049) — ช่องกรอกอยู่ในการ์ดข้อมูลงานด้านบน */}
@@ -433,18 +433,13 @@ export default async function JobDetailPage({
         </div>
       </div>
 
-      {/* เบิกผลิตภัณฑ์ (A2) */}
-      <Requisitions
+      {/* เบิกวัตถุดิบ/บรรจุภัณฑ์ (Part C.2) */}
+      <JobMaterials
         jobId={job.id}
         jobNo={job.job_no}
-        jobStatus={job.status}
-        requisitions={requisitions}
-        lots={selectableLots}
-        canRequest={canRequestMat}
-        canIssue={canIssueMat}
-        currentProfileId={profile?.id ?? ""}
-        canAmend={canAmend}
-        pendingTargetIds={[...pendingTargets]}
+        items={jobMaterials}
+        canEdit={canEditMat}
+        canSetStatus={canSetMatStatus}
       />
 
       {/* ตรวจระหว่างผลิต (in-process QC) + จุดเก็บตัวอย่าง QA (A6) */}

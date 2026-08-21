@@ -35,5 +35,8 @@ export const MATERIAL_LOT_STATUS_COLOR: Record<string, string> = {
   ...Object.fromEntries(MATERIAL_LOT_STATUSES.map((s) => [s.key, s.color])),
 };
 
-/** สถานะล็อตที่ "เบิกไปใช้ได้" — ต้องตรงกับด่านใน request_material/issue_requisition (0046) */
+/**
+ * สถานะล็อตที่ "พร้อมใช้" — ต้องตรงกับด่านใน upsert_product_lot (0046)
+ * (Part C.2 ตัดระบบเบิกที่ตัดสต็อกออกแล้ว ค่านี้จึงเหลือไว้ใช้กับหน้าคลังอย่างเดียว)
+ */
 export const USABLE_LOT_STATUSES = new Set<string>(["available"]);

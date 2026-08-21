@@ -12,8 +12,8 @@ const inputClass =
 /**
  * ช่อง Status ของงาน (Part C) — เลือกจากทะเบียน + ช่องค้นหา + ปุ่มจัดการทะเบียน
  *
- * ⚠️ ใช้ input ค้นหาแยก + <select> native ที่ถูกกรอง (แพทเทิร์นเดียวกับหน้าเบิกล็อต
- *    requisitions.tsx) ไม่เขียน dropdown panel เอง — บนมือถือได้ picker ของ OS
+ * ⚠️ ใช้ input ค้นหาแยก + <select> native ที่ถูกกรอง (แพทเทิร์นเดียวกับ
+ *    MachineStatusPicker ในหน้าเครื่องจักร) ไม่เขียน dropdown panel เอง — บนมือถือได้ picker ของ OS
  *    และไม่ต้องแก้เรื่อง focus/z-index/คลิกนอกกล่องเอง
  * ⚠️ ห้ามใส่ size={n} — size>1 ทำให้ <select> กลายเป็นกล่องรายการกางค้าง (บทเรียน Part 2.1)
  */

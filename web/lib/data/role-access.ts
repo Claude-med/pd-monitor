@@ -15,6 +15,8 @@ import { hasAnyRole } from "@/lib/auth/roles";
  *      canEditJobPlanFields()      ↔ can_plan_jobs()      (ใช้ใน update_job_details · 0054)
  *      canEditJobProductionFields()↔ can_set_job_lot()    (ใช้ใน update_job_details · 0054)
  *      canManageJobSubStatuses()   ↔ แค่ล็อกอิน            (ทะเบียนสถานะงาน · 0053)
+ *      canEditJobMaterials()       ↔ public.can_edit_job_materials()      (0056)
+ *      canSetJobMaterialStatus()   ↔ public.can_set_job_material_status() (0056)
  *    DB เป็นด่านบังคับจริง · ฝั่งแอปใช้ตัดสินว่าจะ "แสดงปุ่ม/ช่องกรอก" ไหน
  *    (canSeeCost เป็นการอ่านล้วน — คุมที่แอปอย่างเดียว ไม่มี guard ใน DB)
  */
@@ -53,7 +55,7 @@ export const ROLE_ACCESS: Record<AppRole, RoleAccess> = {
       "กรอก LOT No. ให้งาน (ก่อนเริ่มผลิต)",
       "ทำ Line Clearance (ผู้ปฏิบัติ) → เริ่มผลิต",
       "บันทึกผลผลิตรายสถานี (เข้า/ออก/ของเสีย/ชั่วโมง/จำนวนคน)",
-      "ขอเบิกผลิตภัณฑ์ (วัตถุดิบ/บรรจุภัณฑ์) · ส่งตรวจ QC",
+      "ลงรายการวัตถุดิบ/บรรจุภัณฑ์ที่ต้องเบิก (กดสถานะพร้อมไม่ได้) · ส่งตรวจ QC",
       "เพิ่ม/แก้ทะเบียนเครื่องจักร (ยกเว้นกำหนดซ่อม/สอบเทียบ)",
       "เปิด deviation · ขออนุมัติแก้ไขย้อนหลัง",
     ],
@@ -86,10 +88,10 @@ export const ROLE_ACCESS: Record<AppRole, RoleAccess> = {
     manage: [
       "เพิ่ม/แก้/ลบผลิตภัณฑ์ในทะเบียน (แก้ขั้นตอนการผลิตไม่ได้)",
       "ล็อต/สต็อกของผลิตภัณฑ์ทุกตัว (ตั้งสถานะล็อตไม่ได้ — ฝ่ายวางแผนกดปลดเองที่แถวล็อต)",
-      "จ่ายของตามใบเบิก (ตัดสต็อก)",
+      "กดสถานะ พร้อม/ไม่พร้อม ให้รายการเบิกของแต่ละงาน (เพิ่ม/แก้/ลบรายการไม่ได้)",
       "รับ FG เข้าคลัง",
     ],
-    view: ["คลัง / FG", "ไล่ย้อนล็อต (Trace)"],
+    view: ["คลัง / FG", "เบิกวัตถุดิบ / บรรจุภัณฑ์", "ไล่ย้อนล็อต (Trace)"],
   },
   engineering: {
     code: "ENG",
@@ -189,6 +191,25 @@ export function canEditJobProductionFields(roles: AppRole[]): boolean {
  */
 export function canManageJobSubStatuses(roles: AppRole[]): boolean {
   return roles.length > 0;
+}
+
+/**
+ * เพิ่ม/แก้/ลบรายการเบิกวัตถุดิบ-บรรจุภัณฑ์ของงาน — ตรงกับ can_edit_job_materials() ใน DB (0056)
+ * ฝ่ายผลิตเป็นคนรู้ว่างานนี้ต้องใช้อะไร · แก้ "สถานะความพร้อม" ไม่ได้ (เป็นของฝ่ายคลัง)
+ */
+export function canEditJobMaterials(roles: AppRole[]): boolean {
+  return hasAnyRole(roles, ["production", "manager"]);
+}
+
+/**
+ * กดสถานะ พร้อม/ไม่พร้อม ให้รายการเบิก — ตรงกับ can_set_job_material_status() ใน DB (0056)
+ * ฝ่ายคลังเป็นคนเห็นของจริง · ลบรายการไม่ได้
+ *
+ * ⚠️ ห้าม or รวมกับ canEditJobMaterials() ตอนตัดสินใจแสดง picker —
+ *    ฝ่ายผลิตต้อง "เห็นสถานะแต่กดไม่ได้"
+ */
+export function canSetJobMaterialStatus(roles: AppRole[]): boolean {
+  return hasAnyRole(roles, ["warehouse", "manager"]);
 }
 
 /** ตั้งกำหนดซ่อมบำรุง/สอบเทียบ — ตรงกับ can_set_machine_schedule() ใน DB */

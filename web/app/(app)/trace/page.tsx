@@ -2,6 +2,11 @@ import Link from "next/link";
 import { searchTrace, type JobTrace } from "@/lib/data/genealogy";
 import { STATUS_LABEL, STATUS_COLOR } from "@/lib/data/job-constants";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
+import {
+  MaterialTypeBadge,
+  ReadyStatusBadge,
+  formatQty,
+} from "@/components/job-material-card";
 
 export const metadata = { title: "ไล่ย้อนล็อต (Traceability) — PD Monitor" };
 
@@ -62,28 +67,26 @@ function JobTraceCard({ t }: { t: JobTrace }) {
 
       {/* ผังสายโซ่: RM lots → JOB → FG lot */}
       <div className="mt-3 flex flex-col gap-2 lg:flex-row lg:items-stretch">
-        {/* วัตถุดิบที่ใช้ */}
+        {/* วัตถุดิบ/บรรจุภัณฑ์ที่เบิก (Part C.2 — บันทึกหน้างาน ไม่มีเลขล็อต) */}
         <div className="flex-1 rounded-lg border border-dashed bg-muted/20 p-3">
           <p className="mb-1.5 text-xs font-medium text-muted-foreground">
-            วัตถุดิบที่เบิกใช้ (RM/PM lot)
+            วัตถุดิบ/บรรจุภัณฑ์ที่เบิก (RM/PM)
           </p>
-          {t.rm_lots.length > 0 ? (
+          {t.materials.length > 0 ? (
             <ul className="space-y-1 text-sm">
-              {t.rm_lots.map((m) => (
-                <li key={m.requisition_id} className="flex flex-wrap items-center gap-x-2">
-                  <span className="font-medium">{m.material_code}</span>
-                  <span className="text-muted-foreground">{m.material_name}</span>
-                  <span className="rounded bg-background px-1.5 py-0.5 text-xs">
-                    ล็อต {m.lot_no}
-                  </span>
+              {t.materials.map((m) => (
+                <li key={m.id} className="flex flex-wrap items-center gap-x-2">
+                  <MaterialTypeBadge type={m.item_type} />
+                  <span className="font-medium">{m.item_name}</span>
                   <span className="text-xs tabular-nums text-muted-foreground">
-                    {fmt(m.qty)} {m.unit}
+                    {formatQty(m.qty, m.qty_unit)}
                   </span>
+                  <ReadyStatusBadge status={m.status} />
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-muted-foreground">— ยังไม่มีการเบิก</p>
+            <p className="text-sm text-muted-foreground">— ยังไม่มีรายการเบิก</p>
           )}
         </div>
 
@@ -123,17 +126,20 @@ export default async function TracePage({
   const sp = await searchParams;
   const q = (sp.q ?? "").trim();
   const result = q ? await searchTrace(q) : null;
-  const nothing =
-    result && result.forward.length === 0 && result.reverse.length === 0;
+  const nothing = result && result.forward.length === 0;
 
   return (
     <div className="space-y-6">
-      <RealtimeRefresh tables={["jobs", "fg_inventory", "material_requisitions"]} />
+      <RealtimeRefresh tables={["jobs", "fg_inventory", "job_materials"]} />
       <div>
         <h1 className="text-2xl font-bold tracking-tight">ไล่ย้อนล็อต (Traceability)</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          ค้นด้วย <b>เลขงาน</b> หรือ <b>เลขล็อต</b> (ล็อตผลิต FG หรือล็อตวัตถุดิบ RM)
-          เพื่อไล่สายโซ่ <b>วัตถุดิบ → งาน → FG</b> และย้อนกลับ (เผื่อเรียกคืน/ร้องเรียน)
+          ค้นด้วย <b>เลขงาน</b> หรือ <b>เลขล็อตผลิต (FG)</b> เพื่อไล่สายโซ่{" "}
+          <b>วัตถุดิบ → งาน → FG</b>
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          ℹ️ ไล่ย้อนจากเลขล็อตวัตถุดิบ (recall) ทำไม่ได้แล้ว — ระบบเบิกใหม่เป็นบันทึกหน้างาน
+          ไม่ผูกเลขล็อตในคลัง
         </p>
       </div>
 
@@ -141,13 +147,13 @@ export default async function TracePage({
       <form method="get" className="flex flex-wrap items-end gap-3">
         <div className="flex-1 min-w-[220px]">
           <label className="mb-1 block text-xs font-medium text-muted-foreground">
-            เลขงาน / เลขล็อต
+            เลขงาน / เลขล็อตผลิต
           </label>
           <input
             type="text"
             name="q"
             defaultValue={q}
-            placeholder="เช่น JOB-2569-0001 หรือ L1 / LOT-A"
+            placeholder="เช่น 690001 หรือเลขล็อตผลิต"
             className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
@@ -161,7 +167,7 @@ export default async function TracePage({
 
       {!q && (
         <p className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
-          พิมพ์เลขงานหรือเลขล็อตด้านบนเพื่อเริ่มไล่ย้อน
+          พิมพ์เลขงานหรือเลขล็อตผลิตด้านบนเพื่อเริ่มไล่ย้อน
         </p>
       )}
 
@@ -183,27 +189,6 @@ export default async function TracePage({
         </section>
       )}
 
-      {/* ขาย้อนกลับ: ล็อตวัตถุดิบ → งานที่ใช้ (recall) */}
-      {result && result.reverse.length > 0 && (
-        <section className="space-y-4">
-          <h2 className="font-semibold">ย้อนจากล็อตวัตถุดิบ — งานที่ใช้ล็อตนี้ (เผื่อเรียกคืน)</h2>
-          {result.reverse.map((rev) => (
-            <div key={rev.material_lot_id} className="space-y-2">
-              <div className="rounded-lg bg-amber-500/10 px-3 py-2 text-sm">
-                <span className="font-medium">{rev.material_code}</span>{" "}
-                {rev.material_name} · ล็อต <b>{rev.lot_no}</b> — ใช้ใน {rev.jobs.length} งาน
-              </div>
-              {rev.jobs.length > 0 ? (
-                rev.jobs.map((t) => <JobTraceCard key={t.job_id} t={t} />)
-              ) : (
-                <p className="px-3 text-sm text-muted-foreground">
-                  ล็อตนี้ยังไม่ถูกเบิกใช้ในงานใด
-                </p>
-              )}
-            </div>
-          ))}
-        </section>
-      )}
     </div>
   );
 }

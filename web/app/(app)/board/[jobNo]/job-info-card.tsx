@@ -90,7 +90,7 @@ export function JobInfoCard({
   isManager,
   subStatuses,
   customers,
-  issuedReqCount,
+  materialCount,
 }: {
   job: JobRow;
   roles: AppRole[];
@@ -98,7 +98,7 @@ export function JobInfoCard({
   subStatuses: JobSubStatusOption[];
   customers: CustomerOption[];
   /** จำนวนใบเบิกที่คลังจ่ายแล้ว — ใช้เตือนก่อนแก้ Batch Size */
-  issuedReqCount: number;
+  materialCount: number;
 }) {
   const base = toDraft(job);
   const [open, setOpen] = useState(false);
@@ -366,10 +366,11 @@ export function JobInfoCard({
               onChange={(e) => set("quantity", e.target.value)}
               className={inputClass}
             />
-            {issuedReqCount > 0 && draft.quantity !== base.quantity && (
+            {materialCount > 0 && draft.quantity !== base.quantity && (
               <p className="mt-1 rounded-md bg-amber-500/10 px-2 py-1 text-[11px] text-amber-700 dark:text-amber-400">
-                ⚠️ งานนี้เบิกผลิตภัณฑ์ไปแล้ว {issuedReqCount.toLocaleString("th-TH")} รายการ —
-                แก้ Batch Size แล้วอย่าลืมทบทวนปริมาณที่เบิก
+                ⚠️ งานนี้มีรายการเบิกวัตถุดิบ/บรรจุภัณฑ์{" "}
+                {materialCount.toLocaleString("th-TH")} รายการ —
+                แก้ Batch Size แล้วอย่าลืมทบทวนจำนวนที่เบิก
               </p>
             )}
           </div>

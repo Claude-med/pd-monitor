@@ -92,19 +92,20 @@ export async function getTargetSnapshot(
   targetType: EditTargetType,
   targetId: string,
 ): Promise<Record<string, string>> {
+  // ระบบเบิกเดิมถูกยกเลิกใน Part C.2 (ตาราง material_requisitions ถูก drop ใน 0057)
+  // คำขอชนิดนี้สร้างใหม่ไม่ได้แล้ว แต่แถวเก่าอาจค้างอยู่ — ต้องกันก่อนแตะ query
+  // ไม่งั้นหน้าคำขอแก้ไขจะพังทั้งหน้าเพราะ query ตารางที่ไม่มีอยู่จริง
+  if (targetType === "material_requisition") return {};
+
   const supabase = await createClient();
   const table =
     targetType === "production_record"
       ? "production_records"
-      : targetType === "material_requisition"
-        ? "material_requisitions"
-        : "inprocess_checks";
+      : "inprocess_checks";
   const cols =
     targetType === "production_record"
       ? "input_qty, output_qty, loss_qty, hours, headcount, note, record_date, station, machine_id"
-      : targetType === "material_requisition"
-        ? "qty, note"
-        : "param, value, unit, result, note";
+      : "param, value, unit, result, note";
   const { data } = await supabase.from(table).select(cols).eq("id", targetId).single();
   const out: Record<string, string> = {};
   if (data)

@@ -8,7 +8,10 @@ import {
   DEV_STATUS_LABEL,
   DEV_TYPE_LABEL,
 } from "@/lib/data/deviation-constants";
-import { REQ_STATUS_LABEL } from "@/lib/data/requisition-constants";
+import {
+  MATERIAL_TYPE_LABEL,
+  READY_STATUS_LABEL,
+} from "@/lib/data/job-material-constants";
 import { fmtDateTime } from "@/lib/format";
 import { PrintButton } from "./print-button";
 
@@ -168,39 +171,49 @@ export default async function EbrPage({
           )}
         </Section>
 
-        {/* 3. ผลิตภัณฑ์ที่เบิกใช้ */}
-        <Section title="3. ผลิตภัณฑ์ที่เบิกใช้ (RM/PM)">
-          {r.requisitions.length > 0 ? (
-            <table className="w-full text-sm">
-              <thead>
-                <tr>
-                  <th className={th}>รหัส</th>
-                  <th className={th}>ชื่อ</th>
-                  <th className={th}>ล็อต</th>
-                  <th className={`${th} text-right`}>จำนวน</th>
-                  <th className={th}>สถานะ</th>
-                  <th className={th}>ผู้เบิก</th>
-                </tr>
-              </thead>
-              <tbody>
-                {r.requisitions.map((m) => (
-                  <tr key={m.id}>
-                    <td className={td}>{m.material_code}</td>
-                    <td className={td}>{m.material_name}</td>
-                    <td className={td}>{m.lot_no}</td>
-                    <td className={`${td} text-right tabular-nums`}>
-                      {fmt(m.qty)} {m.unit}
-                    </td>
-                    <td className={td}>
-                      {REQ_STATUS_LABEL[m.status] ?? m.status}
-                    </td>
-                    <td className={td}>{m.requested_by_name ?? "—"}</td>
+        {/* 3. วัตถุดิบ/บรรจุภัณฑ์ที่ต้องใช้ (Part C.2 — บันทึกหน้างาน ไม่ผูกล็อตคลัง) */}
+        <Section title="3. วัตถุดิบ/บรรจุภัณฑ์ที่ต้องใช้ (RM/PM)">
+          {r.materials.length > 0 ? (
+            <>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr>
+                    <th className={th}>ประเภท</th>
+                    <th className={th}>ชื่อ</th>
+                    <th className={`${th} text-right`}>จำนวน</th>
+                    <th className={th}>สถานะ</th>
+                    <th className={th}>หมายเหตุ</th>
+                    <th className={th}>ผู้บันทึก</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {r.materials.map((m) => (
+                    <tr key={m.id}>
+                      <td className={td}>
+                        {MATERIAL_TYPE_LABEL[m.item_type] ?? m.item_type}
+                      </td>
+                      <td className={td}>{m.item_name}</td>
+                      <td className={`${td} text-right tabular-nums`}>
+                        {fmt(m.qty)} {m.qty_unit ?? ""}
+                      </td>
+                      <td className={td}>
+                        {READY_STATUS_LABEL[m.status] ?? m.status}
+                      </td>
+                      <td className={td}>{m.note ?? "—"}</td>
+                      <td className={td}>{m.created_by_name ?? "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p className="mt-2 text-xs text-muted-foreground">
+                บันทึกหน้างาน — ไม่ผูกเลขล็อตวัตถุดิบในระบบ
+                (สถานะ &ldquo;พร้อม&rdquo; = ฝ่ายคลังยืนยันว่ามีของ)
+              </p>
+            </>
           ) : (
-            <p className="text-sm text-muted-foreground">— ไม่มีการเบิกผลิตภัณฑ์</p>
+            <p className="text-sm text-muted-foreground">
+              — ไม่มีรายการเบิกวัตถุดิบ/บรรจุภัณฑ์
+            </p>
           )}
         </Section>
 

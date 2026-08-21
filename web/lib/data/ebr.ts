@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getJobByNo, type JobRow } from "@/lib/data/jobs";
 import { getRecordsForJob } from "@/lib/data/production";
 import type { ProductionRecordRow } from "@/lib/data/station-constants";
-import { getRequisitionsForJob, type RequisitionRow } from "@/lib/data/requisitions";
+import { getJobMaterials, type JobMaterialRow } from "@/lib/data/job-materials";
 import { getLineClearance, type LineClearance } from "@/lib/data/line-clearance";
 import {
   getInprocessChecks,
@@ -27,7 +27,7 @@ export type FgReceived = {
 export type BatchRecord = {
   job: JobRow;
   records: ProductionRecordRow[];
-  requisitions: RequisitionRow[];
+  materials: JobMaterialRow[];
   lineClearance: LineClearance | null;
   inprocessChecks: InprocessCheck[];
   qaSamples: QaSample[];
@@ -64,7 +64,7 @@ export async function getBatchRecord(jobNo: string): Promise<BatchRecord | null>
 
   const [
     records,
-    requisitions,
+    materials,
     lineClearance,
     inprocessChecks,
     qaSamples,
@@ -73,7 +73,7 @@ export async function getBatchRecord(jobNo: string): Promise<BatchRecord | null>
     fg,
   ] = await Promise.all([
     getRecordsForJob(job.id),
-    getRequisitionsForJob(job.id),
+    getJobMaterials(job.id),
     getLineClearance(job.id),
     getInprocessChecks(job.id),
     getQaSamples(job.id),
@@ -93,7 +93,7 @@ export async function getBatchRecord(jobNo: string): Promise<BatchRecord | null>
   return {
     job,
     records,
-    requisitions,
+    materials,
     lineClearance,
     inprocessChecks,
     qaSamples,
