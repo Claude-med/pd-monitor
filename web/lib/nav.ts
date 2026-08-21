@@ -17,6 +17,14 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/machines", label: "เครื่องจักร", roles: "all", ready: true },
   { href: "/materials", label: "ผลิตภัณฑ์คลัง", roles: "all", ready: true },
   {
+    // Part C.2 — ฝ่ายคลังกดสถานะความพร้อมข้ามงานได้จากที่เดียว
+    // (เพิ่ม/แก้/ลบรายการยังทำที่หน้างานที่เดียว ไม่ทำ 2 ทางเข้า)
+    href: "/job-materials",
+    label: "เบิกวัตถุดิบ / บรรจุภัณฑ์",
+    roles: ["warehouse", "production", "manager"],
+    ready: true,
+  },
+  {
     href: "/recipes",
     label: "ผลิตภัณฑ์ / ขั้นตอนการผลิต",
     roles: "all",
