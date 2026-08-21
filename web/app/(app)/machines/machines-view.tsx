@@ -94,28 +94,32 @@ function MachineStatusPicker({
 
   return (
     <div className="space-y-1">
-      <div className="flex flex-wrap gap-1">
-        {MACHINE_STATUSES.map((s) => {
-          const on = status === s.key;
-          return (
-            <button
-              key={s.key}
-              type="button"
-              disabled={pending}
-              onClick={() => pick(s.key)}
-              aria-pressed={on}
-              className="rounded px-2 py-0.5 text-xs font-medium transition disabled:opacity-50"
-              style={
-                on
-                  ? { backgroundColor: s.color, color: "#fff" }
-                  : { border: `1px solid ${s.color}`, color: s.color }
-              }
-            >
-              {pending && !on ? "…" : s.label}
-            </button>
-          );
-        })}
-      </div>
+      {/* ป้ายสถานะปัจจุบัน "ป้ายเดียว" ที่กดแล้วกางรายการให้เลือกได้เลยในคลิกเดียว
+          (ของเดิมยิงปุ่มครบทั้ง 5 ค่าทุกการ์ด — 10 เครื่อง = 50 ชิปสี อ่านไม่ออกว่าอันไหนคือของจริง) */}
+      <span className="relative inline-flex items-center">
+        <select
+          value={status}
+          disabled={pending}
+          onChange={(e) => pick(e.target.value as MachineStatus)}
+          aria-label="สถานะเครื่องจักร"
+          className="cursor-pointer appearance-none rounded py-0.5 pl-2 pr-6 text-xs font-medium text-white outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
+          style={{ backgroundColor: MACHINE_STATUS_COLOR[status] ?? "#64748b" }}
+        >
+          {MACHINE_STATUSES.map((s) => (
+            // ⚠️ ต้องกำหนดสีพื้น/สีตัวอักษรของ option เอง ไม่งั้นบางเบราว์เซอร์
+            //    ลากสีพื้นของ select (สีเข้ม) ไปทาบรายการจนอ่านไม่ออก
+            <option key={s.key} value={s.key} className="bg-background text-foreground">
+              {s.label}
+            </option>
+          ))}
+        </select>
+        <span
+          aria-hidden
+          className="pointer-events-none absolute right-1.5 text-[9px] text-white"
+        >
+          ▼
+        </span>
+      </span>
       {error && <p className="text-[11px] text-destructive">{error}</p>}
     </div>
   );
