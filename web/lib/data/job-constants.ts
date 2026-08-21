@@ -95,6 +95,10 @@ export type JobRow = {
   order_no: string | null;
   customer: string | null;
   product_name: string | null;
+  /** รหัสยา — products.code (แก้ที่หน้าผลิตภัณฑ์เท่านั้น ห้ามแก้ที่งาน) */
+  product_code: string | null;
+  /** ชนิด — products.dosage_form (TAB/CAP/CRM …) · ⚠️ ไม่ใช่ products.type ที่ถูกเลิกใช้ไปแล้วใน 0044 */
+  dosage_form: string | null;
   /** เลขทะเบียนตำรับยา — มาจากทะเบียนผลิตภัณฑ์ (แก้ที่หน้าผลิตภัณฑ์เท่านั้น ห้ามแก้ที่งาน) */
   reg_no: string | null;
   quantity: number | null;

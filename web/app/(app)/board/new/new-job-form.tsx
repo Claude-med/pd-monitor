@@ -262,7 +262,7 @@ export function NewJobForm({
 
           <div className="mt-4 space-y-2">
             <label className={labelClass}>
-              Packing Size (ขนาดบรรจุ · สูงสุด {MAX_PACKS} ขนาด)
+              Pack Size (ขนาดบรรจุ · สูงสุด {MAX_PACKS} ขนาด)
             </label>
             {v.pack_patterns.map((p, i) => (
               <div key={i} className="flex gap-2">

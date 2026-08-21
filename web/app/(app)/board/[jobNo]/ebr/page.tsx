@@ -117,7 +117,7 @@ export default async function EbrPage({
             <Row label="วันหมดอายุ" value={job.exp_date} />
             <Row label="รูปแบบบรรจุ" value={job.pack_type} />
             <Row
-              label="Packing Size"
+              label="Pack Size"
               value={
                 job.pack_patterns.length ? (
                   <span className="block">

@@ -33,7 +33,10 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-/** ช่องที่ role นี้แก้ไม่ได้ / ถูกล็อกด้วยสถานะ — โชว์ค่าพร้อมเหตุผลสั้นๆ */
+/**
+ * ช่องที่ role นี้แก้ไม่ได้ / ถูกล็อกด้วยสถานะ — โชว์ค่าเดิมพร้อมกุญแจต่อท้ายชื่อช่อง
+ * เหตุผลอยู่ใน tooltip (`title`) ไม่กางเป็นบรรทัดเต็ม เพราะฟอร์มมีช่องล็อกได้หลายช่องพร้อมกัน
+ */
 function LockedField({
   label,
   value,
@@ -47,10 +50,12 @@ function LockedField({
   return (
     <div>
       <dt className="text-xs text-muted-foreground">
-        {label} <span title={reason}>🔒</span>
+        {label}{" "}
+        <span title={reason} className="cursor-help">
+          🔒
+        </span>
       </dt>
       <dd className="mt-0.5 text-sm font-medium text-muted-foreground">{shown}</dd>
-      <p className="mt-0.5 text-[11px] text-muted-foreground">{reason}</p>
     </div>
   );
 }
@@ -210,6 +215,8 @@ export function JobInfoCard({
               value={formatSubStatus(job.sub_status, job.plan_month)}
             />
             <Field label="ผลิตภัณฑ์" value={job.product_name} />
+            <Field label="รหัสยา" value={job.product_code} />
+            <Field label="ชนิด" value={job.dosage_form} />
             <Field label="Reg No." value={job.reg_no} />
             <Field
               label="Batch Size"
@@ -231,9 +238,9 @@ export function JobInfoCard({
             <Field label="วันผลิต" value={job.mfg_date} />
             <Field label="วันหมดอายุ" value={job.exp_date} />
             <Field label="รูปแบบบรรจุ" value={job.pack_type} />
-            {/* Packing Size — แยกบรรทัด (1)(2)(3) ให้เห็นว่าเป็นคนละช่อง (ตรงกับใบแจ้งผลิต F.PLN.01) */}
+            {/* Pack Size — แยกบรรทัด (1)(2)(3) ให้เห็นว่าเป็นคนละช่อง (ตรงกับใบแจ้งผลิต F.PLN.01) */}
             <Field
-              label="Packing Size"
+              label="Pack Size"
               value={
                 job.pack_patterns.length ? (
                   <span className="block space-y-0.5">
@@ -515,11 +522,11 @@ export function JobInfoCard({
           <LockedField label="รูปแบบบรรจุ" value={job.pack_type} reason={lockReason("pack_type")} />
         )}
 
-        {/* Packing Size 1–3 */}
+        {/* Pack Size 1–3 */}
         <div className="sm:col-span-2">
           {editable("pack_pattern_1") ? (
             <>
-              <label className={labelClass}>Packing Size (สูงสุด 3 ขนาด)</label>
+              <label className={labelClass}>Pack Size (สูงสุด 3 ขนาด)</label>
               <div className="grid gap-2 sm:grid-cols-3">
                 {(["pack_pattern_1", "pack_pattern_2", "pack_pattern_3"] as const).map(
                   (k, i) => (
@@ -536,7 +543,7 @@ export function JobInfoCard({
             </>
           ) : (
             <LockedField
-              label="Packing Size"
+              label="Pack Size"
               value={job.pack_patterns.length ? job.pack_patterns.join(" · ") : null}
               reason={lockReason("pack_pattern_1")}
             />
