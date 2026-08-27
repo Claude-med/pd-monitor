@@ -139,7 +139,7 @@ function StationMasterPanel({ stations }: { stations: Station[] }) {
         <div className="space-y-3 border-t p-5">
           <p className="text-xs text-muted-foreground">
             สถานีจริงในกระบวนการผลิต · ใช้ชื่อสถานีอ้างอิงทุกที่ในระบบ
-            เพื่อให้แดชบอร์ดสรุปได้เหมือนเดิม
+            (บันทึกผลผลิต · ตรวจ QC · เครื่องจักร · แดชบอร์ด)
           </p>
 
           <div className="flex flex-wrap items-center gap-3">
