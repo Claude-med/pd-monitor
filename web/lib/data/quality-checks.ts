@@ -30,9 +30,13 @@ export type InprocessCheck = {
 
 export type QaSample = {
   id: string;
-  sample_point: string;
+  /** เลิกใช้ตั้งแต่ Part C.4 — null ในแถวใหม่ · แถวเก่ายังมีข้อความอยู่ (0066) */
+  sample_point: string | null;
   qty: number | null;
   unit: string | null;
+  /** ผลตรวจ Finished product — null = แถวเก่าที่ยังไม่ได้ลงผล */
+  result: "pass" | "fail" | null;
+  /** วันเวลาที่เก็บ — Part C.4 ให้ QA กรอกเองได้ (เดิมเป็น now() เสมอ) */
   collected_at: string;
   collector_name: string | null;
   note: string | null;
@@ -81,23 +85,26 @@ export async function getInprocessChecks(jobId: string): Promise<InprocessCheck[
   }));
 }
 
-/** จุด/รอบเก็บตัวอย่าง QA ของงาน (ใหม่สุดก่อน) */
+/** จุดเก็บตัวอย่าง (ตรวจ Finished product) ของงาน — ใหม่สุดก่อน · ไม่รวมแถวที่ถูกลบ */
 export async function getQaSamples(jobId: string): Promise<QaSample[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("qa_samples")
     .select(
-      `id, sample_point, qty, unit, collected_at, note,
+      `id, sample_point, qty, unit, result, collected_at, note,
        collector:profiles!collected_by ( full_name )`,
     )
     .eq("job_id", jobId)
+    // soft delete (0066) — RLS อ่านเป็น using(true) จึงต้องกรองแถวที่ถูกลบที่นี่
+    .is("deleted_at", null)
     .order("collected_at", { ascending: false });
   if (error || !data) return [];
   return (data as any[]).map((r) => ({
     id: r.id,
-    sample_point: r.sample_point,
+    sample_point: r.sample_point ?? null,
     qty: r.qty === null ? null : Number(r.qty),
     unit: r.unit,
+    result: r.result ?? null,
     collected_at: r.collected_at,
     collector_name: one<any>(r.collector)?.full_name ?? null,
     note: r.note,

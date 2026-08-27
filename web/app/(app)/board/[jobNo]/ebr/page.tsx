@@ -12,6 +12,7 @@ import {
   MATERIAL_TYPE_LABEL,
   READY_STATUS_LABEL,
 } from "@/lib/data/job-material-constants";
+import { QA_RESULT_META } from "@/lib/data/qa-sample-constants";
 import { fmtDateTime } from "@/lib/format";
 import { PrintButton } from "./print-button";
 
@@ -333,14 +334,14 @@ export default async function EbrPage({
           )}
         </Section>
 
-        {/* 7. จุดเก็บตัวอย่าง QA */}
-        <Section title="7. จุดเก็บตัวอย่าง (QA Sample)">
+        {/* 7. จุดเก็บตัวอย่าง (ตรวจ Finished product) */}
+        <Section title="7. จุดเก็บตัวอย่าง (ตรวจ Finished product)">
           {r.qaSamples.length > 0 ? (
             <table className="w-full text-sm">
               <thead>
                 <tr>
-                  <th className={th}>เวลา</th>
-                  <th className={th}>จุด/รอบ</th>
+                  <th className={th}>วันที่/เวลาที่เก็บ</th>
+                  <th className={th}>ผลตรวจ</th>
                   <th className={`${th} text-right`}>จำนวน</th>
                   <th className={th}>ผู้เก็บ</th>
                 </tr>
@@ -349,7 +350,15 @@ export default async function EbrPage({
                 {r.qaSamples.map((s) => (
                   <tr key={s.id}>
                     <td className={td}>{dt(s.collected_at)}</td>
-                    <td className={td}>{s.sample_point}</td>
+                    <td className={td}>
+                      {s.result ? QA_RESULT_META[s.result].label : "—"}
+                      {/* แถวก่อน Part C.4 ยังมีข้อความ "จุด/รอบ" อยู่ — พิมพ์กำกับไว้ ไม่ให้ประวัติหาย */}
+                      {s.sample_point && (
+                        <span className="block text-xs text-muted-foreground">
+                          จุด/รอบ (ข้อมูลเดิม): {s.sample_point}
+                        </span>
+                      )}
+                    </td>
                     <td className={`${td} text-right tabular-nums`}>
                       {s.qty == null ? "—" : fmt(s.qty)} {s.unit ?? ""}
                     </td>

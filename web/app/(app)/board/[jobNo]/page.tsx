@@ -46,6 +46,7 @@ import {
   canRecordInprocess,
   canApproveInprocess,
 } from "@/lib/data/role-access";
+import { canRecordQaSample } from "@/lib/data/qa-sample-constants";
 import { listJobSubStatuses } from "@/lib/data/job-sub-statuses";
 import { listCustomers } from "@/lib/data/customers";
 import { fmtDateTime } from "@/lib/format";
@@ -158,7 +159,8 @@ export default async function JobDetailPage({
   const canInprocess = canRecordInprocess(roles);
   // Part C.3 ก้อน 6: หัวหน้า QC เป็นคนอนุมัติผลตรวจ (คนละคนกับผู้ลงผล)
   const canApproveQc = canApproveInprocess(roles);
-  const canSample = hasAnyRole(roles, ["qa", "manager"]);
+  // Part C.4: บันทึก/แก้/ลบ จุดเก็บตัวอย่าง (ตรวจ Finished product) — ตรงกับ can_record_qa_sample()
+  const canSample = canRecordQaSample(roles);
   // ── Part C.3 ก้อน 3: แท็บตามขั้นตอนการผลิต ──────────────────────────
   // steps มาจาก job_routes (snapshot ตอนสร้างงาน) พร้อมเครื่องจักรที่ผูกไว้ + ตัวนับ
   const steps = await getJobRouteSteps(job.id);

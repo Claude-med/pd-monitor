@@ -4,12 +4,19 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { InprocessCheck, QaSample } from "@/lib/data/quality-checks";
 import { INPROCESS_STATUS_META } from "@/lib/data/inprocess-constants";
+import {
+  QA_SAMPLE_RESULT,
+  QA_RESULT_META,
+} from "@/lib/data/qa-sample-constants";
 import type { JobRouteStep } from "@/lib/data/stations";
 import { fmtDateTime } from "@/lib/format";
 import {
   addInprocessCheck,
   addQaSample,
+  updateQaSample,
+  deleteQaSample,
   reviewInprocessCheck,
+  type QaSampleInput,
 } from "./quality-actions";
 import { EditRequestButton } from "./edit-request-button";
 
@@ -314,10 +321,10 @@ export function QualityChecks({
         </div>
       </section>
 
-      {/* QA Samples */}
-      <section className="rounded-xl border bg-card p-5">
+      {/* จุดเก็บตัวอย่าง (ตรวจ Finished product) — Part C.4 ก้อน 3 */}
+      <section id="qa-sample" className="rounded-xl border bg-card p-5">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-semibold">จุดเก็บตัวอย่าง (QA Sample)</h2>
+          <h2 className="font-semibold">จุดเก็บตัวอย่าง (ตรวจ Finished product)</h2>
           <span className="text-xs text-muted-foreground">{samples.length} รายการ</span>
         </div>
 
@@ -328,7 +335,7 @@ export function QualityChecks({
               {samples.map((s) => (
                 <div key={s.id} className="rounded-lg border bg-muted/20 p-3">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-medium">{s.sample_point}</span>
+                    <SampleResultBadge result={s.result} />
                     <span className="text-sm tabular-nums">
                       {s.qty == null ? "—" : s.qty.toLocaleString("th-TH")} {s.unit ?? ""}
                     </span>
@@ -336,8 +343,18 @@ export function QualityChecks({
                   <div className="mt-1 text-xs text-muted-foreground">
                     {fmtDateTime(s.collected_at)} · {s.collector_name ?? "—"}
                   </div>
+                  {s.sample_point && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      จุด/รอบ (ข้อมูลเดิม): {s.sample_point}
+                    </p>
+                  )}
                   {s.note && (
                     <p className="mt-1 text-xs text-muted-foreground">📝 {s.note}</p>
+                  )}
+                  {canSample && (
+                    <div className="mt-2">
+                      <SampleRowActions jobNo={jobNo} sample={s} />
+                    </div>
                   )}
                 </div>
               ))}
@@ -348,11 +365,12 @@ export function QualityChecks({
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b text-left text-xs text-muted-foreground">
-                    <th className="px-2 py-2 font-medium">เวลา</th>
-                    <th className="px-2 py-2 font-medium">จุด/รอบ</th>
+                    <th className="px-2 py-2 font-medium">วันที่/เวลาที่เก็บ</th>
+                    <th className="px-2 py-2 font-medium">ผลตรวจ</th>
                     <th className="px-2 py-2 text-right font-medium">จำนวน</th>
                     <th className="px-2 py-2 font-medium">ผู้เก็บ</th>
                     <th className="px-2 py-2 font-medium">หมายเหตุ</th>
+                    {canSample && <th className="px-2 py-2 font-medium">จัดการ</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -361,14 +379,28 @@ export function QualityChecks({
                       <td className="whitespace-nowrap px-2 py-2 text-muted-foreground">
                         {fmtDateTime(s.collected_at)}
                       </td>
-                      <td className="px-2 py-2">{s.sample_point}</td>
+                      <td className="px-2 py-2">
+                        <SampleResultBadge result={s.result} />
+                      </td>
                       <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums">
                         {s.qty == null ? "—" : s.qty.toLocaleString("th-TH")} {s.unit ?? ""}
                       </td>
                       <td className="whitespace-nowrap px-2 py-2 text-muted-foreground">
                         {s.collector_name ?? "—"}
                       </td>
-                      <td className="px-2 py-2 text-muted-foreground">{s.note ?? ""}</td>
+                      <td className="px-2 py-2 text-muted-foreground">
+                        {s.note ?? ""}
+                        {s.sample_point && (
+                          <span className="block text-xs">
+                            จุด/รอบ (ข้อมูลเดิม): {s.sample_point}
+                          </span>
+                        )}
+                      </td>
+                      {canSample && (
+                        <td className="px-2 py-2">
+                          <SampleRowActions jobNo={jobNo} sample={s} />
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -384,7 +416,7 @@ export function QualityChecks({
             <SampleForm jobId={jobId} jobNo={jobNo} />
           ) : (
             <p className="text-xs text-muted-foreground">
-              เฉพาะ QA/ผู้บริหารบันทึกจุดเก็บตัวอย่างได้
+              เฉพาะ QA/ผู้บริหารบันทึก แก้ไข และลบจุดเก็บตัวอย่างได้
             </p>
           )}
         </div>
@@ -574,23 +606,143 @@ function InprocessForm({
   );
 }
 
+/** ป้ายผลตรวจ Finished product — null = แถวเก่าที่ยังไม่ได้ลงผล */
+function SampleResultBadge({ result }: { result: "pass" | "fail" | null }) {
+  if (!result) {
+    return (
+      <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+        ยังไม่ลงผล
+      </span>
+    );
+  }
+  const meta = QA_RESULT_META[result];
+  return (
+    <span
+      className="inline-block whitespace-nowrap rounded px-2 py-0.5 text-xs font-medium text-white"
+      style={{ backgroundColor: meta.color }}
+    >
+      {meta.label}
+    </span>
+  );
+}
+
+/**
+ * ISO → ค่าที่ <input type="datetime-local"> ต้องการ ("YYYY-MM-DDTHH:mm")
+ * ⚠️ ล็อก timeZone ไทยทั้งวันที่และเวลา — ถ้าปล่อยตาม locale ของเครื่อง/รันไทม์
+ *    ผู้ใช้จะเห็นเวลาไม่ตรงกับที่บันทึกไว้ (Vercel เป็น UTC)
+ */
+function toLocalInput(iso: string | null): string {
+  const d = iso ? new Date(iso) : new Date();
+  if (Number.isNaN(d.getTime())) return "";
+  const tz = "Asia/Bangkok";
+  const date = d.toLocaleDateString("en-CA", { timeZone: tz }); // YYYY-MM-DD
+  const time = d.toLocaleTimeString("en-GB", {
+    timeZone: tz,
+    hour: "2-digit",
+    minute: "2-digit",
+  }); // HH:mm (24 ชม.)
+  return `${date}T${time}`;
+}
+
+const emptySample = (): QaSampleInput => ({
+  qty: "",
+  unit: "",
+  result: "pass",
+  collected_at: toLocalInput(null),
+  note: "",
+});
+
+/** ช่องกรอกชุดเดียวกัน ใช้ทั้งฟอร์มเพิ่มใหม่และฟอร์มแก้ไข */
+function SampleFields({
+  v,
+  set,
+}: {
+  v: QaSampleInput;
+  set: (k: keyof QaSampleInput, val: string) => void;
+}) {
+  return (
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div>
+        <label className={labelClass}>วันที่/เวลาที่เก็บ *</label>
+        <input
+          type="datetime-local"
+          value={v.collected_at}
+          onChange={(e) => set("collected_at", e.target.value)}
+          className={inputClass}
+        />
+      </div>
+      <div>
+        <label className={labelClass}>ผลตรวจ *</label>
+        <select
+          value={v.result}
+          onChange={(e) => set("result", e.target.value)}
+          className={inputClass}
+        >
+          {QA_SAMPLE_RESULT.map((r) => (
+            <option key={r.key} value={r.key}>
+              {r.label}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className={labelClass}>จำนวน</label>
+          <input
+            type="number"
+            inputMode="decimal"
+            step="any"
+            min="0"
+            value={v.qty}
+            onChange={(e) => set("qty", e.target.value)}
+            className={inputClass}
+          />
+        </div>
+        <div>
+          <label className={labelClass}>หน่วย</label>
+          <input
+            value={v.unit}
+            onChange={(e) => set("unit", e.target.value)}
+            placeholder="เม็ด / g"
+            className={inputClass}
+          />
+        </div>
+      </div>
+      <div>
+        <label className={labelClass}>หมายเหตุ</label>
+        <input
+          value={v.note}
+          onChange={(e) => set("note", e.target.value)}
+          className={inputClass}
+        />
+      </div>
+      {v.result === "fail" && (
+        <p className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive sm:col-span-2">
+          ⚠️ ผล &quot;ไม่ผ่าน&quot; ต้องมี Incident Case กำกับด้วย — ระหว่างที่ระบบยังไม่เปิดให้อัตโนมัติ
+          ให้กด &quot;＋ เปิด Incident Case&quot; ที่หัวข้อด้านล่างเอง
+        </p>
+      )}
+    </div>
+  );
+}
+
 function SampleForm({ jobId, jobNo }: { jobId: string; jobNo: string }) {
   const [open, setOpen] = useState(false);
-  const [v, setV] = useState({ sample_point: "", qty: "", unit: "", note: "" });
+  const [v, setV] = useState<QaSampleInput>(emptySample);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const router = useRouter();
 
-  function set<K extends keyof typeof v>(k: K, val: string) {
+  function set(k: keyof QaSampleInput, val: string) {
     setV((c) => ({ ...c, [k]: val }));
   }
 
   function submit() {
     setError(null);
     start(async () => {
-      const res = await addQaSample(jobNo, { job_id: jobId, ...v });
+      const res = await addQaSample(jobNo, jobId, v);
       if (res.ok) {
-        setV({ sample_point: "", qty: "", unit: "", note: "" });
+        setV(emptySample());
         setOpen(false);
         router.refresh();
         return;
@@ -603,7 +755,10 @@ function SampleForm({ jobId, jobNo }: { jobId: string; jobNo: string }) {
     return (
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          setV(emptySample()); // ตั้งเวลาเป็น "ตอนนี้" ทุกครั้งที่เปิดฟอร์ม
+          setOpen(true);
+        }}
         className="rounded-md border px-3 py-1.5 text-sm hover:bg-accent"
       >
         ＋ บันทึกจุดเก็บตัวอย่าง
@@ -613,48 +768,7 @@ function SampleForm({ jobId, jobNo }: { jobId: string; jobNo: string }) {
 
   return (
     <div className="space-y-3 rounded-md border bg-muted/30 p-3">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div>
-          <label className={labelClass}>จุด/รอบเก็บตัวอย่าง *</label>
-          <input
-            value={v.sample_point}
-            onChange={(e) => set("sample_point", e.target.value)}
-            placeholder="เช่น ต้นรอบ / กลางรอบ / ปลายรอบ"
-            className={inputClass}
-          />
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className={labelClass}>จำนวน</label>
-            <input
-              type="number"
-              inputMode="decimal"
-              step="any"
-              min="0"
-              value={v.qty}
-              onChange={(e) => set("qty", e.target.value)}
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label className={labelClass}>หน่วย</label>
-            <input
-              value={v.unit}
-              onChange={(e) => set("unit", e.target.value)}
-              placeholder="เม็ด / g"
-              className={inputClass}
-            />
-          </div>
-        </div>
-        <div className="sm:col-span-2">
-          <label className={labelClass}>หมายเหตุ</label>
-          <input
-            value={v.note}
-            onChange={(e) => set("note", e.target.value)}
-            className={inputClass}
-          />
-        </div>
-      </div>
+      <SampleFields v={v} set={set} />
       {error && (
         <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {error}
@@ -673,6 +787,153 @@ function SampleForm({ jobId, jobNo }: { jobId: string; jobNo: string }) {
           type="button"
           onClick={() => setOpen(false)}
           className="rounded-md border px-4 py-2 text-sm hover:bg-accent"
+        >
+          ยกเลิก
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** ปุ่มแก้ไข / ลบ ของจุดเก็บตัวอย่าง 1 แถว — QA เท่านั้น (ด่านจริงอยู่ที่ RPC · 0066) */
+function SampleRowActions({
+  jobNo,
+  sample,
+}: {
+  jobNo: string;
+  sample: QaSample;
+}) {
+  const [mode, setMode] = useState<"none" | "edit" | "delete">("none");
+  const [v, setV] = useState<QaSampleInput>(emptySample);
+  const [reason, setReason] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  const router = useRouter();
+
+  function set(k: keyof QaSampleInput, val: string) {
+    setV((c) => ({ ...c, [k]: val }));
+  }
+
+  function openEdit() {
+    setError(null);
+    setV({
+      qty: sample.qty == null ? "" : String(sample.qty),
+      unit: sample.unit ?? "",
+      result: sample.result ?? "pass",
+      collected_at: toLocalInput(sample.collected_at),
+      note: sample.note ?? "",
+    });
+    setMode("edit");
+  }
+
+  function saveEdit() {
+    setError(null);
+    start(async () => {
+      const res = await updateQaSample(jobNo, sample.id, v);
+      if (res.ok) {
+        setMode("none");
+        router.refresh();
+        return;
+      }
+      setError(res.error ?? "แก้ไขไม่สำเร็จ");
+    });
+  }
+
+  function confirmDelete() {
+    setError(null);
+    start(async () => {
+      const res = await deleteQaSample(jobNo, sample.id, reason);
+      if (res.ok) {
+        setMode("none");
+        setReason("");
+        router.refresh();
+        return;
+      }
+      setError(res.error ?? "ลบไม่สำเร็จ");
+    });
+  }
+
+  if (mode === "none") {
+    return (
+      <div className="flex flex-wrap gap-1.5">
+        <button
+          type="button"
+          onClick={openEdit}
+          className="rounded-md border px-2.5 py-1 text-xs hover:bg-accent"
+        >
+          ✏️ แก้ไข
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setError(null);
+            setReason("");
+            setMode("delete");
+          }}
+          className="rounded-md border border-destructive/40 px-2.5 py-1 text-xs text-destructive hover:bg-destructive/10"
+        >
+          🗑 ลบ
+        </button>
+      </div>
+    );
+  }
+
+  if (mode === "delete") {
+    return (
+      <div className="space-y-2 rounded-md border border-destructive/40 bg-destructive/5 p-2">
+        <label className={labelClass}>เหตุผลที่ลบ *</label>
+        <input
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder="เช่น บันทึกซ้ำ / ลงผิดงาน"
+          className={inputClass}
+        />
+        <p className="text-[11px] text-muted-foreground">
+          รายการจะหายจากหน้าจอ แต่ยังเก็บไว้ใน DB และประวัติ (audit) ตามหลัก GMP
+        </p>
+        {error && <p className="text-xs text-destructive">{error}</p>}
+        <div className="flex gap-2">
+          <button
+            type="button"
+            disabled={pending || !reason.trim()}
+            onClick={confirmDelete}
+            className="rounded-md bg-destructive px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50"
+          >
+            {pending ? "กำลังลบ…" : "ยืนยันลบ"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("none")}
+            className="rounded-md border px-3 py-1.5 text-xs hover:bg-accent"
+          >
+            ยกเลิก
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3 rounded-md border bg-muted/30 p-3">
+      <SampleFields v={v} set={set} />
+      {error && (
+        <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          {error}
+        </p>
+      )}
+      <div className="flex gap-2">
+        <button
+          type="button"
+          disabled={pending}
+          onClick={saveEdit}
+          className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+        >
+          {pending ? "กำลังบันทึก…" : "บันทึกการแก้ไข"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode("none")}
+          className="rounded-md border px-3 py-1.5 text-xs hover:bg-accent"
         >
           ยกเลิก
         </button>
