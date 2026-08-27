@@ -574,6 +574,9 @@ export default async function JobDetailPage({
         currentProfileId={profile?.id ?? ""}
         canSample={canSample}
         canAmend={canAmend}
+        // Part C.4: ขอแก้ไขผลตรวจ in-process ได้เฉพาะ QC (ฝ่ายผลิตต้องไม่เห็นปุ่ม)
+        // ⚠️ ห้ามรวมกับ canAmend ที่ยังต้องเป็น "ทุกคนที่ล็อกอิน" สำหรับบันทึกผลผลิต
+        canAmendCheck={canAmend && canInprocess}
         canEditStation={canEditStationMachine}
         pendingTargetIds={[...pendingTargets]}
       />

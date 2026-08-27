@@ -40,6 +40,7 @@ export function QualityChecks({
   currentProfileId,
   canSample,
   canAmend,
+  canAmendCheck,
   canEditStation,
   pendingTargetIds,
 }: {
@@ -61,7 +62,15 @@ export function QualityChecks({
   canApprove: boolean;
   currentProfileId: string;
   canSample: boolean;
+  /** ขอแก้ไข "บันทึกผลผลิต" ได้ — ทุกคนที่ล็อกอิน */
   canAmend: boolean;
+  /**
+   * ขอแก้ไข "ผลตรวจ in-process" ได้ — QC/หัวหน้า QC/ผู้บริหารเท่านั้น (Part C.4)
+   *
+   * ⚠️ ห้าม or รวมกับ canAmend — ฝ่ายผลิตต้องเห็นผลตรวจแต่กดขอแก้ไม่ได้
+   *    (DB กันซ้ำอีกชั้นใน request_edit · 0065)
+   */
+  canAmendCheck: boolean;
   canEditStation: boolean;
   pendingTargetIds: string[];
 }) {
@@ -94,8 +103,10 @@ export function QualityChecks({
     );
 
   // ปุ่มขอแก้ไขผลตรวจ (ใช้ทั้งการ์ด/ตาราง) — null ถ้าไม่มีสิทธิ์
+  // ⚠️ ใช้ canAmendCheck ไม่ใช่ canAmend — Part C.4: การขอแก้ผลตรวจเป็นหน้าที่ QC เท่านั้น
+  //    (canAmend = ทุกคนที่ล็อกอิน · ยังใช้กับปุ่มขอแก้ "บันทึกผลผลิต" ตามเดิม)
   const checkEditButton = (c: InprocessCheck) =>
-    canAmend ? (
+    canAmendCheck ? (
       <EditRequestButton
         targetType="inprocess_check"
         targetId={c.id}
@@ -125,6 +136,12 @@ export function QualityChecks({
               { value: "pass", label: "ผ่าน" },
               { value: "fail", label: "ไม่ผ่าน" },
             ],
+          },
+          {
+            key: "valid_date",
+            label: "Valid date (ใช้ได้ถึง)",
+            kind: "date" as const,
+            current: c.valid_date ?? "",
           },
           { key: "note", label: "หมายเหตุ", kind: "text" as const, current: c.note ?? "" },
         ]}
@@ -290,7 +307,8 @@ export function QualityChecks({
             />
           ) : (
             <p className="text-xs text-muted-foreground">
-              เฉพาะ QC/ผู้บริหารบันทึกผลตรวจระหว่างผลิตได้
+              การบันทึกและแก้ไขผลตรวจระหว่างผลิตเป็นหน้าที่ของ QC/หัวหน้า QC/ผู้บริหาร
+              — ฝ่ายอื่นที่พบปัญหาให้แจ้ง QC หรือเปิด Incident Case ด้านล่างแทน
             </p>
           )}
         </div>

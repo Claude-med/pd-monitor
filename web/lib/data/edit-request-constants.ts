@@ -39,6 +39,8 @@ export const EDIT_FIELD_LABEL: Record<string, string> = {
   value: "ค่าที่วัดได้",
   unit: "หน่วย",
   result: "ผล",
+  // Part C.4: เปิดให้แก้ valid date ของผลตรวจ in-process ได้ (whitelist ใน request_edit · 0065)
+  valid_date: "Valid date (ใช้ได้ถึง)",
   note: "หมายเหตุ",
 };
 
