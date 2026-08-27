@@ -4,6 +4,7 @@ import {
   canSetMachineSchedule,
 } from "@/lib/data/role-access";
 import { listMachines, type Machine } from "@/lib/data/machines";
+import { listStations } from "@/lib/data/stations";
 import { getMachineUsage } from "@/lib/data/machine-usage";
 import {
   MACHINE_STATUS_LABEL,
@@ -68,8 +69,9 @@ export default async function MachinesPage({
   const roles = profile?.roles ?? [];
   const canManage = canManageMachines(roles);
   const canSchedule = canSetMachineSchedule(roles);
-  const [machines, usage] = await Promise.all([
+  const [machines, stations, usage] = await Promise.all([
     listMachines(),
+    listStations(),
     getMachineUsage(from, to),
   ]);
   const attention = computeAttention(machines);
@@ -188,6 +190,7 @@ export default async function MachinesPage({
       {/* ทะเบียนเครื่องจักร */}
       <MachinesView
         machines={machines}
+        stations={stations}
         canManage={canManage}
         canSchedule={canSchedule}
       />

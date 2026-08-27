@@ -13,7 +13,8 @@ export type MachineValues = {
   id: string | null;
   code: string;
   name: string;
-  station: string;
+  /** id ของสถานีจริง (FK stations) — Part C.3 ก้อน 1 · เดิมเป็น enum กลุ่มหลัก */
+  station_id: string;
   room: string;
   status: string;
   note: string;
@@ -72,7 +73,7 @@ export async function upsertMachine(v: MachineValues): Promise<ActionResult> {
     p_id: v.id,
     p_code: v.code.trim(),
     p_name: v.name.trim(),
-    p_station: v.station || null,
+    p_station_id: v.station_id || null,
     p_room: v.room.trim() || null,
     p_status: v.status || "available",
     p_note: v.note.trim() || null,

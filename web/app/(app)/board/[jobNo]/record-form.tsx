@@ -45,8 +45,8 @@ const MAX_ATTEMPTS = BACKOFF_MS.length + 1; // = 4 (รวมครั้งแ�
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-/** ตัวเลือกสถานีสำหรับฟอร์ม — id/ชื่อ + กลุ่มหลัก (enum) ไว้กรองเครื่องจักร */
-export type RecordStationOption = { id: string; name: string; group: string };
+/** ตัวเลือกสถานีสำหรับฟอร์ม — สถานีย่อยจริงตาม route ของงาน */
+export type RecordStationOption = { id: string; name: string };
 
 export function RecordForm({
   jobId,
@@ -88,8 +88,6 @@ export function RecordForm({
   const busy = saveState === "saving" || saveState === "retrying";
 
   const stationNameById = new Map(stationOptions.map((s) => [s.id, s.name]));
-  // กลุ่มหลัก (enum) ของสถานีที่เลือก — ใช้กรองเครื่องจักรให้ตรงกลุ่ม
-  const selectedGroup = stationOptions.find((s) => s.id === v.station_id)?.group;
 
   function recordSummary(r: PendingRecord): string {
     const name = stationNameById.get(r.values.station_id) ?? "—";
@@ -99,12 +97,15 @@ export function RecordForm({
   }
 
   // เครื่องที่เลือกได้: เปิดใช้งาน + ไม่อยู่สถานะซ่อม/ถึงกำหนดสอบเทียบ
-  // + ตรงกลุ่มสถานีที่เลือก (หรือเครื่องที่ไม่ผูกสถานี) — เครื่องที่ซ่อมจะไม่ขึ้นให้เลือก
+  // + ประจำ "สถานีเดียวกัน" กับที่เลือก (หรือเครื่องที่ยังไม่ผูกสถานี)
+  // Part C.3 ก้อน 1: เทียบ station_id ตรง ๆ แทนการเทียบผ่านกลุ่มหลัก (enum) ที่กำลังจะถูกลบ
   const machineOptions = machines.filter(
     (m) =>
       m.is_active &&
       !MACHINE_BLOCKED_STATUSES.has(m.status as MachineStatus) &&
-      (v.station_id === "" || m.station === selectedGroup || m.station === null),
+      (v.station_id === "" ||
+        m.station_id === v.station_id ||
+        m.station_id === null),
   );
 
   // พยายามบันทึก 1 รายการแบบทนเน็ต (retry + backoff)

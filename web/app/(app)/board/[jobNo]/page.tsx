@@ -117,7 +117,6 @@ export default async function JobDetailPage({
   const recordStationOptions = jobRoute.map((s) => ({
     id: s.station_id,
     name: `${s.step_no}. ${s.name}`,
-    group: s.station_group as string,
   }));
   // ตัวเลือกฟอร์มขอแก้ไข: สถานีย่อย (station_id) = ทุกสถานี active · เครื่องจักร = รายการเครื่อง
   const stationIdEditOptions = activeStations.map((s) => ({ value: s.id, label: s.name }));

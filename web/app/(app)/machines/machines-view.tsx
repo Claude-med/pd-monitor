@@ -2,7 +2,7 @@
 
 import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { STATIONS, STATION_LABEL } from "@/lib/data/station-constants";
+import type { Station } from "@/lib/data/stations";
 import {
   MACHINE_STATUSES,
   MACHINE_STATUS_LABEL,
@@ -25,7 +25,7 @@ const EMPTY: MachineValues = {
   id: null,
   code: "",
   name: "",
-  station: "",
+  station_id: "",
   room: "",
   status: "available",
   note: "",
@@ -154,10 +154,13 @@ function Field({
 
 export function MachinesView({
   machines,
+  stations,
   canManage,
   canSchedule,
 }: {
   machines: Machine[];
+  /** ทะเบียนสถานีจริง — ตัวเลือกใน dropdown "สถานี" (Part C.3 ก้อน 1) */
+  stations: Station[];
   canManage: boolean;
   /** ตั้งกำหนดซ่อมบำรุง/สอบเทียบได้ (วิศวกรรม/ผู้บริหาร) */
   canSchedule: boolean;
@@ -187,6 +190,7 @@ export function MachinesView({
               <MachineForm
                 initial={EMPTY}
                 mode="create"
+                stations={stations}
                 canSchedule={canSchedule}
                 onDone={() => setAdding(false)}
               />
@@ -251,9 +255,7 @@ export function MachinesView({
                 <dl className="grid grid-cols-2 gap-x-4 gap-y-2 border-t pt-3 sm:grid-cols-3">
                   <Field
                     label="สถานี"
-                    value={
-                      m.station ? (STATION_LABEL[m.station] ?? m.station) : null
-                    }
+                    value={m.station_name}
                     empty="— ไม่ระบุ —"
                   />
                   <Field label="ห้อง" value={m.room} empty="— ไม่ระบุ —" />
@@ -293,7 +295,7 @@ export function MachinesView({
                       id: m.id,
                       code: m.code,
                       name: m.name,
-                      station: m.station ?? "",
+                      station_id: m.station_id ?? "",
                       room: m.room ?? "",
                       status: m.status,
                       note: m.note ?? "",
@@ -302,6 +304,7 @@ export function MachinesView({
                       next_calibration_date: m.next_calibration_date ?? "",
                     }}
                     mode="edit"
+                    stations={stations}
                     canSchedule={canSchedule}
                     onDone={() => setEditId(null)}
                   />
@@ -318,12 +321,14 @@ export function MachinesView({
 function MachineForm({
   initial,
   mode,
+  stations,
   canSchedule,
   onDone,
 }: {
   initial: MachineValues;
   /** create = ฟอร์มเพิ่มเครื่องใหม่ (ไม่มีช่อง "ทำความสะอาดล่าสุด") */
   mode: "create" | "edit";
+  stations: Station[];
   canSchedule: boolean;
   onDone: () => void;
 }) {
@@ -331,6 +336,11 @@ function MachineForm({
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const router = useRouter();
+
+  // สถานีที่เปิดใช้งาน + สถานีเดิมของเครื่องนี้ (เผื่อถูกปิดใช้งานไปแล้ว จะได้ไม่หายจาก dropdown)
+  const stationOptions = stations.filter(
+    (s) => s.is_active || s.id === initial.station_id,
+  );
 
   function set<K extends keyof MachineValues>(k: K, val: string) {
     setV((cur) => ({ ...cur, [k]: val }));
@@ -373,14 +383,15 @@ function MachineForm({
         <div>
           <label className={labelClass}>สถานี</label>
           <select
-            value={v.station}
-            onChange={(e) => set("station", e.target.value)}
+            value={v.station_id}
+            onChange={(e) => set("station_id", e.target.value)}
             className={inputClass}
           >
             <option value="">— ไม่ระบุ —</option>
-            {STATIONS.map((s) => (
-              <option key={s.key} value={s.key}>
-                {s.label}
+            {stationOptions.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+                {s.is_active ? "" : " (ปิดใช้งาน)"}
               </option>
             ))}
           </select>
