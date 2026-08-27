@@ -3,11 +3,18 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getProfile } from "@/lib/auth/dal";
-import { canOpenDeviation, canCloseDeviation } from "@/lib/data/deviation-constants";
+import {
+  canOpenDeviation,
+  canCommentDeviation,
+  canReviewIncident,
+} from "@/lib/data/deviation-constants";
 
 export type ActionResult = { ok?: boolean; id?: string; error?: string };
 
-/** เปิด deviation ใหม่ (production/qc/qa/manager) */
+/**
+ * เปิด Incident Case ใหม่ — ทุกคนที่ล็อกอิน (Part C.4)
+ * ⚠️ ไม่มีช่อง "กำหนดปิด" และ "ผู้รับผิดชอบ" แล้ว — ย้ายไปขั้น QA ตรวจสอบ
+ */
 export async function openDeviation(
   jobNo: string,
   v: {
@@ -18,13 +25,12 @@ export async function openDeviation(
     severity: string;
     machine_id?: string | null;
     inprocess_check_id?: string | null;
-    due_date?: string;
   },
 ): Promise<ActionResult> {
   const profile = await getProfile();
   if (!profile || !canOpenDeviation(profile.roles))
-    return { error: "ไม่มีสิทธิ์เปิด deviation" };
-  if (!v.title.trim()) return { error: "กรุณาระบุหัวข้อ deviation" };
+    return { error: "ไม่มีสิทธิ์เปิด Incident Case" };
+  if (!v.title.trim()) return { error: "กรุณาระบุหัวข้อ Incident Case" };
 
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("open_deviation", {
@@ -35,47 +41,46 @@ export async function openDeviation(
     p_severity: v.severity || "minor",
     p_machine_id: v.machine_id || null,
     p_inprocess_check_id: v.inprocess_check_id || null,
-    p_assigned_to: null,
-    p_due_date: v.due_date?.trim() || null,
   });
-  if (error) return { error: error.message || "เปิด deviation ไม่สำเร็จ" };
+  if (error) return { error: error.message || "เปิด Incident Case ไม่สำเร็จ" };
   revalidatePath(`/board/${jobNo}`);
   return { ok: true, id: data as string };
 }
 
-/** อัปเดต/ปิด deviation — ปิด (closed) เฉพาะ qa/manager + ต้องมี root cause + CAPA */
+/**
+ * อัปเดต / ปิด Incident Case
+ * ปิด (closed) และยกเลิก (cancelled) = QA/ผู้บริหารเท่านั้น · ปิดต้องมี "การแก้ไขเบื้องต้น"
+ * ⚠️ ไม่มีช่อง root cause แล้ว (Part C.4 ตัดออกตามที่ทีมสั่ง)
+ */
 export async function updateDeviation(
   jobNo: string,
   v: {
     id: string;
     status: string;
-    root_cause: string;
     capa: string;
     severity?: string;
     due_date?: string;
   },
 ): Promise<ActionResult> {
   const profile = await getProfile();
-  if (!profile || !canOpenDeviation(profile.roles))
-    return { error: "ไม่มีสิทธิ์แก้ไข deviation" };
-  if (v.status === "closed") {
-    if (!canCloseDeviation(profile.roles))
-      return { error: "ปิด deviation ได้เฉพาะ QA/ผู้บริหาร" };
-    if (!v.root_cause.trim() || !v.capa.trim())
-      return { error: "ต้องระบุสาเหตุ (root cause) และการแก้ไข/ป้องกัน (CAPA) ก่อนปิด" };
+  if (!profile || !canCommentDeviation(profile.roles))
+    return { error: "ไม่มีสิทธิ์แก้ไข Incident Case" };
+  if (v.status === "closed" || v.status === "cancelled") {
+    if (!canReviewIncident(profile.roles))
+      return { error: "ปิด/ยกเลิก Incident Case ได้เฉพาะ QA/ผู้บริหาร" };
+    if (v.status === "closed" && !v.capa.trim())
+      return { error: 'ต้องระบุ "การแก้ไขเบื้องต้น" ก่อนปิด Incident Case' };
   }
 
   const supabase = await createClient();
   const { error } = await supabase.rpc("update_deviation", {
     p_id: v.id,
     p_status: v.status,
-    p_root_cause: v.root_cause.trim() || null,
     p_capa: v.capa.trim() || null,
-    p_assigned_to: null,
-    p_due_date: v.due_date?.trim() || null,
     p_severity: v.severity || null,
+    p_due_date: v.due_date?.trim() || null,
   });
-  if (error) return { error: error.message || "อัปเดต deviation ไม่สำเร็จ" };
+  if (error) return { error: error.message || "อัปเดต Incident Case ไม่สำเร็จ" };
   revalidatePath(`/board/${jobNo}`);
   return { ok: true };
 }
@@ -87,7 +92,7 @@ export async function addDeviationComment(
   body: string,
 ): Promise<ActionResult> {
   const profile = await getProfile();
-  if (!profile || !canOpenDeviation(profile.roles))
+  if (!profile || !canCommentDeviation(profile.roles))
     return { error: "ไม่มีสิทธิ์เพิ่มหมายเหตุ" };
   if (!body.trim()) return { error: "กรุณาพิมพ์หมายเหตุ" };
 
@@ -101,15 +106,15 @@ export async function addDeviationComment(
   return { ok: true };
 }
 
-/** D2: ฝ่ายผลิตแจ้งว่าแก้ไขเรียบร้อย → ส่งให้ QA ตรวจสอบ (แจ้งเตือน QA/ผู้บริหาร) */
+/** แผนกที่รับผิดชอบแจ้งว่าแก้ไขเรียบร้อย → ส่งกลับให้ QA อนุมัติ (แจ้งเตือน QA/ผู้บริหาร) */
 export async function submitDeviationResolution(
   jobNo: string,
   deviationId: string,
   note: string,
 ): Promise<ActionResult> {
   const profile = await getProfile();
-  if (!profile || !canOpenDeviation(profile.roles))
-    return { error: "ไม่มีสิทธิ์ส่ง deviation ให้ QA" };
+  if (!profile || !canCommentDeviation(profile.roles))
+    return { error: "ไม่มีสิทธิ์ส่ง Incident Case กลับให้ QA" };
 
   const supabase = await createClient();
   const { error } = await supabase.rpc("submit_deviation_resolution", {

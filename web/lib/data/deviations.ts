@@ -23,7 +23,6 @@ export type Deviation = {
   inprocess_check_id: string | null;
   machine_label: string | null;
   reporter_name: string | null;
-  assignee_name: string | null;
   closed_at: string | null;
   created_at: string;
   resolution_note: string | null;
@@ -63,7 +62,6 @@ function shape(r: any): Deviation {
     inprocess_check_id: r.inprocess_check_id,
     machine_label: machine ? `${machine.code} · ${machine.name}` : null,
     reporter_name: one<any>(r.reporter)?.full_name ?? null,
-    assignee_name: one<any>(r.assignee)?.full_name ?? null,
     closed_at: r.closed_at,
     created_at: r.created_at,
     resolution_note: r.resolution_note ?? null,
@@ -78,7 +76,6 @@ const SELECT = `id, job_id, title, description, dev_type, severity, status,
   resolution_note, resolution_submitted_at,
   machine:machines!machine_id ( code, name ),
   reporter:profiles!reported_by ( full_name ),
-  assignee:profiles!assigned_to ( full_name ),
   resolution_by:profiles!resolution_submitted_by ( full_name ),
   comments:deviation_comments ( id, role_group, body, created_at,
     author:profiles!created_by ( full_name ) )`;

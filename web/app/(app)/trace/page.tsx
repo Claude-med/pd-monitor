@@ -41,7 +41,7 @@ function JobTraceCard({ t }: { t: JobTrace }) {
         {statusBadge(t.status)}
         {t.deviation_open > 0 && (
           <span className="rounded-full bg-destructive/15 px-2 py-0.5 text-xs text-destructive">
-            ⚠️ deviation เปิดค้าง {t.deviation_open}
+            ⚠️ Incident Case เปิดค้าง {t.deviation_open}
           </span>
         )}
         <Link

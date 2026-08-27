@@ -13,6 +13,7 @@ import {
   DEV_STATUS_COLOR,
   DEV_TYPE_LABEL,
   NOTE_ROLE_META,
+  isDeviationOpen,
 } from "@/lib/data/deviation-constants";
 import { fmtDateTime } from "@/lib/format";
 import {
@@ -43,12 +44,13 @@ export function Deviations({
   canOpen: boolean;
   canClose: boolean;
 }) {
-  const openCount = deviations.filter((d) => d.status !== "closed").length;
+  // ⚠️ ต้องตรงกับ has_open_deviation() ใน DB — ด่าน QA→FG ใช้ตัวนั้นตัดสิน
+  const openCount = deviations.filter((d) => isDeviationOpen(d.status)).length;
 
   return (
     <section className="rounded-xl border bg-card p-5">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-semibold">⚠️ Deviation / เหตุผิดปกติ</h2>
+        <h2 className="font-semibold">⚠️ Incident Case / เหตุผิดปกติ</h2>
         <span className="text-xs text-muted-foreground">
           {deviations.length} รายการ
           {openCount > 0 && (
@@ -59,7 +61,7 @@ export function Deviations({
 
       {openCount > 0 && (
         <p className="mb-3 rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
-          มี deviation เปิดค้าง — ต้องปิดให้ครบก่อน QA จึงจะปล่อยผ่านเข้าคลัง (FG) ได้
+          มี Incident Case เปิดค้าง — ต้องปิดหรือยกเลิกให้ครบก่อน QA จึงจะปล่อยผ่านเข้าคลัง (FG) ได้
         </p>
       )}
 
@@ -77,14 +79,14 @@ export function Deviations({
           ))}
         </ul>
       ) : (
-        <p className="text-sm text-muted-foreground">ไม่มี deviation</p>
+        <p className="text-sm text-muted-foreground">ไม่มี Incident Case</p>
       )}
 
       {/* quick-open จากผลตรวจระหว่างผลิตที่ไม่ผ่าน */}
       {canOpen && failChecks.length > 0 && (
         <div className="mt-4 rounded-md border border-dashed bg-muted/20 p-3">
           <p className="mb-2 text-xs font-medium text-muted-foreground">
-            ผลตรวจระหว่างผลิตที่ &quot;ไม่ผ่าน&quot; — เปิด deviation ได้เลย:
+            ผลตรวจระหว่างผลิตที่ &quot;ไม่ผ่าน&quot; — เปิด Incident Case ได้เลย:
           </p>
           <div className="flex flex-wrap gap-2">
             {failChecks.map((c) => (
@@ -138,7 +140,7 @@ function DeviationItem({
   canClose: boolean;
 }) {
   const [editing, setEditing] = useState(false);
-  const closed = dev.status === "closed";
+  const done = !isDeviationOpen(dev.status);
 
   return (
     <li
@@ -165,17 +167,18 @@ function DeviationItem({
 
       {(dev.root_cause || dev.capa) && (
         <div className="mt-2 space-y-1 rounded-md bg-muted/40 p-2 text-xs">
+          {/* root cause เลิกใช้ตั้งแต่ Part C.4 — โชว์เฉพาะเคสเก่าที่เคยกรอกไว้ */}
           {dev.root_cause && (
             <p>
-              <span className="font-medium">สาเหตุ:</span> {dev.root_cause}
+              <span className="font-medium">สาเหตุ (ข้อมูลเดิม):</span> {dev.root_cause}
             </p>
           )}
           {dev.capa && (
             <p>
-              <span className="font-medium">การแก้ไข/ป้องกัน (CAPA):</span> {dev.capa}
+              <span className="font-medium">การแก้ไขเบื้องต้น:</span> {dev.capa}
             </p>
           )}
-          {closed && dev.closed_at && (
+          {done && dev.closed_at && (
             <p className="text-muted-foreground">
               ปิดเมื่อ {fmtDateTime(dev.closed_at)}
             </p>
@@ -184,9 +187,9 @@ function DeviationItem({
       )}
 
       {/* D2: แจ้งว่าแก้ไขแล้ว รอ QA ตรวจสอบ */}
-      {!closed && dev.resolution_submitted_at && (
+      {!done && dev.resolution_submitted_at && (
         <p className="mt-2 rounded-md bg-sky-50 px-2 py-1 text-xs text-sky-800 dark:bg-sky-950/30 dark:text-sky-300">
-          🔄 แจ้งแก้ไขเรียบร้อยแล้ว — รอ QA ตรวจสอบ
+          🔄 แจ้งแก้ไขเรียบร้อยแล้ว — รอ QA อนุมัติ
           {dev.resolution_by_name ? ` · โดย ${dev.resolution_by_name}` : ""} ·{" "}
           {fmtDateTime(dev.resolution_submitted_at)}
         </p>
@@ -223,7 +226,7 @@ function DeviationItem({
         </ul>
       )}
 
-      {canOpen && !closed && (
+      {canOpen && !done && (
         <div className="mt-2 space-y-2">
           <div className="flex flex-wrap gap-2">
             <button
@@ -335,7 +338,7 @@ function ResolutionButton({
         onClick={() => setOpen(true)}
         className="rounded-md border border-sky-300 bg-sky-50 px-3 py-1 text-xs text-sky-800 hover:bg-sky-100 dark:bg-sky-950/30 dark:text-sky-300"
       >
-        ✅ แก้ไขเรียบร้อย — ส่งให้ QA ตรวจสอบ
+        ✅ แก้ไขเรียบร้อย — ส่งกลับให้ QA อนุมัติ
       </button>
     );
   }
@@ -357,7 +360,7 @@ function ResolutionButton({
           onClick={submit}
           className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
         >
-          {pending ? "กำลังส่ง…" : "ส่งให้ QA ตรวจสอบ"}
+          {pending ? "กำลังส่ง…" : "ส่งกลับให้ QA"}
         </button>
         <button
           type="button"
@@ -384,7 +387,6 @@ function UpdateForm({
 }) {
   const [v, setV] = useState({
     status: dev.status as string,
-    root_cause: dev.root_cause ?? "",
     capa: dev.capa ?? "",
     severity: dev.severity as string,
     due_date: dev.due_date ?? "",
@@ -420,12 +422,15 @@ function UpdateForm({
             onChange={(e) => set("status", e.target.value)}
             className={inputClass}
           >
-            {DEVIATION_STATUS.map((s) => (
-              <option key={s.key} value={s.key} disabled={s.key === "closed" && !canClose}>
-                {s.label}
-                {s.key === "closed" && !canClose ? " (เฉพาะ QA/ผู้บริหาร)" : ""}
-              </option>
-            ))}
+            {DEVIATION_STATUS.map((s) => {
+              const qaOnly = s.key === "closed" || s.key === "cancelled";
+              return (
+                <option key={s.key} value={s.key} disabled={qaOnly && !canClose}>
+                  {s.label}
+                  {qaOnly && !canClose ? " (เฉพาะ QA/ผู้บริหาร)" : ""}
+                </option>
+              );
+            })}
           </select>
         </div>
         <div>
@@ -443,16 +448,7 @@ function UpdateForm({
           </select>
         </div>
         <div className="sm:col-span-2">
-          <label className={labelClass}>สาเหตุ (root cause){v.status === "closed" ? " *" : ""}</label>
-          <textarea
-            value={v.root_cause}
-            onChange={(e) => set("root_cause", e.target.value)}
-            rows={2}
-            className={inputClass}
-          />
-        </div>
-        <div className="sm:col-span-2">
-          <label className={labelClass}>การแก้ไข/ป้องกัน CAPA{v.status === "closed" ? " *" : ""}</label>
+          <label className={labelClass}>การแก้ไขเบื้องต้น{v.status === "closed" ? " *" : ""}</label>
           <textarea
             value={v.capa}
             onChange={(e) => set("capa", e.target.value)}
@@ -545,12 +541,12 @@ function FailQuickOpen({
 
 function OpenForm({ jobId, jobNo }: { jobId: string; jobNo: string }) {
   const [open, setOpen] = useState(false);
+  // Part C.4: ไม่มี "กำหนดปิด" ตอนเปิดแล้ว — QA เป็นคนใส่ตอนตรวจสอบ
   const [v, setV] = useState({
     title: "",
     dev_type: "process",
     severity: "minor",
     description: "",
-    due_date: "",
   });
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -565,7 +561,7 @@ function OpenForm({ jobId, jobNo }: { jobId: string; jobNo: string }) {
     start(async () => {
       const res = await openDeviation(jobNo, { job_id: jobId, ...v });
       if (res.ok) {
-        setV({ title: "", dev_type: "process", severity: "minor", description: "", due_date: "" });
+        setV({ title: "", dev_type: "process", severity: "minor", description: "" });
         setOpen(false);
         router.refresh();
         return;
@@ -581,7 +577,7 @@ function OpenForm({ jobId, jobNo }: { jobId: string; jobNo: string }) {
         onClick={() => setOpen(true)}
         className="rounded-md border px-3 py-1.5 text-sm hover:bg-accent"
       >
-        ＋ เปิด deviation
+        ＋ เปิด Incident Case
       </button>
     );
   }
@@ -635,15 +631,10 @@ function OpenForm({ jobId, jobNo }: { jobId: string; jobNo: string }) {
             className={inputClass}
           />
         </div>
-        <div>
-          <label className={labelClass}>กำหนดปิด</label>
-          <input
-            type="date"
-            value={v.due_date}
-            onChange={(e) => set("due_date", e.target.value)}
-            className={inputClass}
-          />
-        </div>
+        <p className="text-xs text-muted-foreground sm:col-span-2">
+          เปิดแล้วเคสจะเข้าสถานะ &quot;รอ QA ตรวจสอบ&quot; และแจ้งเตือน QA ทันที —
+          QA จะเป็นคนระบุประเภทเอกสาร เลขที่ แผนกที่รับผิดชอบ และกำหนดปิด
+        </p>
       </div>
       {error && (
         <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -657,7 +648,7 @@ function OpenForm({ jobId, jobNo }: { jobId: string; jobNo: string }) {
           onClick={submit}
           className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
         >
-          {pending ? "กำลังเปิด…" : "เปิด deviation"}
+          {pending ? "กำลังเปิด…" : "เปิด Incident Case"}
         </button>
         <button
           type="button"

@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { isDeviationOpen } from "@/lib/data/deviation-constants";
 
 // B2 — Lot Genealogy / Traceability
 // สายโซ่ที่มีอยู่ในระบบ (หลัง Part C.2):
@@ -91,7 +92,7 @@ function shapeJobTrace(
     materials,
     deviation_total: devStatuses.length,
     // ⚠️ นิยาม "เปิดค้าง" ต้องตรงกับ has_open_deviation() ใน DB เสมอ (ด่าน QA→FG ใช้ตัวนั้น)
-    deviation_open: devStatuses.filter((s) => s !== "closed").length,
+    deviation_open: devStatuses.filter(isDeviationOpen).length,
   };
 }
 

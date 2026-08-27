@@ -372,8 +372,8 @@ export default async function EbrPage({
           )}
         </Section>
 
-        {/* 8. Deviation */}
-        <Section title="8. เหตุผิดปกติ (Deviation)">
+        {/* 8. Incident Case */}
+        <Section title="8. เหตุผิดปกติ (Incident Case)">
           {r.deviations.length > 0 ? (
             <ul className="space-y-2 text-sm">
               {r.deviations.map((d) => (
@@ -386,13 +386,14 @@ export default async function EbrPage({
                     </span>
                   </p>
                   {d.description && <p className="text-muted-foreground">{d.description}</p>}
-                  {d.root_cause && <p>สาเหตุ: {d.root_cause}</p>}
-                  {d.capa && <p>การแก้ไข/ป้องกัน (CAPA): {d.capa}</p>}
+                  {/* root cause เลิกใช้ตั้งแต่ Part C.4 — พิมพ์เฉพาะเคสเก่าที่เคยกรอก */}
+                  {d.root_cause && <p>สาเหตุ (ข้อมูลเดิม): {d.root_cause}</p>}
+                  {d.capa && <p>การแก้ไขเบื้องต้น: {d.capa}</p>}
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-muted-foreground">— ไม่มี deviation</p>
+            <p className="text-sm text-muted-foreground">— ไม่มี Incident Case</p>
           )}
         </Section>
 

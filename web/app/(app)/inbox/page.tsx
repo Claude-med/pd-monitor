@@ -20,7 +20,7 @@ export default async function InboxPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">🔔 แจ้งเตือน</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          งานถูกตีกลับ · deviation สำคัญ · งานเกินกำหนด/ค้างนาน (เฉพาะที่เกี่ยวกับหน้าที่คุณ)
+          งานถูกตีกลับ · Incident Case · งานเกินกำหนด/ค้างนาน (เฉพาะที่เกี่ยวกับหน้าที่คุณ)
         </p>
       </div>
       <InboxView items={items} hasUnread={hasUnread} />

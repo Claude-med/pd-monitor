@@ -26,7 +26,9 @@ export const KIND_META: Record<
   { label: string; icon: string; color: string }
 > = {
   reject: { label: "งานถูกตีกลับ", icon: "↩️", color: "#ef4444" },
-  deviation: { label: "Deviation", icon: "⚠️", color: "#f59e0b" },
+  // ⚠️ คง key "deviation" ไว้ — เป็นค่าที่ลงใน notifications.kind ของแถวเก่าแล้ว
+  //    เปลี่ยนได้แค่ label ที่ผู้ใช้เห็น (Part C.4)
+  deviation: { label: "Incident Case", icon: "⚠️", color: "#f59e0b" },
   overdue: { label: "เกินกำหนด", icon: "⏰", color: "#ef4444" },
   stuck: { label: "ค้างนาน", icon: "🐢", color: "#f59e0b" },
   arrival: { label: "งานมาถึงคุณ", icon: "📥", color: "#0ea5e9" },

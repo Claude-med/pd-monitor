@@ -22,6 +22,9 @@ import { hasAnyRole } from "@/lib/auth/roles";
  *      canCheckLineClearance()     ↔ public.can_check_line_clearance()    (0062)
  *      canRecordInprocess()        ↔ public.can_record_inprocess()        (0064)
  *      canApproveInprocess()       ↔ public.can_approve_inprocess()       (0064)
+ *      canRecordQaSample()         ↔ public.can_record_qa_sample()        (0066)
+ *      canReviewIncident()         ↔ public.can_review_incident()         (0067)
+ *      canOpenDeviation()          ↔ แค่ล็อกอิน (ทุกฝ่ายเปิด Incident Case ได้ · 0067)
  *    DB เป็นด่านบังคับจริง · ฝั่งแอปใช้ตัดสินว่าจะ "แสดงปุ่ม/ช่องกรอก" ไหน
  *    (canSeeCost เป็นการอ่านล้วน — คุมที่แอปอย่างเดียว ไม่มี guard ใน DB)
  */
@@ -62,7 +65,7 @@ export const ROLE_ACCESS: Record<AppRole, RoleAccess> = {
       "บันทึกผลผลิตรายสถานี (เข้า/ออก/ของเสีย/ชั่วโมง/จำนวนคน)",
       "ลงรายการวัตถุดิบ/บรรจุภัณฑ์ที่ต้องเบิก (กดสถานะพร้อมไม่ได้) · ส่งตรวจ QC",
       "เพิ่ม/แก้ทะเบียนเครื่องจักร (ยกเว้นกำหนดซ่อม/สอบเทียบ)",
-      "เปิด deviation · ขออนุมัติแก้ไขย้อนหลัง",
+      "เปิด Incident Case · ขออนุมัติแก้ไขย้อนหลัง",
     ],
     view: [],
   },
@@ -82,7 +85,7 @@ export const ROLE_ACCESS: Record<AppRole, RoleAccess> = {
     manage: [
       "บันทึกผลตรวจ in-process QC รายสถานี",
       "QC ผ่าน → ส่ง QA · QC ตีกลับ (ต้องลงนาม)",
-      "เปิด deviation · ขอแก้ไขข้อมูล QC",
+      "เปิด Incident Case · ขอแก้ไขผลตรวจ in-process (ฝ่ายอื่นขอแก้ไม่ได้)",
     ],
     view: ["หน้าตรวจ QC / QA"],
   },
@@ -99,9 +102,9 @@ export const ROLE_ACCESS: Record<AppRole, RoleAccess> = {
     code: "QA",
     duty: "ปล่อยผ่านล็อต + ดูแลเอกสารคุณภาพ",
     manage: [
-      "บันทึกจุดเก็บตัวอย่าง (QA sample)",
+      "บันทึก/แก้ไข/ลบ จุดเก็บตัวอย่าง (ตรวจ Finished product)",
       "QA ปล่อยผ่าน → FG · QA ตีกลับ (ต้องลงนาม)",
-      "ปิด deviation (ต้องมี root cause + CAPA)",
+      "ตรวจสอบ Incident Case — ระบุประเภท DEV/OOS/NC + เลขที่ + แผนกที่รับผิดชอบ แล้วปิดเคส",
       "อนุมัติ/ปฏิเสธคำขอแก้ไขข้อมูล QC",
     ],
     view: ["ประวัติ / Audit", "ไล่ย้อนล็อต (Trace)", "คำขอแก้ไข (Amendment)"],
@@ -123,7 +126,7 @@ export const ROLE_ACCESS: Record<AppRole, RoleAccess> = {
     manage: [
       "เพิ่ม/แก้ทะเบียนเครื่องจักร (รวมห้อง/สถานะ)",
       "กำหนดวันซ่อมบำรุง + วันสอบเทียบครั้งหน้า",
-      "บันทึกหมายเหตุ deviation ในนามฝ่ายวิศวกรรม",
+      "บันทึกหมายเหตุ Incident Case ในนามฝ่ายวิศวกรรม",
     ],
     view: ["รายงานการใช้เครื่อง"],
   },
