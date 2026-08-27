@@ -210,13 +210,8 @@ export default async function JobDetailPage({
   const editRequests = await getEditRequestsForJob(job.id);
   const pendingTargets = await getPendingTargetIds(job.id);
   const canAmend = roles.length > 0;
-  // ผลตรวจระหว่างผลิตที่ "ไม่ผ่าน" และยังไม่ได้เปิด deviation → เสนอเปิดด่วน
-  const linkedCheckIds = new Set(
-    deviations.map((d) => d.inprocess_check_id).filter(Boolean) as string[],
-  );
-  const failChecks = inprocessChecks
-    .filter((c) => c.result === "fail" && !linkedCheckIds.has(c.id))
-    .map((c) => ({ id: c.id, station_name: c.station_name, param: c.param }));
+  // Part C.4 ก้อน 6: ผลตรวจที่ไม่อนุมัติ/ไม่ผ่าน เปิด Incident Case ให้อัตโนมัติที่ DB แล้ว
+  // (ปุ่ม quick-open เดิมถูกลบทิ้ง — มันไม่เช็ก status จึงโชว์กับผลที่ยัง pending ด้วย)
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -594,7 +589,6 @@ export default async function JobDetailPage({
         jobId={job.id}
         jobNo={job.job_no}
         deviations={deviations}
-        failChecks={failChecks}
         canOpen={canOpenDeviation(roles)}
         canClose={canCloseDeviation(roles)}
         canReview={canReviewIncident(roles)}

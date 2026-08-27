@@ -32,13 +32,10 @@ const inputClass =
   "w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring";
 const labelClass = "mb-1 block text-xs font-medium text-muted-foreground";
 
-export type FailCheck = { id: string; station_name: string | null; param: string };
-
 export function Deviations({
   jobId,
   jobNo,
   deviations,
-  failChecks,
   canOpen,
   canClose,
   canReview,
@@ -47,7 +44,6 @@ export function Deviations({
   jobId: string;
   jobNo: string;
   deviations: Deviation[];
-  failChecks: FailCheck[];
   canOpen: boolean;
   /** ปิด/ยกเลิกเคสได้ (QA/ผู้บริหาร) */
   canClose: boolean;
@@ -98,21 +94,7 @@ export function Deviations({
         <p className="text-sm text-muted-foreground">ไม่มี Incident Case</p>
       )}
 
-      {/* quick-open จากผลตรวจระหว่างผลิตที่ไม่ผ่าน */}
-      {canOpen && failChecks.length > 0 && (
-        <div className="mt-4 rounded-md border border-dashed bg-muted/20 p-3">
-          <p className="mb-2 text-xs font-medium text-muted-foreground">
-            ผลตรวจระหว่างผลิตที่ &quot;ไม่ผ่าน&quot; — เปิด Incident Case ได้เลย:
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {failChecks.map((c) => (
-              <FailQuickOpen key={c.id} jobId={jobId} jobNo={jobNo} check={c} />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* เปิด deviation ใหม่ */}
+      {/* เปิด Incident Case ใหม่ */}
       {canOpen && (
         <div className="mt-4">
           <OpenForm jobId={jobId} jobNo={jobNo} />
@@ -775,53 +757,6 @@ function QaReviewForm({ jobNo, dev }: { jobNo: string; dev: Deviation }) {
         </button>
       </div>
     </div>
-  );
-}
-
-function FailQuickOpen({
-  jobId,
-  jobNo,
-  check,
-}: {
-  jobId: string;
-  jobNo: string;
-  check: FailCheck;
-}) {
-  const [pending, start] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
-
-  function open() {
-    setError(null);
-    start(async () => {
-      const res = await openDeviation(jobNo, {
-        job_id: jobId,
-        title: `ผลตรวจไม่ผ่าน: ${check.param}`,
-        description: `สถานี ${check.station_name ?? "—"} — หัวข้อ ${check.param}`,
-        dev_type: "in_process_fail",
-        severity: "major",
-        inprocess_check_id: check.id,
-      });
-      if (res.ok) {
-        router.refresh();
-        return;
-      }
-      setError(res.error ?? "เปิดไม่สำเร็จ");
-    });
-  }
-
-  return (
-    <span className="inline-flex flex-col">
-      <button
-        type="button"
-        disabled={pending}
-        onClick={open}
-        className="rounded-md border border-destructive/40 bg-destructive/5 px-2.5 py-1 text-xs text-destructive hover:bg-destructive/10 disabled:opacity-50"
-      >
-        {pending ? "กำลังเปิด…" : `＋ ${check.param}`}
-      </button>
-      {error && <span className="mt-0.5 text-[11px] text-destructive">{error}</span>}
-    </span>
   );
 }
 

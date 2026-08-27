@@ -718,8 +718,8 @@ function SampleFields({
       </div>
       {v.result === "fail" && (
         <p className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive sm:col-span-2">
-          ⚠️ ผล &quot;ไม่ผ่าน&quot; ต้องมี Incident Case กำกับด้วย — ระหว่างที่ระบบยังไม่เปิดให้อัตโนมัติ
-          ให้กด &quot;＋ เปิด Incident Case&quot; ที่หัวข้อด้านล่างเอง
+          ⚠️ บันทึกผล &quot;ไม่ผ่าน&quot; แล้วระบบจะเปิด Incident Case ให้อัตโนมัติ
+          และแจ้งเตือน QA ทันที (งานนี้จะปล่อยผ่านเข้าคลังไม่ได้จนกว่าเคสจะถูกปิด)
         </p>
       )}
     </div>
