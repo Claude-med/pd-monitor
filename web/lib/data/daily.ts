@@ -10,13 +10,14 @@ export type DailyRow = {
   input_qty: number | null;
   output_qty: number | null;
   loss_qty: number | null;
-  hours: number | null;
+  /** เวลาทำงานเป็นนาที (Part C.3 ก้อน 5 — เดิมเป็นชั่วโมง) */
+  minutes: number | null;
   operator_name: string | null;
   note: string | null;
 };
 
 const SELECT = `
-  id, input_qty, output_qty, loss_qty, hours, note,
+  id, input_qty, output_qty, loss_qty, minutes, note,
   operator:profiles!operator_id ( full_name ),
   station:stations!station_id ( name ),
   jobs ( job_no, orders ( customer, products ( name ) ) )
@@ -42,7 +43,7 @@ function shape(r: any): DailyRow {
     input_qty: r.input_qty,
     output_qty: r.output_qty,
     loss_qty: r.loss_qty,
-    hours: r.hours,
+    minutes: r.minutes,
     operator_name: op?.full_name ?? null,
     note: r.note,
   };

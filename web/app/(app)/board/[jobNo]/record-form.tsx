@@ -2,12 +2,19 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { validateRecord, type RecordFormValues } from "@/lib/data/station-constants";
 import {
+  validateRecord,
+  WORK_SHIFTS,
+  WORK_PERIODS,
+  QTY_UNITS,
+  type RecordFormValues,
+} from "@/lib/data/production-constants";
+import {
+  MACHINE_STATUS_LABEL,
   MACHINE_BLOCKED_STATUSES,
   type MachineStatus,
 } from "@/lib/data/machine-constants";
-import type { Machine } from "@/lib/data/machines";
+import type { RouteMachine } from "@/lib/data/job-routes";
 import { addRecord } from "./record-actions";
 import {
   newClientId,
@@ -22,12 +29,16 @@ function today(): string {
 }
 
 const EMPTY: RecordFormValues = {
-  station_id: "",
   record_date: today(),
+  shift: "",
+  work_period: "",
   input_qty: "",
+  input_unit: "",
   output_qty: "",
+  output_unit: "",
   loss_qty: "",
-  hours: "",
+  loss_unit: "",
+  minutes: "",
   note: "",
   machine_id: "",
   headcount: "",
@@ -45,19 +56,88 @@ const MAX_ATTEMPTS = BACKOFF_MS.length + 1; // = 4 (รวมครั้งแ�
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-/** ตัวเลือกสถานีสำหรับฟอร์ม — สถานีย่อยจริงตาม route ของงาน */
-export type RecordStationOption = { id: string; name: string };
+const inputClass =
+  "w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring";
+const labelClass = "mb-1 block text-xs font-medium text-muted-foreground";
 
+const numClass = (err?: string) =>
+  `w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring ${
+    err ? "border-destructive" : "border-input"
+  }`;
+
+/**
+ * ช่องยอด + dropdown หน่วยต่อท้าย (Part C.3 ก้อน 5)
+ * อยู่นอก RecordForm โดยตั้งใจ — ประกาศ component ระหว่าง render จะสร้าง type ใหม่ทุกครั้ง
+ * ทำให้ React unmount/mount ช่อง input ใหม่ทุกตัวอักษรที่พิมพ์ (โฟกัสหลุด)
+ */
+function QtyField({
+  label,
+  required,
+  qty,
+  unit,
+  onQty,
+  onUnit,
+  err,
+}: {
+  label: string;
+  required?: boolean;
+  qty: string;
+  unit: string;
+  onQty: (val: string) => void;
+  onUnit: (val: string) => void;
+  err?: string;
+}) {
+  return (
+    <div>
+      <label className={labelClass}>
+        {label} {required && "*"}
+      </label>
+      <div className="flex gap-2">
+        <input
+          type="number"
+          inputMode="decimal"
+          step="any"
+          min="0"
+          value={qty}
+          onChange={(e) => onQty(e.target.value)}
+          className={numClass(err)}
+        />
+        <select
+          value={unit}
+          onChange={(e) => onUnit(e.target.value)}
+          className="w-28 shrink-0 rounded-md border border-input bg-background px-2 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+        >
+          <option value="">หน่วย</option>
+          {QTY_UNITS.map((u) => (
+            <option key={u} value={u}>
+              {u}
+            </option>
+          ))}
+        </select>
+      </div>
+      {err && <p className="mt-1 text-xs text-destructive">{err}</p>}
+    </div>
+  );
+}
+
+/**
+ * ฟอร์มบันทึกผลผลิตรายวัน — Part C.3 ก้อน 5
+ *
+ * ตัดช่อง "สถานีผลิต" ออกแล้ว: ขั้นตอนมาจากแท็บที่เลือกอยู่ (jobRouteId)
+ * เครื่องจักรเลือกจาก "เครื่องของขั้นตอนนี้" ที่ผูกไว้ (0061) ไม่ใช่ทะเบียนเครื่องทั้งหมด
+ */
 export function RecordForm({
   jobId,
   jobNo,
+  jobRouteId,
+  stationName,
   machines,
-  stationOptions,
 }: {
   jobId: string;
   jobNo: string;
-  machines: Machine[];
-  stationOptions: RecordStationOption[];
+  jobRouteId: string;
+  stationName: string;
+  machines: RouteMachine[];
 }) {
   const [open, setOpen] = useState(false);
   const [v, setV] = useState<RecordFormValues>(EMPTY);
@@ -87,25 +167,18 @@ export function RecordForm({
 
   const busy = saveState === "saving" || saveState === "retrying";
 
-  const stationNameById = new Map(stationOptions.map((s) => [s.id, s.name]));
-
   function recordSummary(r: PendingRecord): string {
-    const name = stationNameById.get(r.values.station_id) ?? "—";
-    return `${name} · ตั้งต้น ${r.values.input_qty || "—"} / ผลิตได้ ${
+    return `ต้องการ ${r.values.input_qty || "—"} / ผลิตได้ ${
       r.values.output_qty || "—"
     }`;
   }
 
-  // เครื่องที่เลือกได้: เปิดใช้งาน + ไม่อยู่สถานะซ่อม/ถึงกำหนดสอบเทียบ
-  // + ประจำ "สถานีเดียวกัน" กับที่เลือก (หรือเครื่องที่ยังไม่ผูกสถานี)
-  // Part C.3 ก้อน 1: เทียบ station_id ตรง ๆ แทนการเทียบผ่านกลุ่มหลัก (enum) ที่กำลังจะถูกลบ
+  // เครื่องที่เลือกได้ = เครื่องของขั้นตอนนี้ที่ไม่อยู่สถานะซ่อม/ถึงกำหนดสอบเทียบ
   const machineOptions = machines.filter(
-    (m) =>
-      m.is_active &&
-      !MACHINE_BLOCKED_STATUSES.has(m.status as MachineStatus) &&
-      (v.station_id === "" ||
-        m.station_id === v.station_id ||
-        m.station_id === null),
+    (m) => !MACHINE_BLOCKED_STATUSES.has(m.status as MachineStatus),
+  );
+  const blockedMachines = machines.filter((m) =>
+    MACHINE_BLOCKED_STATUSES.has(m.status as MachineStatus),
   );
 
   // พยายามบันทึก 1 รายการแบบทนเน็ต (retry + backoff)
@@ -119,7 +192,13 @@ export function RecordForm({
         setAttempt(a);
         setSaveState(a === 1 ? "saving" : "retrying");
         try {
-          const res = await addRecord(rec.jobId, rec.jobNo, rec.values, rec.clientId);
+          const res = await addRecord(
+            rec.jobId,
+            rec.jobNo,
+            rec.jobRouteId,
+            rec.values,
+            rec.clientId,
+          );
           if (res?.ok) {
             removePending(rec.clientId);
             refreshPending();
@@ -155,6 +234,7 @@ export function RecordForm({
       clientId: newClientId(),
       jobId,
       jobNo,
+      jobRouteId,
       values: v,
       queuedAt: new Date().toISOString(),
     };
@@ -162,14 +242,21 @@ export function RecordForm({
     const result = await trySave(rec);
     if (cancelled.current) return;
 
+    // คงค่าที่มักซ้ำกันทุกรอบไว้ (วันที่/กะ/ช่วงเวลา/เครื่อง/หน่วย) ให้กรอกรอบต่อไปเร็วขึ้น
+    const keep: RecordFormValues = {
+      ...EMPTY,
+      record_date: v.record_date,
+      shift: v.shift,
+      work_period: v.work_period,
+      machine_id: v.machine_id,
+      input_unit: v.input_unit,
+      output_unit: v.output_unit,
+      loss_unit: v.loss_unit,
+    };
+
     if (result === true) {
       setSaveState("saved");
-      setV({
-        ...EMPTY,
-        record_date: v.record_date,
-        station_id: v.station_id,
-        machine_id: v.machine_id,
-      });
+      setV(keep);
       setFieldErrors({});
       router.refresh();
     } else if (result === "permanent") {
@@ -177,12 +264,7 @@ export function RecordForm({
     } else {
       // ค้างไว้ — ข้อมูลปลอดภัยในคิว จะลองใหม่เมื่อเน็ตกลับมา
       setSaveState("queued");
-      setV({
-        ...EMPTY,
-        record_date: v.record_date,
-        station_id: v.station_id,
-        machine_id: v.machine_id,
-      });
+      setV(keep);
       setFieldErrors({});
     }
   }
@@ -195,7 +277,13 @@ export function RecordForm({
     for (const rec of list) {
       if (cancelled.current) return;
       try {
-        const res = await addRecord(rec.jobId, rec.jobNo, rec.values, rec.clientId);
+        const res = await addRecord(
+          rec.jobId,
+          rec.jobNo,
+          rec.jobRouteId,
+          rec.values,
+          rec.clientId,
+        );
         if (res?.ok) {
           removePending(rec.clientId);
           anyOk = true;
@@ -234,11 +322,6 @@ export function RecordForm({
     removePending(clientId);
     refreshPending();
   }
-
-  const numClass = (err?: string) =>
-    `w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring ${
-      err ? "border-destructive" : "border-input"
-    }`;
 
   // แบนเนอร์รายการค้าง (โชว์เสมอ แม้ฟอร์มปิดอยู่)
   const pendingBanner = pending.length > 0 && (
@@ -292,159 +375,135 @@ export function RecordForm({
     <div className="space-y-3">
       {pendingBanner}
       <div className="space-y-4 rounded-lg border bg-muted/20 p-4">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {/* สถานี (ตาม route ของสูตร) */}
-          <div>
-            <label className="mb-1 block text-xs font-medium text-muted-foreground">
-              สถานีผลิต *
-            </label>
-            {stationOptions.length > 0 ? (
-              <select
-                value={v.station_id}
-                onChange={(e) => set("station_id", e.target.value)}
-                className={numClass(fieldErrors.station_id)}
-              >
-                <option value="">— เลือกสถานี —</option>
-                {stationOptions.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
-                ⚠️ งานนี้ยังไม่มีขั้นตอนการผลิต — ดูแถบเตือนด้านบนของหน้างาน
-                แล้วให้ฝ่ายวางแผนกดเติมให้ก่อน
-              </p>
-            )}
-            {fieldErrors.station_id && (
-              <p className="mt-1 text-xs text-destructive">{fieldErrors.station_id}</p>
-            )}
-          </div>
+        <p className="text-xs text-muted-foreground">
+          บันทึกของขั้นตอน <span className="font-medium">{stationName}</span>
+        </p>
 
-          {/* วันที่ */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div>
-            <label className="mb-1 block text-xs font-medium text-muted-foreground">
-              วันที่บันทึก *
-            </label>
+            <label className={labelClass}>วันที่บันทึก *</label>
             <input
               type="date"
-              max={today()}
               value={v.record_date}
+              max={today()}
               onChange={(e) => set("record_date", e.target.value)}
               className={numClass(fieldErrors.record_date)}
             />
             {fieldErrors.record_date && (
-              <p className="mt-1 text-xs text-destructive">{fieldErrors.record_date}</p>
+              <p className="mt-1 text-xs text-destructive">
+                {fieldErrors.record_date}
+              </p>
             )}
           </div>
-
-          {/* เครื่องจักรที่ใช้ (ออปชัน) */}
-          <div className="sm:col-span-2">
-            <label className="mb-1 block text-xs font-medium text-muted-foreground">
-              เครื่องจักรที่ใช้
-            </label>
+          <div>
+            <label className={labelClass}>กะ</label>
             <select
-              value={v.machine_id}
-              onChange={(e) => set("machine_id", e.target.value)}
-              className={numClass()}
+              value={v.shift}
+              onChange={(e) => set("shift", e.target.value)}
+              className={inputClass}
             >
-              <option value="">— ไม่ระบุเครื่อง —</option>
-              {machineOptions.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.code} · {m.name}
+              <option value="">— ไม่ระบุ —</option>
+              {WORK_SHIFTS.map((s) => (
+                <option key={s.key} value={s.key}>
+                  {s.label}
                 </option>
               ))}
             </select>
-            <p className="mt-1 text-[11px] text-muted-foreground">
-              {v.station_id
-                ? "แสดงเฉพาะเครื่องของสถานีนี้ที่พร้อมใช้ — เครื่องที่ซ่อม/ถึงกำหนดสอบเทียบจะไม่ขึ้นให้เลือก"
-                : "เลือกสถานีก่อนเพื่อกรองเครื่องให้ตรง — เครื่องที่ซ่อม/ถึงกำหนดสอบเทียบจะไม่ขึ้นให้เลือก"}
+          </div>
+          <div>
+            <label className={labelClass}>ช่วงเวลาปกติ / OT</label>
+            <select
+              value={v.work_period}
+              onChange={(e) => set("work_period", e.target.value)}
+              className={inputClass}
+            >
+              <option value="">— ไม่ระบุ —</option>
+              {WORK_PERIODS.map((p) => (
+                <option key={p.key} value={p.key}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label className={labelClass}>เครื่องจักรที่ใช้</label>
+          <select
+            value={v.machine_id}
+            onChange={(e) => set("machine_id", e.target.value)}
+            className={inputClass}
+          >
+            <option value="">— ไม่ระบุ —</option>
+            {machineOptions.map((m) => (
+              <option key={m.machine_id} value={m.machine_id}>
+                {m.code} · {m.name}
+              </option>
+            ))}
+          </select>
+          {machines.length === 0 && (
+            <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
+              ยังไม่ได้เลือกเครื่องจักรของขั้นตอนนี้ — เลือกที่การ์ดด้านบนก่อน
             </p>
-          </div>
+          )}
+          {blockedMachines.length > 0 && (
+            <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
+              ไม่แสดง{" "}
+              {blockedMachines
+                .map((m) => `${m.code} (${MACHINE_STATUS_LABEL[m.status]})`)
+                .join(" · ")}
+            </p>
+          )}
+        </div>
 
-          {/* input */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <QtyField
+            label="ยอดที่ต้องการ"
+            required
+            qty={v.input_qty}
+            unit={v.input_unit}
+            onQty={(val) => set("input_qty", val)}
+            onUnit={(val) => set("input_unit", val)}
+            err={fieldErrors.input_qty}
+          />
+          <QtyField
+            label="ยอดผลิตได้ (output)"
+            required
+            qty={v.output_qty}
+            unit={v.output_unit}
+            onQty={(val) => set("output_qty", val)}
+            onUnit={(val) => set("output_unit", val)}
+            err={fieldErrors.output_qty}
+          />
+          <QtyField
+            label="ของเสีย (loss)"
+            qty={v.loss_qty}
+            unit={v.loss_unit}
+            onQty={(val) => set("loss_qty", val)}
+            onUnit={(val) => set("loss_unit", val)}
+            err={fieldErrors.loss_qty}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <label className="mb-1 block text-xs font-medium text-muted-foreground">
-              ยอดตั้งต้น (input) *
-            </label>
+            <label className={labelClass}>นาทีทำงาน (0–1440)</label>
             <input
               type="number"
               inputMode="decimal"
               step="any"
               min="0"
-              value={v.input_qty}
-              onChange={(e) => set("input_qty", e.target.value)}
-              className={numClass(fieldErrors.input_qty)}
+              max="1440"
+              value={v.minutes}
+              onChange={(e) => set("minutes", e.target.value)}
+              className={numClass(fieldErrors.minutes)}
             />
-            {fieldErrors.input_qty && (
-              <p className="mt-1 text-xs text-destructive">{fieldErrors.input_qty}</p>
+            {fieldErrors.minutes && (
+              <p className="mt-1 text-xs text-destructive">{fieldErrors.minutes}</p>
             )}
           </div>
-
-          {/* output */}
           <div>
-            <label className="mb-1 block text-xs font-medium text-muted-foreground">
-              ยอดผลิตได้ (output) *
-            </label>
-            <input
-              type="number"
-              inputMode="decimal"
-              step="any"
-              min="0"
-              value={v.output_qty}
-              onChange={(e) => set("output_qty", e.target.value)}
-              className={numClass(fieldErrors.output_qty)}
-            />
-            {fieldErrors.output_qty && (
-              <p className="mt-1 text-xs text-destructive">{fieldErrors.output_qty}</p>
-            )}
-          </div>
-
-          {/* loss */}
-          <div>
-            <label className="mb-1 block text-xs font-medium text-muted-foreground">
-              ของเสีย (loss)
-            </label>
-            <input
-              type="number"
-              inputMode="decimal"
-              step="any"
-              min="0"
-              value={v.loss_qty}
-              onChange={(e) => set("loss_qty", e.target.value)}
-              className={numClass(fieldErrors.loss_qty)}
-            />
-            {fieldErrors.loss_qty && (
-              <p className="mt-1 text-xs text-destructive">{fieldErrors.loss_qty}</p>
-            )}
-          </div>
-
-          {/* hours */}
-          <div>
-            <label className="mb-1 block text-xs font-medium text-muted-foreground">
-              ชั่วโมงทำงาน
-            </label>
-            <input
-              type="number"
-              inputMode="decimal"
-              step="any"
-              min="0"
-              max="24"
-              value={v.hours}
-              onChange={(e) => set("hours", e.target.value)}
-              className={numClass(fieldErrors.hours)}
-            />
-            {fieldErrors.hours && (
-              <p className="mt-1 text-xs text-destructive">{fieldErrors.hours}</p>
-            )}
-          </div>
-
-          {/* headcount */}
-          <div>
-            <label className="mb-1 block text-xs font-medium text-muted-foreground">
-              จำนวนคน
-            </label>
+            <label className={labelClass}>จำนวนคน</label>
             <input
               type="number"
               inputMode="numeric"
@@ -455,22 +514,20 @@ export function RecordForm({
               className={numClass(fieldErrors.headcount)}
             />
             {fieldErrors.headcount && (
-              <p className="mt-1 text-xs text-destructive">{fieldErrors.headcount}</p>
+              <p className="mt-1 text-xs text-destructive">
+                {fieldErrors.headcount}
+              </p>
             )}
           </div>
         </div>
 
-        {/* note */}
         <div>
-          <label className="mb-1 block text-xs font-medium text-muted-foreground">
-            หมายเหตุ
-          </label>
-          <textarea
-            rows={2}
+          <label className={labelClass}>หมายเหตุ</label>
+          <input
             value={v.note}
             onChange={(e) => set("note", e.target.value)}
             placeholder="บันทึกเพิ่มเติม (ถ้ามี)"
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+            className={inputClass}
           />
         </div>
 

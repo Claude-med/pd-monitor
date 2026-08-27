@@ -12,7 +12,8 @@ export async function addInprocessCheck(
   jobNo: string,
   v: {
     job_id: string;
-    station_id: string;
+    job_route_id: string;
+    production_record_id: string;
     param: string;
     value: string;
     unit: string;
@@ -21,20 +22,21 @@ export async function addInprocessCheck(
   },
 ): Promise<ActionResult> {
   const profile = await getProfile();
-  if (!profile || !hasAnyRole(profile.roles, ["qc", "manager"]))
-    return { error: "ไม่มีสิทธิ์ (เฉพาะ QC/ผู้บริหาร)" };
+  if (!profile || !hasAnyRole(profile.roles, ["qc", "qc_lead", "manager"]))
+    return { error: "ไม่มีสิทธิ์ (เฉพาะ QC/หัวหน้า QC/ผู้บริหาร)" };
   if (!v.param.trim()) return { error: "กรุณาระบุหัวข้อที่ตรวจ" };
-  if (!v.station_id) return { error: "กรุณาเลือกสถานี" };
+  if (!v.job_route_id) return { error: "ไม่พบขั้นตอนการผลิตที่เลือก" };
 
   const supabase = await createClient();
   const { error } = await supabase.rpc("add_inprocess_check", {
     p_job_id: v.job_id,
-    p_station_id: v.station_id,
+    p_job_route_id: v.job_route_id,
     p_param: v.param.trim(),
     p_value: v.value.trim() || null,
     p_unit: v.unit.trim() || null,
     p_result: v.result === "fail" ? "fail" : "pass",
     p_note: v.note.trim() || null,
+    p_production_record_id: v.production_record_id || null,
   });
   if (error) return { error: error.message || "บันทึกผลตรวจไม่สำเร็จ" };
   revalidatePath(`/board/${jobNo}`);

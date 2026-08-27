@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getJobByNo, type JobRow } from "@/lib/data/jobs";
 import { getRecordsForJob } from "@/lib/data/production";
-import type { ProductionRecordRow } from "@/lib/data/station-constants";
+import type { ProductionRecordRow } from "@/lib/data/production-constants";
 import { getJobMaterials, type JobMaterialRow } from "@/lib/data/job-materials";
 import { getLineClearances, type LineClearance } from "@/lib/data/line-clearance";
 import { getJobRouteSteps } from "@/lib/data/job-routes";

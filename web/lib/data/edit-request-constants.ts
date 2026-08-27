@@ -20,10 +20,15 @@ export const EDIT_TARGET_LABEL: Record<EditTargetType, string> = {
 
 /** ป้ายฟิลด์ (ใช้แสดง diff ในหน้ารีวิว/ประวัติ) */
 export const EDIT_FIELD_LABEL: Record<string, string> = {
-  input_qty: "จำนวนตั้งต้น",
+  input_qty: "ยอดที่ต้องการ",
   output_qty: "ผลิตได้",
   loss_qty: "ของเสีย",
-  hours: "ชั่วโมง",
+  minutes: "นาทีทำงาน",
+  shift: "กะ",
+  work_period: "ช่วงเวลา/OT",
+  input_unit: "หน่วยยอดที่ต้องการ",
+  output_unit: "หน่วยผลิตได้",
+  loss_unit: "หน่วยของเสีย",
   headcount: "จำนวนคน",
   record_date: "วันที่",
   // Part C.3 ก้อน 2: เลิกใช้ field "station" (กลุ่มหลัก) แล้ว เหลือ station_id อย่างเดียว

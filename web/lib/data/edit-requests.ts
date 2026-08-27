@@ -104,7 +104,7 @@ export async function getTargetSnapshot(
       : "inprocess_checks";
   const cols =
     targetType === "production_record"
-      ? "input_qty, output_qty, loss_qty, hours, headcount, note, record_date, station, machine_id"
+      ? "input_qty, output_qty, loss_qty, minutes, headcount, note, record_date, station_id, machine_id, input_unit, output_unit, loss_unit, shift, work_period"
       : "param, value, unit, result, note";
   const { data } = await supabase.from(table).select(cols).eq("id", targetId).single();
   const out: Record<string, string> = {};

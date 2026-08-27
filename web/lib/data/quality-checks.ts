@@ -5,6 +5,9 @@ export type InprocessCheck = {
   station_id: string | null;
   /** ชื่อสถานี (join stations) */
   station_name: string | null;
+  job_route_id: string | null;
+  /** แถวบันทึกผลผลิตที่ผลตรวจนี้ตรวจอยู่ (Part C.3 ก้อน 5) */
+  production_record_id: string | null;
   param: string;
   value: string | null;
   unit: string | null;
@@ -36,7 +39,7 @@ export async function getInprocessChecks(jobId: string): Promise<InprocessCheck[
   const { data, error } = await supabase
     .from("inprocess_checks")
     .select(
-      `id, station_id, param, value, unit, result, checked_at, note,
+      `id, station_id, job_route_id, production_record_id, param, value, unit, result, checked_at, note,
        checker:profiles!checked_by ( full_name ),
        station:stations!station_id ( name )`,
     )
@@ -47,6 +50,8 @@ export async function getInprocessChecks(jobId: string): Promise<InprocessCheck[
     id: r.id,
     station_id: r.station_id ?? null,
     station_name: one<any>(r.station)?.name ?? null,
+    job_route_id: r.job_route_id ?? null,
+    production_record_id: r.production_record_id ?? null,
     param: r.param,
     value: r.value,
     unit: r.unit,

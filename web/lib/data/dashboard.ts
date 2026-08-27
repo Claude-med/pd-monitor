@@ -46,7 +46,7 @@ export async function getDashboardData(
       supabase.from("jobs").select("status, problem"),
       supabase
         .from("production_records")
-        .select("station_id, input_qty, output_qty, loss_qty, hours, headcount")
+        .select("station_id, input_qty, output_qty, loss_qty, minutes, headcount")
         .gte("record_date", from)
         .lte("record_date", to),
       // ดึงสถานี "ทั้งหมด" รวมที่ปิดใช้งาน — บันทึกเก่าของสถานีที่ปิดไปแล้ว
@@ -86,7 +86,8 @@ export async function getDashboardData(
   let totalHours = 0;
   let totalPersonHours = 0;
   for (const r of records ?? []) {
-    const hrs = r.hours ?? 0;
+    // 0063: DB เก็บเป็นนาที — ต้นทุนค่าแรงคิดเป็น ฿/ชม. จึงแปลงที่นี่
+    const hrs = (r.minutes ?? 0) / 60;
     const ph = hrs * (r.headcount ?? 1); // ไม่ระบุคน = คิด 1 คน
     totalInput += r.input_qty ?? 0;
     totalOutput += r.output_qty ?? 0;

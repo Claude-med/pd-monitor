@@ -264,7 +264,7 @@ export default async function EbrPage({
                   <th className={`${th} text-right`}>ตั้งต้น</th>
                   <th className={`${th} text-right`}>ผลิตได้</th>
                   <th className={`${th} text-right`}>ของเสีย</th>
-                  <th className={`${th} text-right`}>ชม.</th>
+                  <th className={`${th} text-right`}>นาที</th>
                   <th className={`${th} text-right`}>คน</th>
                   <th className={th}>ผู้บันทึก</th>
                 </tr>
@@ -279,7 +279,7 @@ export default async function EbrPage({
                     <td className={`${td} text-right tabular-nums`}>{fmt(rec.input_qty)}</td>
                     <td className={`${td} text-right tabular-nums`}>{fmt(rec.output_qty)}</td>
                     <td className={`${td} text-right tabular-nums`}>{fmt(rec.loss_qty)}</td>
-                    <td className={`${td} text-right tabular-nums`}>{rec.hours ?? "—"}</td>
+                    <td className={`${td} text-right tabular-nums`}>{rec.minutes ?? "—"}</td>
                     <td className={`${td} text-right tabular-nums`}>{rec.headcount ?? "—"}</td>
                     <td className={td}>{rec.operator_name ?? "—"}</td>
                   </tr>

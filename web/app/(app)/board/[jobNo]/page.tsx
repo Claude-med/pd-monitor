@@ -10,7 +10,12 @@ import {
   PROBLEM_FLAGS,
 } from "@/lib/data/job-constants";
 import { getRecordsForJob } from "@/lib/data/production";
-import { RECORDABLE_STATUSES } from "@/lib/data/station-constants";
+import {
+  WORK_SHIFT_LABEL,
+  WORK_PERIOD_LABEL,
+  RECORDABLE_STATUSES,
+  type RecordQcStatus,
+} from "@/lib/data/production-constants";
 import { getApprovalsForJob } from "@/lib/data/approvals";
 import { listMachines } from "@/lib/data/machines";
 import { getJobMaterials } from "@/lib/data/job-materials";
@@ -56,10 +61,13 @@ import { EditRequestButton, type EditField } from "./edit-request-button";
 import { MissingRouteBanner } from "./missing-route";
 import { RouteTabs } from "./route-tabs";
 import { RouteMachinesCard } from "./route-machines-card";
-import type { ProductionRecordRow } from "@/lib/data/station-constants";
+import { RecordQcCell } from "./record-qc-cell";
+import type { ProductionRecordRow } from "@/lib/data/production-constants";
 
-function fmtQty(n: number | null): string {
-  return n == null ? "—" : n.toLocaleString("th-TH");
+/** ยอด + หน่วยต่อท้าย (หน่วยแยกช่องตั้งแต่ Part C.3 ก้อน 5) */
+function fmtQtyUnit(n: number | null, unit: string | null): string {
+  if (n == null) return "—";
+  return unit ? `${n.toLocaleString("th-TH")} ${unit}` : n.toLocaleString("th-TH");
 }
 
 type EditOption = { value: string; label: string };
@@ -74,8 +82,8 @@ function productionEditFields(
   return [
     { key: "output_qty", label: "ผลิตได้", kind: "number", current: String(r.output_qty ?? "") },
     { key: "loss_qty", label: "ของเสีย", kind: "number", current: String(r.loss_qty ?? "") },
-    { key: "input_qty", label: "จำนวนตั้งต้น", kind: "number", current: String(r.input_qty ?? "") },
-    { key: "hours", label: "ชั่วโมง", kind: "number", current: String(r.hours ?? "") },
+    { key: "input_qty", label: "ยอดที่ต้องการ", kind: "number", current: String(r.input_qty ?? "") },
+    { key: "minutes", label: "นาทีทำงาน", kind: "number", current: String(r.minutes ?? "") },
     { key: "headcount", label: "จำนวนคน", kind: "number", current: String(r.headcount ?? "") },
     { key: "record_date", label: "วันที่", kind: "date", current: r.record_date ?? "" },
     { key: "note", label: "หมายเหตุ", kind: "text", current: r.note ?? "" },
@@ -94,7 +102,7 @@ export default async function JobDetailPage({
 }: {
   params: Promise<{ jobNo: string }>;
   /** ?step=<job_routes.id> — แท็บขั้นตอนที่กำลังดูอยู่ (Part C.3 ก้อน 3) */
-  searchParams: Promise<{ step?: string }>;
+  searchParams: Promise<{ step?: string; qc?: string }>;
 }) {
   const { jobNo } = await params;
   const sp = await searchParams;
@@ -109,7 +117,7 @@ export default async function JobDetailPage({
   const records = await getRecordsForJob(job.id);
   const approvals = await getApprovalsForJob(job.id);
   const canRecord =
-    hasAnyRole(roles, ["production", "manager"]) &&
+    hasAnyRole(roles, ["production", "production_lead", "manager"]) &&
     RECORDABLE_STATUSES.has(job.status);
   // [ข้อ 8] ผู้บริหาร/ผู้ดูแล ขอแก้ไข "สถานี/เครื่องจักร" ของบันทึกผลผลิต + สถานีของ in-process ได้
   const canEditStationMachine = hasAnyRole(roles, ["manager", "admin"]);
@@ -122,13 +130,6 @@ export default async function JobDetailPage({
   // สถานีย่อยทั้งหมด (active) + route ของงาน → ใช้ทำตัวเลือกสถานีในฟอร์มต่างๆ
   const jobRoute = await getJobRoute(job.id);
   const activeStations = (await listStations()).filter((s) => s.is_active);
-  // ฟอร์มบันทึกผลผลิต [ข้อ5]: เลือกได้เฉพาะสถานีใน route ของงานเท่านั้น
-  // Part 2.1: ตัด fallback "ทุกสถานี active" ออก — ของเดิมทำให้งานที่ไม่มี route
-  // เลือกสถานีไหนก็ได้ และผู้ใช้ไม่มีทางรู้ว่างานนั้นไม่มีขั้นตอนการผลิต
-  const recordStationOptions = jobRoute.map((s) => ({
-    id: s.station_id,
-    name: `${s.step_no}. ${s.name}`,
-  }));
   // ตัวเลือกฟอร์มขอแก้ไข: สถานีย่อย (station_id) = ทุกสถานี active · เครื่องจักร = รายการเครื่อง
   const stationIdEditOptions = activeStations.map((s) => ({ value: s.id, label: s.name }));
   const machineEditOptions = [
@@ -152,13 +153,8 @@ export default async function JobDetailPage({
   const canCheckLc = canCheckLineClearance(roles);
   const inprocessChecks = await getInprocessChecks(job.id);
   const qaSamples = await getQaSamples(job.id);
-  const canInprocess = hasAnyRole(roles, ["qc", "manager"]);
+  const canInprocess = hasAnyRole(roles, ["qc", "qc_lead", "manager"]);
   const canSample = hasAnyRole(roles, ["qa", "manager"]);
-  // ตัวเลือกสถานีในฟอร์ม in-process QC — ตาม route ของงานเท่านั้น (ตัด fallback เหมือนกัน)
-  const stationOptions = jobRoute.map((s) => ({
-    id: s.station_id,
-    name: `${s.step_no}. ${s.name}`,
-  }));
   // ── Part C.3 ก้อน 3: แท็บตามขั้นตอนการผลิต ──────────────────────────
   // steps มาจาก job_routes (snapshot ตอนสร้างงาน) พร้อมเครื่องจักรที่ผูกไว้ + ตัวนับ
   const steps = await getJobRouteSteps(job.id);
@@ -177,12 +173,25 @@ export default async function JobDetailPage({
   const viewRoute = activeStep
     ? jobRoute.filter((r) => r.station_id === activeStep.station_id)
     : jobRoute;
-  const viewStationOptions = activeStep
-    ? stationOptions.filter((o) => o.id === activeStep.station_id)
-    : stationOptions;
-  const viewRecordStationOptions = activeStep
-    ? recordStationOptions.filter((o) => o.id === activeStep.station_id)
-    : recordStationOptions;
+  // สถานะ QC รายแถว — คำนวณจากผลตรวจที่ผูกกับแถวนั้น (ไม่เก็บคอลัมน์ กันข้อมูลตกยุค)
+  const qcByRecord = new Map<string, RecordQcStatus>();
+  for (const c of inprocessChecks) {
+    if (!c.production_record_id) continue;
+    const cur = qcByRecord.get(c.production_record_id);
+    if (cur === "fail") continue; // ไม่ผ่านแม้ข้อเดียว = ไม่ผ่านทั้งแถว
+    qcByRecord.set(c.production_record_id, c.result === "fail" ? "fail" : "pass");
+  }
+  const qcStatusOf = (id: string): RecordQcStatus =>
+    qcByRecord.get(id) ?? "waiting";
+
+  // ตัวเลือกให้ QC เลือกว่าจะตรวจแถวไหน — ใช้ข้อมูลที่โหลดมาแล้ว ไม่ query เพิ่ม
+  const recordOptions = viewRecords.map((r) => ({
+    id: r.id,
+    label: `${r.record_date} · ผลิตได้ ${fmtQtyUnit(r.output_qty, r.output_unit)}${
+      r.machine_label ? ` · ${r.machine_label}` : ""
+    }`,
+  }));
+
 
   const deviations = await getDeviationsByJob(job.id);
   // F1 — คำขอแก้ไขย้อนหลัง (ประวัติ + badge บนแถวที่มีคำขอค้าง)
@@ -408,14 +417,24 @@ export default async function JobDetailPage({
                     <span className="text-xs text-muted-foreground">{r.record_date}</span>
                   </div>
                   <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
-                    <div><dt className="text-xs text-muted-foreground">ตั้งต้น</dt><dd className="tabular-nums">{fmtQty(r.input_qty)}</dd></div>
-                    <div><dt className="text-xs text-muted-foreground">ผลิตได้</dt><dd className="tabular-nums">{fmtQty(r.output_qty)}</dd></div>
-                    <div><dt className="text-xs text-muted-foreground">ของเสีย</dt><dd className="tabular-nums">{fmtQty(r.loss_qty)}</dd></div>
-                    <div><dt className="text-xs text-muted-foreground">ชม. / คน</dt><dd className="tabular-nums">{r.hours ?? "—"} / {r.headcount ?? "—"}</dd></div>
+                    <div><dt className="text-xs text-muted-foreground">ยอดที่ต้องการ</dt><dd className="tabular-nums">{fmtQtyUnit(r.input_qty, r.input_unit)}</dd></div>
+                    <div><dt className="text-xs text-muted-foreground">ผลิตได้</dt><dd className="tabular-nums">{fmtQtyUnit(r.output_qty, r.output_unit)}</dd></div>
+                    <div><dt className="text-xs text-muted-foreground">ของเสีย</dt><dd className="tabular-nums">{fmtQtyUnit(r.loss_qty, r.loss_unit)}</dd></div>
+                    <div><dt className="text-xs text-muted-foreground">นาที / คน</dt><dd className="tabular-nums">{r.minutes ?? "—"} / {r.headcount ?? "—"}</dd></div>
+                    <div><dt className="text-xs text-muted-foreground">กะ / ช่วงเวลา</dt><dd>{r.shift ? WORK_SHIFT_LABEL[r.shift] : "—"}{r.work_period ? " / " + WORK_PERIOD_LABEL[r.work_period] : ""}</dd></div>
                     <div><dt className="text-xs text-muted-foreground">เครื่องจักร</dt><dd>{r.machine_label ?? "—"}</dd></div>
                     <div><dt className="text-xs text-muted-foreground">ผู้บันทึก</dt><dd>{r.operator_name ?? "—"}</dd></div>
                   </dl>
                   {r.note && <p className="mt-2 text-xs text-muted-foreground">📝 {r.note}</p>}
+                  <div className="mt-2">
+                    <RecordQcCell
+                      status={qcStatusOf(r.id)}
+                      jobNo={job.job_no}
+                      stepId={activeStep?.id ?? null}
+                      recordId={r.id}
+                      canCheck={canInprocess}
+                    />
+                  </div>
                   {canAmend && (
                     <div className="mt-2">
                       <EditRequestButton
@@ -437,15 +456,16 @@ export default async function JobDetailPage({
                 <thead>
                   <tr className="border-b text-left text-xs text-muted-foreground">
                     <th className="px-2 py-2 font-medium">วันที่</th>
-                    <th className="px-2 py-2 font-medium">สถานี</th>
+                    <th className="px-2 py-2 font-medium">กะ / ช่วงเวลา</th>
                     <th className="px-2 py-2 font-medium">เครื่องจักร</th>
-                    <th className="px-2 py-2 text-right font-medium">ตั้งต้น</th>
+                    <th className="px-2 py-2 text-right font-medium">ยอดที่ต้องการ</th>
                     <th className="px-2 py-2 text-right font-medium">ผลิตได้</th>
                     <th className="px-2 py-2 text-right font-medium">ของเสีย</th>
-                    <th className="px-2 py-2 text-right font-medium">ชม.</th>
+                    <th className="px-2 py-2 text-right font-medium">นาที</th>
                     <th className="px-2 py-2 text-right font-medium">คน</th>
                     <th className="px-2 py-2 font-medium">ผู้บันทึก</th>
                     {canAmend && <th className="px-2 py-2 font-medium">แก้ไข</th>}
+                    <th className="px-2 py-2 font-medium">สถานะ QC</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -453,16 +473,17 @@ export default async function JobDetailPage({
                     <Fragment key={r.id}>
                       <tr className={`align-top ${r.note ? "" : "border-b last:border-0"}`}>
                         <td className="whitespace-nowrap px-2 py-2">{r.record_date}</td>
-                        <td className="whitespace-nowrap px-2 py-2">
-                          {r.station_name ?? "—"}
+                        <td className="whitespace-nowrap px-2 py-2 text-muted-foreground">
+                          {r.shift ? WORK_SHIFT_LABEL[r.shift] : "—"}
+                          {r.work_period ? " / " + WORK_PERIOD_LABEL[r.work_period] : ""}
                         </td>
                         <td className="whitespace-nowrap px-2 py-2 text-muted-foreground">
                           {r.machine_label ?? "—"}
                         </td>
-                        <td className="px-2 py-2 text-right tabular-nums">{fmtQty(r.input_qty)}</td>
-                        <td className="px-2 py-2 text-right tabular-nums">{fmtQty(r.output_qty)}</td>
-                        <td className="px-2 py-2 text-right tabular-nums">{fmtQty(r.loss_qty)}</td>
-                        <td className="px-2 py-2 text-right tabular-nums">{r.hours ?? "—"}</td>
+                        <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums">{fmtQtyUnit(r.input_qty, r.input_unit)}</td>
+                        <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums">{fmtQtyUnit(r.output_qty, r.output_unit)}</td>
+                        <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums">{fmtQtyUnit(r.loss_qty, r.loss_unit)}</td>
+                        <td className="px-2 py-2 text-right tabular-nums">{r.minutes ?? "—"}</td>
                         <td className="px-2 py-2 text-right tabular-nums">{r.headcount ?? "—"}</td>
                         <td className="whitespace-nowrap px-2 py-2 text-muted-foreground">
                           {r.operator_name ?? "—"}
@@ -478,12 +499,21 @@ export default async function JobDetailPage({
                             />
                           </td>
                         )}
+                        <td className="px-2 py-2">
+                          <RecordQcCell
+                            status={qcStatusOf(r.id)}
+                            jobNo={job.job_no}
+                            stepId={activeStep?.id ?? null}
+                            recordId={r.id}
+                            canCheck={canInprocess}
+                          />
+                        </td>
                       </tr>
                       {r.note && (
                         <tr className="border-b last:border-0">
                           <td />
                           <td
-                            colSpan={canAmend ? 9 : 8}
+                            colSpan={canAmend ? 10 : 9}
                             className="px-2 pb-2 text-xs text-muted-foreground"
                           >
                             📝 {r.note}
@@ -501,16 +531,21 @@ export default async function JobDetailPage({
         )}
 
         <div className="mt-4">
-          {canRecord ? (
+          {canRecord && activeStep ? (
             <RecordForm
               jobId={job.id}
               jobNo={job.job_no}
-              machines={machines}
-              stationOptions={viewRecordStationOptions}
+              jobRouteId={activeStep.id}
+              stationName={`${activeStep.step_no}. ${activeStep.station_name}`}
+              machines={activeStep.machines}
             />
+          ) : canRecord && !activeStep ? (
+            <p className="text-xs text-amber-700 dark:text-amber-400">
+              งานนี้ยังไม่มีขั้นตอนการผลิต — บันทึกผลผลิตไม่ได้จนกว่าจะเติมขั้นตอน (ดูแถบเตือนด้านบน)
+            </p>
           ) : (
             <p className="text-xs text-muted-foreground">
-              {hasAnyRole(roles, ["production", "manager"])
+              {hasAnyRole(roles, ["production", "production_lead", "manager"])
                 ? "บันทึกผลผลิตได้เฉพาะงานที่เริ่มผลิตแล้ว (ยังไม่ถึง/เลยขั้นผลิต)"
                 : "เฉพาะฝ่ายผลิต/ผู้บริหารบันทึกผลผลิตได้"}
             </p>
@@ -525,7 +560,10 @@ export default async function JobDetailPage({
         checks={viewChecks}
         samples={qaSamples}
         route={viewRoute}
-        stationOptions={viewStationOptions}
+        jobRouteId={activeStep?.id ?? null}
+        stationOptions={activeStations.map((st) => ({ id: st.id, name: st.name }))}
+        recordOptions={recordOptions}
+        preselectRecordId={sp.qc ?? null}
         canCheck={canInprocess}
         canSample={canSample}
         canAmend={canAmend}

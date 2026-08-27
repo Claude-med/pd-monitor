@@ -27,7 +27,7 @@ export async function getMachineUsage(
   const supabase = await createClient();
   const { data } = await supabase
     .from("production_records")
-    .select("machine_id, hours, job_id, machine:machines!machine_id ( code, name )")
+    .select("machine_id, minutes, job_id, machine:machines!machine_id ( code, name )")
     .not("machine_id", "is", null)
     .gte("record_date", from)
     .lte("record_date", to);
@@ -43,7 +43,8 @@ export async function getMachineUsage(
     const cur =
       map.get(id) ??
       { code: mc?.code ?? "—", name: mc?.name ?? "", hours: 0, records: 0, jobs: new Set<string>() };
-    cur.hours += Number(r.hours ?? 0);
+    // DB เก็บเป็นนาทีตั้งแต่ 0063 — รายงานนี้ยังแสดงเป็นชั่วโมง จึงหาร 60 ที่นี่ที่เดียว
+    cur.hours += Number(r.minutes ?? 0) / 60;
     cur.records += 1;
     if (r.job_id) cur.jobs.add(r.job_id as string);
     map.set(id, cur);

@@ -21,7 +21,7 @@ export default async function DailyReportPage({
 
   const totalOutput = rows.reduce((s, r) => s + (r.output_qty ?? 0), 0);
   const totalLoss = rows.reduce((s, r) => s + (r.loss_qty ?? 0), 0);
-  const totalHours = rows.reduce((s, r) => s + (r.hours ?? 0), 0);
+  const totalMinutes = rows.reduce((s, r) => s + (r.minutes ?? 0), 0);
 
   return (
     <div className="space-y-6">
@@ -70,8 +70,8 @@ export default async function DailyReportPage({
           <p className="mt-1 text-xl font-bold tabular-nums">{fmt(totalLoss)}</p>
         </div>
         <div className="rounded-xl border bg-card p-4">
-          <p className="text-xs text-muted-foreground">ชั่วโมงรวม</p>
-          <p className="mt-1 text-xl font-bold tabular-nums">{fmt(totalHours)}</p>
+          <p className="text-xs text-muted-foreground">นาทีรวม</p>
+          <p className="mt-1 text-xl font-bold tabular-nums">{fmt(totalMinutes)}</p>
         </div>
       </div>
 
@@ -87,7 +87,7 @@ export default async function DailyReportPage({
                 <th className="px-3 py-2 text-right font-medium">ตั้งต้น</th>
                 <th className="px-3 py-2 text-right font-medium">ผลิตได้</th>
                 <th className="px-3 py-2 text-right font-medium">ของเสีย</th>
-                <th className="px-3 py-2 text-right font-medium">ชม.</th>
+                <th className="px-3 py-2 text-right font-medium">นาที</th>
                 <th className="px-3 py-2 font-medium">ผู้บันทึก</th>
               </tr>
             </thead>
@@ -113,7 +113,7 @@ export default async function DailyReportPage({
                   <td className="px-3 py-2 text-right tabular-nums">{fmt(r.input_qty)}</td>
                   <td className="px-3 py-2 text-right tabular-nums">{fmt(r.output_qty)}</td>
                   <td className="px-3 py-2 text-right tabular-nums">{fmt(r.loss_qty)}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{r.hours ?? "—"}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{r.minutes ?? "—"}</td>
                   <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">
                     {r.operator_name ?? "—"}
                   </td>
