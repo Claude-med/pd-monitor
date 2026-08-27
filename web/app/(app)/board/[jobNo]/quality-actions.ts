@@ -4,6 +4,10 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getProfile } from "@/lib/auth/dal";
 import { hasAnyRole } from "@/lib/auth/roles";
+import {
+  canRecordInprocess,
+  canApproveInprocess,
+} from "@/lib/data/role-access";
 
 export type ActionResult = { ok?: boolean; error?: string };
 
@@ -19,10 +23,11 @@ export async function addInprocessCheck(
     unit: string;
     result: string;
     note: string;
+    valid_date: string;
   },
 ): Promise<ActionResult> {
   const profile = await getProfile();
-  if (!profile || !hasAnyRole(profile.roles, ["qc", "qc_lead", "manager"]))
+  if (!profile || !canRecordInprocess(profile.roles))
     return { error: "ไม่มีสิทธิ์ (เฉพาะ QC/หัวหน้า QC/ผู้บริหาร)" };
   if (!v.param.trim()) return { error: "กรุณาระบุหัวข้อที่ตรวจ" };
   if (!v.job_route_id) return { error: "ไม่พบขั้นตอนการผลิตที่เลือก" };
@@ -37,8 +42,37 @@ export async function addInprocessCheck(
     p_result: v.result === "fail" ? "fail" : "pass",
     p_note: v.note.trim() || null,
     p_production_record_id: v.production_record_id || null,
+    p_valid_date: v.valid_date.trim() || null,
   });
   if (error) return { error: error.message || "บันทึกผลตรวจไม่สำเร็จ" };
+  revalidatePath(`/board/${jobNo}`);
+  return { ok: true };
+}
+
+/**
+ * หัวหน้า QC อนุมัติ / ไม่อนุมัติ ผลตรวจ in-process 1 รายการ (Part C.3 ก้อน 6)
+ * ⚠️ ด่านจริงอยู่ที่ RPC — บังคับทั้งสิทธิ์และกฎ "ผู้อนุมัติต้องคนละคนกับผู้ลงผล"
+ */
+export async function reviewInprocessCheck(
+  jobNo: string,
+  id: string,
+  decision: "approve" | "reject",
+  note: string,
+): Promise<ActionResult> {
+  const profile = await getProfile();
+  if (!profile || !canApproveInprocess(profile.roles))
+    return { error: "ไม่มีสิทธิ์ (เฉพาะหัวหน้า QC/ผู้บริหาร)" };
+  if (!id) return { error: "ไม่พบผลตรวจที่เลือก" };
+  if (decision === "reject" && !note.trim())
+    return { error: "การไม่อนุมัติต้องระบุเหตุผล" };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("review_inprocess_check", {
+    p_id: id,
+    p_decision: decision,
+    p_note: note.trim() || null,
+  });
+  if (error) return { error: error.message || "บันทึกผลพิจารณาไม่สำเร็จ" };
   revalidatePath(`/board/${jobNo}`);
   return { ok: true };
 }

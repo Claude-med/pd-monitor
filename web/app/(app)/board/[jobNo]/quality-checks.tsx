@@ -3,9 +3,14 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { InprocessCheck, QaSample } from "@/lib/data/quality-checks";
+import { INPROCESS_STATUS_META } from "@/lib/data/inprocess-constants";
 import type { JobRouteStep } from "@/lib/data/stations";
 import { fmtDateTime } from "@/lib/format";
-import { addInprocessCheck, addQaSample } from "./quality-actions";
+import {
+  addInprocessCheck,
+  addQaSample,
+  reviewInprocessCheck,
+} from "./quality-actions";
 import { EditRequestButton } from "./edit-request-button";
 
 export type StationOption = { id: string; name: string };
@@ -31,6 +36,8 @@ export function QualityChecks({
   recordOptions,
   preselectRecordId,
   canCheck,
+  canApprove,
+  currentProfileId,
   canSample,
   canAmend,
   canEditStation,
@@ -50,6 +57,9 @@ export function QualityChecks({
   /** แถวที่ถูกล็อกมาจากปุ่ม QC ในตารางบันทึกผลผลิต (?qc=) */
   preselectRecordId: string | null;
   canCheck: boolean;
+  /** อนุมัติผลตรวจได้ (หัวหน้า QC/ผู้บริหาร) — Part C.3 ก้อน 6 */
+  canApprove: boolean;
+  currentProfileId: string;
   canSample: boolean;
   canAmend: boolean;
   canEditStation: boolean;
@@ -58,7 +68,11 @@ export function QualityChecks({
   const pendingSet = new Set(pendingTargetIds);
   // สถานีที่ "ผ่าน" แล้ว (มีผล pass อย่างน้อย 1) — ใช้กับแถบความคืบหน้า + gate ส่ง QC
   const passedIds = new Set(
-    checks.filter((c) => c.result === "pass" && c.station_id).map((c) => c.station_id),
+    checks
+      .filter(
+        (c) => c.result === "pass" && c.status === "approved" && c.station_id,
+      )
+      .map((c) => c.station_id),
   );
   const stationName = new Map(route.map((s) => [s.station_id, s.name]));
   const doneCount = route.filter((s) => passedIds.has(s.station_id)).length;
@@ -131,7 +145,7 @@ export function QualityChecks({
           <div className="mb-4 rounded-md border bg-muted/30 p-3">
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <span className="text-xs font-medium text-muted-foreground">
-                ความคืบหน้า QC ตามสูตร (ต้องผ่านครบก่อนส่ง QC)
+                ความคืบหน้า QC ตามสูตร (นับเฉพาะผลที่หัวหน้า QC อนุมัติแล้ว)
               </span>
               <span
                 className={`text-xs font-semibold ${
@@ -192,6 +206,20 @@ export function QualityChecks({
                       {fmtDateTime(c.checked_at)} · {c.checker_name ?? "—"}
                     </span>
                   </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <StatusBadge c={c} />
+                    {c.valid_date && (
+                      <span className="text-xs text-muted-foreground">
+                        ใช้ได้ถึง {c.valid_date}
+                      </span>
+                    )}
+                  </div>
+                  <ReviewBar
+                    c={c}
+                    jobNo={jobNo}
+                    canApprove={canApprove}
+                    currentProfileId={currentProfileId}
+                  />
                   {checkEditButton(c) && <div className="mt-2">{checkEditButton(c)}</div>}
                 </div>
               ))}
@@ -207,8 +235,10 @@ export function QualityChecks({
                     <th className="px-2 py-2 font-medium">หัวข้อ</th>
                     <th className="px-2 py-2 font-medium">ค่า</th>
                     <th className="px-2 py-2 font-medium">ผล</th>
+                    <th className="px-2 py-2 font-medium">Valid date</th>
                     <th className="px-2 py-2 font-medium">ผู้ตรวจ</th>
                     {canAmend && <th className="px-2 py-2 font-medium">แก้ไข</th>}
+                    <th className="px-2 py-2 font-medium">การอนุมัติ</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -224,9 +254,21 @@ export function QualityChecks({
                       </td>
                       <td className="px-2 py-2">{resultBadge(c)}</td>
                       <td className="whitespace-nowrap px-2 py-2 text-muted-foreground">
+                        {c.valid_date ?? "—"}
+                      </td>
+                      <td className="whitespace-nowrap px-2 py-2 text-muted-foreground">
                         {c.checker_name ?? "—"}
                       </td>
                       {canAmend && <td className="px-2 py-2">{checkEditButton(c)}</td>}
+                      <td className="px-2 py-2">
+                        <StatusBadge c={c} />
+                        <ReviewBar
+                          c={c}
+                          jobNo={jobNo}
+                          canApprove={canApprove}
+                          currentProfileId={currentProfileId}
+                        />
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -358,6 +400,7 @@ function InprocessForm({
     unit: "",
     result: "pass",
     note: "",
+    valid_date: "",
   };
   const [v, setV] = useState(emptyForm);
   const [error, setError] = useState<string | null>(null);
@@ -465,6 +508,18 @@ function InprocessForm({
             <option value="pass">ผ่าน</option>
             <option value="fail">ไม่ผ่าน</option>
           </select>
+        </div>
+        <div>
+          <label className={labelClass}>Valid date (ใช้ได้ถึง)</label>
+          <input
+            type="date"
+            value={v.valid_date}
+            onChange={(e) => set("valid_date", e.target.value)}
+            className={inputClass}
+          />
+          <p className="mt-1 text-xs text-muted-foreground">
+            เว้นว่างได้ = ไม่กำหนดอายุผลตรวจ
+          </p>
         </div>
         <div className="sm:col-span-2">
           <label className={labelClass}>หมายเหตุ</label>
@@ -604,6 +659,131 @@ function SampleForm({ jobId, jobNo }: { jobId: string; jobNo: string }) {
           ยกเลิก
         </button>
       </div>
+    </div>
+  );
+}
+
+/** ป้ายสถานะอนุมัติของผลตรวจ 1 รายการ (Part C.3 ก้อน 6) */
+function StatusBadge({ c }: { c: InprocessCheck }) {
+  const meta = INPROCESS_STATUS_META[c.status];
+  return (
+    <span
+      className="inline-block whitespace-nowrap rounded px-2 py-0.5 text-xs font-medium text-white"
+      style={{ backgroundColor: meta.color }}
+      title={
+        c.approver_name
+          ? `${meta.label} โดย ${c.approver_name}`
+          : meta.label
+      }
+    >
+      {meta.label}
+    </span>
+  );
+}
+
+/**
+ * แถบอนุมัติ/ไม่อนุมัติ — โผล่เฉพาะรายการที่ยัง pending และผู้ดูมีสิทธิ์
+ *
+ * ⚠️ ผู้อนุมัติต้องคนละคนกับผู้ลงผล (DB บังคับอีกชั้น) — ที่นี่แค่ไม่โชว์ปุ่มให้สับสน
+ */
+function ReviewBar({
+  c,
+  jobNo,
+  canApprove,
+  currentProfileId,
+}: {
+  c: InprocessCheck;
+  jobNo: string;
+  canApprove: boolean;
+  currentProfileId: string;
+}) {
+  const [note, setNote] = useState("");
+  const [rejecting, setRejecting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  const router = useRouter();
+
+  if (c.status !== "pending") {
+    return c.approve_note ? (
+      <p className="mt-1 text-xs text-muted-foreground">
+        เหตุผล: {c.approve_note}
+      </p>
+    ) : null;
+  }
+
+  const isChecker = c.checked_by_id === currentProfileId;
+  if (!canApprove || isChecker) {
+    return (
+      <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
+        {isChecker
+          ? "ผู้อนุมัติต้องเป็นคนละคนกับผู้ลงผล (รอหัวหน้า QC)"
+          : "รอหัวหน้า QC พิจารณา"}
+      </p>
+    );
+  }
+
+  function run(decision: "approve" | "reject") {
+    setError(null);
+    start(async () => {
+      const res = await reviewInprocessCheck(jobNo, c.id, decision, note);
+      if (res.ok) {
+        setNote("");
+        setRejecting(false);
+        router.refresh();
+        return;
+      }
+      setError(res.error ?? "บันทึกผลพิจารณาไม่สำเร็จ");
+    });
+  }
+
+  return (
+    <div className="mt-2 space-y-2">
+      {rejecting ? (
+        <>
+          <input
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="เหตุผลที่ไม่อนุมัติ (จำเป็น)"
+            className={inputClass}
+          />
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={pending || !note.trim()}
+              onClick={() => run("reject")}
+              className="rounded-md bg-destructive px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+            >
+              ยืนยันไม่อนุมัติ
+            </button>
+            <button
+              type="button"
+              onClick={() => setRejecting(false)}
+              className="rounded-md border px-3 py-1.5 text-xs hover:bg-accent"
+            >
+              ยกเลิก
+            </button>
+          </div>
+        </>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => run("approve")}
+            className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+          >
+            ✓ อนุมัติ
+          </button>
+          <button
+            type="button"
+            onClick={() => setRejecting(true)}
+            className="rounded-md border px-3 py-1.5 text-xs hover:bg-accent"
+          >
+            ✕ ไม่อนุมัติ
+          </button>
+        </div>
+      )}
+      {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   );
 }

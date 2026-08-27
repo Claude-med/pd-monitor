@@ -1,4 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
+import type { InprocessStatus } from "@/lib/data/inprocess-constants";
+
+export type { InprocessStatus };
 
 export type InprocessCheck = {
   id: string;
@@ -12,8 +15,16 @@ export type InprocessCheck = {
   value: string | null;
   unit: string | null;
   result: "pass" | "fail";
+  /** ใช้ได้ถึงวันที่ (Valid date) — null = ไม่กำหนดอายุ (Part C.3 ก้อน 6) */
+  valid_date: string | null;
+  /** สถานะอนุมัติจากหัวหน้า QC — pending จนกว่าจะมีคนอนุมัติ */
+  status: InprocessStatus;
+  approver_name: string | null;
+  approved_at: string | null;
+  approve_note: string | null;
   checked_at: string;
   checker_name: string | null;
+  checked_by_id: string | null;
   note: string | null;
 };
 
@@ -39,8 +50,10 @@ export async function getInprocessChecks(jobId: string): Promise<InprocessCheck[
   const { data, error } = await supabase
     .from("inprocess_checks")
     .select(
-      `id, station_id, job_route_id, production_record_id, param, value, unit, result, checked_at, note,
+      `id, station_id, job_route_id, production_record_id, param, value, unit, result,
+       valid_date, status, approved_at, approve_note, checked_at, checked_by, note,
        checker:profiles!checked_by ( full_name ),
+       approver:profiles!approved_by ( full_name ),
        station:stations!station_id ( name )`,
     )
     .eq("job_id", jobId)
@@ -56,7 +69,13 @@ export async function getInprocessChecks(jobId: string): Promise<InprocessCheck[
     value: r.value,
     unit: r.unit,
     result: r.result,
+    valid_date: r.valid_date ?? null,
+    status: (r.status ?? "pending") as InprocessStatus,
+    approver_name: one<any>(r.approver)?.full_name ?? null,
+    approved_at: r.approved_at ?? null,
+    approve_note: r.approve_note ?? null,
     checked_at: r.checked_at,
+    checked_by_id: r.checked_by ?? null,
     checker_name: one<any>(r.checker)?.full_name ?? null,
     note: r.note,
   }));

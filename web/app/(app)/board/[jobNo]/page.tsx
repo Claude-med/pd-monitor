@@ -43,6 +43,8 @@ import {
   canEditJobRouteMachines,
   canPerformLineClearance,
   canCheckLineClearance,
+  canRecordInprocess,
+  canApproveInprocess,
 } from "@/lib/data/role-access";
 import { listJobSubStatuses } from "@/lib/data/job-sub-statuses";
 import { listCustomers } from "@/lib/data/customers";
@@ -153,7 +155,9 @@ export default async function JobDetailPage({
   const canCheckLc = canCheckLineClearance(roles);
   const inprocessChecks = await getInprocessChecks(job.id);
   const qaSamples = await getQaSamples(job.id);
-  const canInprocess = hasAnyRole(roles, ["qc", "qc_lead", "manager"]);
+  const canInprocess = canRecordInprocess(roles);
+  // Part C.3 ก้อน 6: หัวหน้า QC เป็นคนอนุมัติผลตรวจ (คนละคนกับผู้ลงผล)
+  const canApproveQc = canApproveInprocess(roles);
   const canSample = hasAnyRole(roles, ["qa", "manager"]);
   // ── Part C.3 ก้อน 3: แท็บตามขั้นตอนการผลิต ──────────────────────────
   // steps มาจาก job_routes (snapshot ตอนสร้างงาน) พร้อมเครื่องจักรที่ผูกไว้ + ตัวนับ
@@ -176,7 +180,8 @@ export default async function JobDetailPage({
   // สถานะ QC รายแถว — คำนวณจากผลตรวจที่ผูกกับแถวนั้น (ไม่เก็บคอลัมน์ กันข้อมูลตกยุค)
   const qcByRecord = new Map<string, RecordQcStatus>();
   for (const c of inprocessChecks) {
-    if (!c.production_record_id) continue;
+    // ผลที่ยัง "รออนุมัติ/ไม่อนุมัติ" ยังไม่นับ — แถวคงสถานะ "รอ QC ตรวจสอบ" ต่อ
+    if (!c.production_record_id || c.status !== "approved") continue;
     const cur = qcByRecord.get(c.production_record_id);
     if (cur === "fail") continue; // ไม่ผ่านแม้ข้อเดียว = ไม่ผ่านทั้งแถว
     qcByRecord.set(c.production_record_id, c.result === "fail" ? "fail" : "pass");
@@ -565,6 +570,8 @@ export default async function JobDetailPage({
         recordOptions={recordOptions}
         preselectRecordId={sp.qc ?? null}
         canCheck={canInprocess}
+        canApprove={canApproveQc}
+        currentProfileId={profile?.id ?? ""}
         canSample={canSample}
         canAmend={canAmend}
         canEditStation={canEditStationMachine}

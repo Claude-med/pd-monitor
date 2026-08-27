@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getBatchRecord } from "@/lib/data/ebr";
+import { INPROCESS_STATUS_META } from "@/lib/data/inprocess-constants";
 import { STATUS_LABEL, formatSubStatus } from "@/lib/data/job-constants";
 import {
   SEVERITY_LABEL,
@@ -302,7 +303,9 @@ export default async function EbrPage({
                   <th className={th}>หัวข้อ</th>
                   <th className={th}>ค่า</th>
                   <th className={th}>ผล</th>
+                  <th className={th}>Valid date</th>
                   <th className={th}>ผู้ตรวจ</th>
+                  <th className={th}>อนุมัติ</th>
                 </tr>
               </thead>
               <tbody>
@@ -315,7 +318,12 @@ export default async function EbrPage({
                       {c.value ?? "—"} {c.unit ?? ""}
                     </td>
                     <td className={td}>{c.result === "pass" ? "ผ่าน" : "ไม่ผ่าน"}</td>
+                    <td className={td}>{c.valid_date ?? "—"}</td>
                     <td className={td}>{c.checker_name ?? "—"}</td>
+                    <td className={td}>
+                      {INPROCESS_STATUS_META[c.status].label}
+                      {c.approver_name ? ` · ${c.approver_name}` : ""}
+                    </td>
                   </tr>
                 ))}
               </tbody>

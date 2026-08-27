@@ -20,6 +20,8 @@ import { hasAnyRole } from "@/lib/auth/roles";
  *      canEditJobRouteMachines()   ↔ public.can_edit_job_route_machines() (0061)
  *      canPerformLineClearance()   ↔ public.can_perform_line_clearance()  (0062)
  *      canCheckLineClearance()     ↔ public.can_check_line_clearance()    (0062)
+ *      canRecordInprocess()        ↔ public.can_record_inprocess()        (0064)
+ *      canApproveInprocess()       ↔ public.can_approve_inprocess()       (0064)
  *    DB เป็นด่านบังคับจริง · ฝั่งแอปใช้ตัดสินว่าจะ "แสดงปุ่ม/ช่องกรอก" ไหน
  *    (canSeeCost เป็นการอ่านล้วน — คุมที่แอปอย่างเดียว ไม่มี guard ใน DB)
  */
@@ -277,4 +279,22 @@ export function canPerformLineClearance(roles: AppRole[]): boolean {
  */
 export function canCheckLineClearance(roles: AppRole[]): boolean {
   return hasAnyRole(roles, ["production_lead", "manager"]);
+}
+
+/**
+ * ลงผลตรวจ in-process — ตรงกับ can_record_inprocess() ใน DB (0064)
+ * QC ที่เป็นพนักงานเป็นคนตรวจและลงผลหน้างาน
+ */
+export function canRecordInprocess(roles: AppRole[]): boolean {
+  return hasAnyRole(roles, ["qc", "qc_lead", "manager"]);
+}
+
+/**
+ * อนุมัติ/ไม่อนุมัติผลตรวจ in-process — ตรงกับ can_approve_inprocess() ใน DB (0064)
+ *
+ * ⚠️ ห้าม or รวมกับ canRecordInprocess() — QC พนักงานต้อง "ลงผลได้แต่อนุมัติเองไม่ได้"
+ *    (DB ยังกันซ้ำอีกชั้นว่าผู้อนุมัติต้องคนละคนกับผู้ลงผล)
+ */
+export function canApproveInprocess(roles: AppRole[]): boolean {
+  return hasAnyRole(roles, ["qc_lead", "manager"]);
 }
