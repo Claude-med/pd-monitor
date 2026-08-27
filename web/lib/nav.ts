@@ -72,7 +72,9 @@ export const NAV_ITEMS: NavItem[] = [
 export const ALL_ROLES: AppRole[] = [
   "planner",
   "production",
+  "production_lead",
   "qc",
+  "qc_lead",
   "qa",
   "warehouse",
   "engineering",
@@ -84,7 +86,9 @@ export const ALL_ROLES: AppRole[] = [
 export const ROLE_LABELS: Record<AppRole, string> = {
   planner: "ฝ่ายวางแผน (PLN)",
   production: "ฝ่ายผลิต",
+  production_lead: "หัวหน้าฝ่ายผลิต",
   qc: "QC",
+  qc_lead: "หัวหน้า QC",
   qa: "QA",
   warehouse: "คลังสินค้า",
   engineering: "วิศวกรรม (ENG)",

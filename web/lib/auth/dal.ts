@@ -15,7 +15,9 @@ export type AppRole =
   | "admin"
   | "planner" // ฝ่ายวางแผน (PLN) — สร้างงาน/ยืนยันแผน
   | "cost" // บัญชีต้นทุน (COST) — ดูต้นทุนค่าแรง
-  | "engineering"; // วิศวกรรม (ENG) — กำหนดซ่อมบำรุง/สอบเทียบ
+  | "engineering" // วิศวกรรม (ENG) — กำหนดซ่อมบำรุง/สอบเทียบ
+  | "production_lead" // หัวหน้าฝ่ายผลิต — ยืนยัน Line Clearance (Part C.3)
+  | "qc_lead"; // หัวหน้า QC — อนุมัติผลตรวจ in-process (Part C.3)
 
 export type Profile = {
   id: string;

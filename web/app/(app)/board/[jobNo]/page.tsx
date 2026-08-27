@@ -17,6 +17,7 @@ import { getJobMaterials } from "@/lib/data/job-materials";
 import { getLineClearance } from "@/lib/data/line-clearance";
 import { getInprocessChecks, getQaSamples } from "@/lib/data/quality-checks";
 import { getJobRoute, listStations } from "@/lib/data/stations";
+import { getJobRouteSteps } from "@/lib/data/job-routes";
 import { getDeviationsByJob } from "@/lib/data/deviations";
 import { canOpenDeviation, canCloseDeviation } from "@/lib/data/deviation-constants";
 import {
@@ -34,6 +35,7 @@ import {
   canPlanJobs,
   canEditJobMaterials,
   canSetJobMaterialStatus,
+  canEditJobRouteMachines,
 } from "@/lib/data/role-access";
 import { listJobSubStatuses } from "@/lib/data/job-sub-statuses";
 import { listCustomers } from "@/lib/data/customers";
@@ -50,6 +52,8 @@ import { QualityChecks } from "./quality-checks";
 import { Deviations } from "./deviations";
 import { EditRequestButton, type EditField } from "./edit-request-button";
 import { MissingRouteBanner } from "./missing-route";
+import { RouteTabs } from "./route-tabs";
+import { RouteMachinesCard } from "./route-machines-card";
 import type { ProductionRecordRow } from "@/lib/data/station-constants";
 
 function fmtQty(n: number | null): string {
@@ -84,10 +88,14 @@ function productionEditFields(
 
 export default async function JobDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ jobNo: string }>;
+  /** ?step=<job_routes.id> — แท็บขั้นตอนที่กำลังดูอยู่ (Part C.3 ก้อน 3) */
+  searchParams: Promise<{ step?: string }>;
 }) {
   const { jobNo } = await params;
+  const sp = await searchParams;
   const job = await getJobByNo(decodeURIComponent(jobNo));
   if (!job) notFound();
 
@@ -103,7 +111,12 @@ export default async function JobDetailPage({
     RECORDABLE_STATUSES.has(job.status);
   // [ข้อ 8] ผู้บริหาร/ผู้ดูแล ขอแก้ไข "สถานี/เครื่องจักร" ของบันทึกผลผลิต + สถานีของ in-process ได้
   const canEditStationMachine = hasAnyRole(roles, ["manager", "admin"]);
-  const machines = canRecord || canEditStationMachine ? await listMachines() : [];
+  // Part C.3: การ์ด "เครื่องจักรของขั้นตอนนี้" ต้องมีรายการเครื่องไว้ทำ dropdown ด้วย
+  const canEditRouteMachines = canEditJobRouteMachines(roles);
+  const machines =
+    canRecord || canEditStationMachine || canEditRouteMachines
+      ? await listMachines()
+      : [];
   // สถานีย่อยทั้งหมด (active) + route ของงาน → ใช้ทำตัวเลือกสถานีในฟอร์มต่างๆ
   const jobRoute = await getJobRoute(job.id);
   const activeStations = (await listStations()).filter((s) => s.is_active);
@@ -143,6 +156,31 @@ export default async function JobDetailPage({
     id: s.station_id,
     name: `${s.step_no}. ${s.name}`,
   }));
+  // ── Part C.3 ก้อน 3: แท็บตามขั้นตอนการผลิต ──────────────────────────
+  // steps มาจาก job_routes (snapshot ตอนสร้างงาน) พร้อมเครื่องจักรที่ผูกไว้ + ตัวนับ
+  const steps = await getJobRouteSteps(job.id);
+  // ?step ที่ไม่มีอยู่จริง (ลิงก์เก่า/พิมพ์มั่ว) → ตกกลับขั้นตอนแรก ไม่ใช่จอว่าง
+  const activeStep =
+    steps.find((s) => s.id === sp.step) ?? steps[0] ?? null;
+
+  // บันทึกผลผลิต / ผลตรวจ QC ที่แสดงในแท็บ = เฉพาะสถานีของขั้นตอนที่เลือก
+  // งานเก่าที่ไม่มี route (steps ว่าง) → แสดงทั้งหมดเหมือนเดิม ไม่งั้นจอจะว่างเปล่า
+  const viewRecords = activeStep
+    ? records.filter((r) => r.station_id === activeStep.station_id)
+    : records;
+  const viewChecks = activeStep
+    ? inprocessChecks.filter((c) => c.station_id === activeStep.station_id)
+    : inprocessChecks;
+  const viewRoute = activeStep
+    ? jobRoute.filter((r) => r.station_id === activeStep.station_id)
+    : jobRoute;
+  const viewStationOptions = activeStep
+    ? stationOptions.filter((o) => o.id === activeStep.station_id)
+    : stationOptions;
+  const viewRecordStationOptions = activeStep
+    ? recordStationOptions.filter((o) => o.id === activeStep.station_id)
+    : recordStationOptions;
+
   const deviations = await getDeviationsByJob(job.id);
   // F1 — คำขอแก้ไขย้อนหลัง (ประวัติ + badge บนแถวที่มีคำขอค้าง)
   const editRequests = await getEditRequestsForJob(job.id);
@@ -167,6 +205,7 @@ export default async function JobDetailPage({
           "production_records",
           "approvals",
           "job_materials",
+          "job_route_machines",
           "line_clearances",
           "inprocess_checks",
           "qa_samples",
@@ -296,20 +335,62 @@ export default async function JobDetailPage({
         currentProfileId={profile?.id ?? ""}
       />
 
-      {/* บันทึกผลผลิตรายวัน */}
+      {/* เบิกวัตถุดิบ/บรรจุภัณฑ์ (Part C.2) */}
+      <JobMaterials
+        jobId={job.id}
+        jobNo={job.job_no}
+        items={jobMaterials}
+        canEdit={canEditMat}
+        canSetStatus={canSetMatStatus}
+      />
+
+      {/* ── แท็บขั้นตอนการผลิต (Part C.3) — Line Clearance / บันทึกผลผลิต / QC แยกตามขั้นตอน ── */}
+      {steps.length > 0 && activeStep && (
+        <div>
+          <h2 className="mb-2 text-sm font-semibold text-muted-foreground">
+            ขั้นตอนการผลิตของงานนี้ · {steps.length} ขั้นตอน
+          </h2>
+          <RouteTabs
+            jobNo={job.job_no}
+            steps={steps}
+            activeId={activeStep.id}
+          />
+        </div>
+      )}
+
+      {activeStep && (
+        <RouteMachinesCard
+          jobNo={job.job_no}
+          jobRouteId={activeStep.id}
+          stationId={activeStep.station_id}
+          stationName={activeStep.station_name}
+          selected={activeStep.machines}
+          allMachines={machines}
+          canEdit={canEditRouteMachines}
+        />
+      )}
+
+      {/* บันทึกผลผลิตรายวัน — เฉพาะขั้นตอนที่เลือกอยู่ */}
       <div className="rounded-xl border bg-card p-5">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-semibold">บันทึกผลผลิตรายวัน</h2>
+          <h2 className="font-semibold">
+            บันทึกผลผลิตรายวัน
+            {activeStep && (
+              <span className="ml-2 text-sm font-normal text-muted-foreground">
+                · {activeStep.step_no}. {activeStep.station_name}
+              </span>
+            )}
+          </h2>
           <span className="text-xs text-muted-foreground">
-            {records.length} รายการ
+            {viewRecords.length} รายการ
           </span>
         </div>
 
-        {records.length > 0 ? (
+        {viewRecords.length > 0 ? (
           <>
             {/* มือถือ: การ์ด (เห็นครบทุกช่องในใบเดียว ไม่ต้องเลื่อนแนวนอน) */}
             <div className="space-y-3 md:hidden">
-              {records.map((r) => (
+              {viewRecords.map((r) => (
                 <div key={r.id} className="rounded-lg border bg-muted/20 p-3">
                   <div className="mb-2 flex items-center justify-between gap-2">
                     <span className="text-sm font-medium">
@@ -359,7 +440,7 @@ export default async function JobDetailPage({
                   </tr>
                 </thead>
                 <tbody>
-                  {records.map((r) => (
+                  {viewRecords.map((r) => (
                     <Fragment key={r.id}>
                       <tr className={`align-top ${r.note ? "" : "border-b last:border-0"}`}>
                         <td className="whitespace-nowrap px-2 py-2">{r.record_date}</td>
@@ -416,7 +497,7 @@ export default async function JobDetailPage({
               jobId={job.id}
               jobNo={job.job_no}
               machines={machines}
-              stationOptions={recordStationOptions}
+              stationOptions={viewRecordStationOptions}
             />
           ) : (
             <p className="text-xs text-muted-foreground">
@@ -428,23 +509,14 @@ export default async function JobDetailPage({
         </div>
       </div>
 
-      {/* เบิกวัตถุดิบ/บรรจุภัณฑ์ (Part C.2) */}
-      <JobMaterials
-        jobId={job.id}
-        jobNo={job.job_no}
-        items={jobMaterials}
-        canEdit={canEditMat}
-        canSetStatus={canSetMatStatus}
-      />
-
       {/* ตรวจระหว่างผลิต (in-process QC) + จุดเก็บตัวอย่าง QA (A6) */}
       <QualityChecks
         jobId={job.id}
         jobNo={job.job_no}
-        checks={inprocessChecks}
+        checks={viewChecks}
         samples={qaSamples}
-        route={jobRoute}
-        stationOptions={stationOptions}
+        route={viewRoute}
+        stationOptions={viewStationOptions}
         canCheck={canInprocess}
         canSample={canSample}
         canAmend={canAmend}

@@ -17,6 +17,7 @@ import { hasAnyRole } from "@/lib/auth/roles";
  *      canManageJobSubStatuses()   ↔ แค่ล็อกอิน            (ทะเบียนสถานะงาน · 0053)
  *      canEditJobMaterials()       ↔ public.can_edit_job_materials()      (0056)
  *      canSetJobMaterialStatus()   ↔ public.can_set_job_material_status() (0056)
+ *      canEditJobRouteMachines()   ↔ public.can_edit_job_route_machines() (0061)
  *    DB เป็นด่านบังคับจริง · ฝั่งแอปใช้ตัดสินว่าจะ "แสดงปุ่ม/ช่องกรอก" ไหน
  *    (canSeeCost เป็นการอ่านล้วน — คุมที่แอปอย่างเดียว ไม่มี guard ใน DB)
  */
@@ -61,6 +62,16 @@ export const ROLE_ACCESS: Record<AppRole, RoleAccess> = {
     ],
     view: [],
   },
+  production_lead: {
+    code: "PROD-L",
+    duty: "หัวหน้าฝ่ายผลิต — ยืนยันงานที่พนักงานทำ",
+    manage: [
+      "ทำได้ทุกอย่างเหมือนฝ่ายผลิต",
+      "ยืนยัน Line Clearance ที่พนักงานติ๊กไว้ (ต้องคนละคนกับผู้ทำ)",
+      "เลือกเครื่องจักรของแต่ละขั้นตอนการผลิต",
+    ],
+    view: [],
+  },
   qc: {
     code: "QC",
     duty: "ตรวจคุณภาพระหว่างผลิต + ตัดสิน QC",
@@ -68,6 +79,15 @@ export const ROLE_ACCESS: Record<AppRole, RoleAccess> = {
       "บันทึกผลตรวจ in-process QC รายสถานี",
       "QC ผ่าน → ส่ง QA · QC ตีกลับ (ต้องลงนาม)",
       "เปิด deviation · ขอแก้ไขข้อมูล QC",
+    ],
+    view: ["หน้าตรวจ QC / QA"],
+  },
+  qc_lead: {
+    code: "QC-L",
+    duty: "หัวหน้า QC — อนุมัติผลตรวจระหว่างผลิต",
+    manage: [
+      "ทำได้ทุกอย่างเหมือน QC",
+      "อนุมัติ / ไม่อนุมัติ ผลตรวจ in-process ที่ QC ลงไว้",
     ],
     view: ["หน้าตรวจ QC / QA"],
   },
@@ -146,7 +166,12 @@ export function canManageProducts(roles: AppRole[]): boolean {
 
 /** เพิ่ม/แก้ทะเบียนเครื่องจักร — ตรงกับ can_manage_machines() ใน DB */
 export function canManageMachines(roles: AppRole[]): boolean {
-  return hasAnyRole(roles, ["production", "engineering", "manager"]);
+  return hasAnyRole(roles, [
+    "production",
+    "production_lead",
+    "engineering",
+    "manager",
+  ]);
 }
 
 /**
@@ -166,7 +191,7 @@ export function canSetLotStatus(roles: AppRole[]): boolean {
  * ฝ่ายผลิตเป็นคนรู้เลขล็อตจริงหน้างาน · ฝ่ายวางแผนกรอกตอนสร้างงานไม่ได้
  */
 export function canSetJobLot(roles: AppRole[]): boolean {
-  return hasAnyRole(roles, ["production", "manager"]);
+  return hasAnyRole(roles, ["production", "production_lead", "manager"]);
 }
 
 /**
@@ -198,7 +223,7 @@ export function canManageJobSubStatuses(roles: AppRole[]): boolean {
  * ฝ่ายผลิตเป็นคนรู้ว่างานนี้ต้องใช้อะไร · แก้ "สถานะความพร้อม" ไม่ได้ (เป็นของฝ่ายคลัง)
  */
 export function canEditJobMaterials(roles: AppRole[]): boolean {
-  return hasAnyRole(roles, ["production", "manager"]);
+  return hasAnyRole(roles, ["production", "production_lead", "manager"]);
 }
 
 /**
@@ -220,4 +245,14 @@ export function canSetMachineSchedule(roles: AppRole[]): boolean {
 /** เห็นบล็อกต้นทุนค่าแรง + ปรับอัตรา ฿/ชม. บนแดชบอร์ด (อ่านล้วน — คุมที่แอป) */
 export function canSeeCost(roles: AppRole[]): boolean {
   return hasAnyRole(roles, ["cost", "manager"]);
+}
+
+/**
+ * ผูก/ถอดเครื่องจักรกับขั้นตอนการผลิตของงาน — ตรงกับ can_edit_job_route_machines() ใน DB (0061)
+ * ฝ่ายผลิตเป็นคนรู้ว่างานนี้เดินเครื่องไหนจริง · หัวหน้าฝ่ายผลิตทำแทนได้
+ *
+ * ⚠️ DB ยังกั้นอีกชั้นว่า "เครื่องต้องอยู่สถานีเดียวกับขั้นตอน" — helper นี้คุมแค่ว่าจะโชว์ปุ่มไหม
+ */
+export function canEditJobRouteMachines(roles: AppRole[]): boolean {
+  return hasAnyRole(roles, ["production", "production_lead", "manager"]);
 }
