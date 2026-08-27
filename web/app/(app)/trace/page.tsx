@@ -2,11 +2,13 @@ import Link from "next/link";
 import { searchTrace, type JobTrace } from "@/lib/data/genealogy";
 import { STATUS_LABEL, STATUS_COLOR } from "@/lib/data/job-constants";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
+// ⚠️ job-material-card.tsx เป็น "use client" → หน้านี้เป็น Server Component
+//    จึงดึงได้เฉพาะ "Component" (ใช้เป็น JSX) เท่านั้น · ฟังก์ชันธรรมดาต้องมาจาก lib/format
 import {
   MaterialTypeBadge,
   ReadyStatusBadge,
-  formatQty,
 } from "@/components/job-material-card";
+import { formatQty } from "@/lib/format";
 
 export const metadata = { title: "ไล่ย้อนล็อต (Traceability) — PD Monitor" };
 

@@ -21,3 +21,16 @@ export function fmtDate(
   if (Number.isNaN(d.getTime())) return "—";
   return d.toLocaleDateString("th-TH", { timeZone: TZ });
 }
+
+/**
+ * จำนวน + หน่วย ให้อ่านง่าย ("50 kg" · "— ไม่ระบุจำนวน" ถ้าไม่ได้ระบุจำนวน)
+ *
+ * ⚠️ ต้องอยู่ไฟล์นี้เท่านั้น (ไม่มี "use client") — เดิมอยู่ใน components/job-material-card.tsx
+ *    ที่เป็น client module ทำให้ /trace (Server Component) เรียกแล้ว throw
+ *    "Attempted to call formatQty() from the server" → หน้าพัง 500 เฉพาะงานที่มีรายการเบิก
+ *    กติกา: ไฟล์ "use client" export ได้แต่ Component เท่านั้น
+ */
+export function formatQty(qty: number | null, unit: string | null): string {
+  if (qty == null) return unit ? `— ${unit}` : "— ไม่ระบุจำนวน";
+  return `${qty.toLocaleString("th-TH")}${unit ? ` ${unit}` : ""}`;
+}

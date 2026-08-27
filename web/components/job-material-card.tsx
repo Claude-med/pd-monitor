@@ -12,7 +12,9 @@ import {
 } from "@/lib/data/job-material-constants";
 import type { JobMaterialRow } from "@/lib/data/job-materials";
 import { setJobMaterialStatus } from "@/lib/actions/job-materials";
-import { fmtDateTime } from "@/lib/format";
+// ⚠️ formatQty ต้อง import จาก lib/format เท่านั้น — ห้ามประกาศ/re-export ในไฟล์ "use client" นี้
+//    ไม่งั้นฝั่ง server (เช่น /trace) เรียกแล้ว throw (ดูคอมเมนต์ที่ lib/format.ts)
+import { fmtDateTime, formatQty } from "@/lib/format";
 
 /**
  * การ์ด "รายการเบิกวัตถุดิบ/บรรจุภัณฑ์" 1 ใบ (Part C.2)
@@ -102,12 +104,6 @@ export function ReadyStatusPicker({
       {error && <p className="text-[11px] text-destructive">{error}</p>}
     </div>
   );
-}
-
-/** จำนวน + หน่วย ให้อ่านง่าย ("50 kg" · "— " ถ้าไม่ได้ระบุจำนวน) */
-export function formatQty(qty: number | null, unit: string | null): string {
-  if (qty == null) return unit ? `— ${unit}` : "— ไม่ระบุจำนวน";
-  return `${qty.toLocaleString("th-TH")}${unit ? ` ${unit}` : ""}`;
 }
 
 export function JobMaterialCard({
