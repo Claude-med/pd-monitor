@@ -109,3 +109,57 @@ export function canReviewIncident(roles: AppRole[]): boolean {
 
 /** ชื่อเดิม — ยังใช้อยู่หลายที่ · ความหมายเดียวกับ canReviewIncident */
 export const canCloseDeviation = canReviewIncident;
+
+/* ── ขั้น "QA ตรวจสอบ" (Part C.4 ก้อน 5 · 0068) ───────────────────────── */
+
+/** ประเภทเอกสารที่ QA คัดแยก — เลขที่ QA พิมพ์เอง ระบบไม่ออกเลขให้ */
+export const INCIDENT_CASE_TYPE = [
+  { key: "dev", label: "DEV — Deviation", noLabel: "DEV No." },
+  { key: "oos", label: "OOS — Out of Specification", noLabel: "OOS No." },
+  { key: "nc", label: "NC — Nonconformity", noLabel: "NC No." },
+] as const;
+
+export type IncidentCaseType = (typeof INCIDENT_CASE_TYPE)[number]["key"];
+
+export const CASE_NO_LABEL: Record<string, string> = Object.fromEntries(
+  INCIDENT_CASE_TYPE.map((t) => [t.key, t.noLabel]),
+);
+
+/**
+ * แผนกที่รับผิดชอบแก้ไข — 4 แผนกตามเอกสารโรงงาน (C-p29)
+ * ต้องตรงกับ chk_deviation_departments_role ใน DB (0068)
+ */
+export const INCIDENT_DEPARTMENTS = [
+  { key: "warehouse", code: "WHS", label: "คลัง" },
+  { key: "qc", code: "QC", label: "QC" },
+  { key: "production", code: "PRD", label: "ผลิต" },
+  { key: "engineering", code: "ENG", label: "วิศวกรรม" },
+] as const;
+
+export type IncidentDepartment = (typeof INCIDENT_DEPARTMENTS)[number]["key"];
+
+export const DEPT_LABEL: Record<string, string> = Object.fromEntries(
+  INCIDENT_DEPARTMENTS.map((d) => [d.key, d.label]),
+);
+
+/**
+ * ฝ่ายของผู้ใช้ — สำเนาฝั่งแอปของ current_role_group() ใน DB (0067)
+ *
+ * ⚠️ ห้ามใช้ hasAnyRole()/isAdmin() ที่นี่ — ฟังก์ชันใน DB ใช้ has_exact_role()
+ *    ที่ "admin ไม่ผ่านอัตโนมัติ" โดยตั้งใจ ถ้าฝั่งแอปให้ admin ผ่านทุกฝ่าย
+ *    ปุ่ม "ส่งกลับให้ QA" จะโผล่ทั้งที่ DB จะปฏิเสธ
+ * ⚠️ ลำดับต้องตรงกับ DB เป๊ะ (lead มาก่อนฝ่ายฐานของตัวเอง)
+ */
+export function roleGroupOf(roles: AppRole[]): string {
+  if (roles.length === 0) return "other";
+  const has = (r: AppRole) => roles.includes(r);
+  if (has("qa")) return "qa";
+  if (has("qc_lead") || has("qc")) return "qc";
+  if (has("production_lead") || has("production")) return "production";
+  if (has("engineering")) return "engineering";
+  if (has("warehouse")) return "warehouse";
+  if (has("planner")) return "planner";
+  if (has("cost")) return "cost";
+  if (has("manager") || has("admin")) return "manager";
+  return "other";
+}

@@ -14,11 +14,16 @@ import {
   DEV_TYPE_LABEL,
   NOTE_ROLE_META,
   isDeviationOpen,
+  INCIDENT_CASE_TYPE,
+  INCIDENT_DEPARTMENTS,
+  CASE_NO_LABEL,
+  DEPT_LABEL,
 } from "@/lib/data/deviation-constants";
 import { fmtDateTime } from "@/lib/format";
 import {
   openDeviation,
   updateDeviation,
+  qaReviewDeviation,
   addDeviationComment,
   submitDeviationResolution,
 } from "./deviation-actions";
@@ -36,13 +41,23 @@ export function Deviations({
   failChecks,
   canOpen,
   canClose,
+  canReview,
+  currentRoleGroup,
 }: {
   jobId: string;
   jobNo: string;
   deviations: Deviation[];
   failChecks: FailCheck[];
   canOpen: boolean;
+  /** ปิด/ยกเลิกเคสได้ (QA/ผู้บริหาร) */
   canClose: boolean;
+  /** ทำขั้น "QA ตรวจสอบ" ได้ — ค่าเดียวกับ canClose แต่แยกชื่อให้อ่านรู้เรื่อง */
+  canReview: boolean;
+  /**
+   * ฝ่ายของผู้ใช้ — ต้องคำนวณด้วย roleGroupOf() เท่านั้น (ตรงกับ current_role_group() ใน DB)
+   * ใช้ตัดสินว่าจะโชว์ปุ่ม "ส่งกลับให้ QA" ของแผนกนี้ไหม
+   */
+  currentRoleGroup: string;
 }) {
   // ⚠️ ต้องตรงกับ has_open_deviation() ใน DB — ด่าน QA→FG ใช้ตัวนั้นตัดสิน
   const openCount = deviations.filter((d) => isDeviationOpen(d.status)).length;
@@ -73,8 +88,9 @@ export function Deviations({
               key={d.id}
               jobNo={jobNo}
               dev={d}
-              canOpen={canOpen}
               canClose={canClose}
+              canReview={canReview}
+              currentRoleGroup={currentRoleGroup}
             />
           ))}
         </ul>
@@ -131,16 +147,22 @@ function statusBadge(status: string) {
 function DeviationItem({
   jobNo,
   dev,
-  canOpen,
   canClose,
+  canReview,
+  currentRoleGroup,
 }: {
   jobNo: string;
   dev: Deviation;
-  canOpen: boolean;
   canClose: boolean;
+  canReview: boolean;
+  currentRoleGroup: string;
 }) {
   const [editing, setEditing] = useState(false);
   const done = !isDeviationOpen(dev.status);
+  // แผนกของผู้ใช้ถูกมอบหมายและยังไม่ได้บันทึกผล → ถึงจะโชว์ปุ่มส่งกลับ
+  const myDept = dev.departments.find((d) => d.role_group === currentRoleGroup);
+  const canRespond = dev.status === "in_progress" && myDept && !myDept.responded_at;
+  const respondedCount = dev.departments.filter((d) => d.responded_at).length;
 
   return (
     <li
@@ -150,6 +172,11 @@ function DeviationItem({
       <div className="flex flex-wrap items-center gap-2">
         {statusBadge(dev.status)}
         {severityBadge(dev.severity)}
+        {dev.case_type && dev.case_no && (
+          <span className="rounded border border-foreground/20 px-1.5 py-0.5 font-mono text-xs font-semibold">
+            {CASE_NO_LABEL[dev.case_type] ?? dev.case_type} {dev.case_no}
+          </span>
+        )}
         <span className="font-medium">{dev.title}</span>
         <span className="text-xs text-muted-foreground">
           · {DEV_TYPE_LABEL[dev.dev_type] ?? dev.dev_type}
@@ -195,6 +222,36 @@ function DeviationItem({
         </p>
       )}
 
+      {/* แผนกที่ QA มอบหมาย — ✓ ตอบแล้ว / ⏳ รอ (Part C.4 ก้อน 5) */}
+      {dev.departments.length > 0 && (
+        <div className="mt-2 rounded-md border bg-muted/30 p-2">
+          <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+            <span className="text-xs font-medium text-muted-foreground">
+              แผนกที่รับผิดชอบ
+            </span>
+            <span className="text-xs text-muted-foreground">
+              ตอบแล้ว {respondedCount}/{dev.departments.length}
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {dev.departments.map((d) => (
+              <span
+                key={d.id}
+                className={`rounded-full border px-2 py-0.5 text-xs ${
+                  d.responded_at
+                    ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
+                    : "text-muted-foreground"
+                }`}
+                title={d.response_note ?? undefined}
+              >
+                {d.responded_at ? "✓" : "⏳"} {DEPT_LABEL[d.role_group] ?? d.role_group}
+                {d.responded_at && d.responder_name ? ` · ${d.responder_name}` : ""}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* D1: หมายเหตุแยกตามฝ่าย (append-only timeline) */}
       {dev.comments.length > 0 && (
         <ul className="mt-2 space-y-1.5">
@@ -226,8 +283,20 @@ function DeviationItem({
         </ul>
       )}
 
-      {canOpen && !done && (
+      {!done && (
         <div className="mt-2 space-y-2">
+          {/* ขั้นที่ 2 ของ flow — QA คัดแยกประเภท/เลขที่ แล้วส่งให้แผนก */}
+          {canReview && (dev.status === "qa_review" || dev.status === "in_progress") && (
+            <QaReviewForm jobNo={jobNo} dev={dev} />
+          )}
+
+          {dev.status === "qa_review" && !canReview && (
+            <p className="rounded-md bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
+              ⏳ รอ QA ตรวจสอบ — QA จะเป็นคนระบุประเภทเอกสาร เลขที่
+              และแผนกที่ต้องรับผิดชอบ
+            </p>
+          )}
+
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
@@ -236,7 +305,8 @@ function DeviationItem({
             >
               {editing ? "ปิดฟอร์ม" : "อัปเดต / ปิด"}
             </button>
-            <ResolutionButton jobNo={jobNo} deviationId={dev.id} />
+            {/* ปุ่มส่งกลับ = เฉพาะแผนกที่ถูกมอบหมายและยังไม่ตอบ (DB กันซ้ำอีกชั้น) */}
+            {canRespond && <ResolutionButton jobNo={jobNo} deviationId={dev.id} />}
           </div>
           {editing && (
             <UpdateForm
@@ -390,7 +460,11 @@ function UpdateForm({
     capa: dev.capa ?? "",
     severity: dev.severity as string,
     due_date: dev.due_date ?? "",
+    note: "",
   });
+  // ปิดก่อนที่แผนกจะส่งกลับครบ = ข้ามขั้น ต้องมีเหตุผลกำกับไว้ในประวัติ
+  const skipping = v.status === "closed" && dev.status !== "qa_verify";
+  const needNote = skipping || v.status === "cancelled";
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const router = useRouter();
@@ -465,6 +539,28 @@ function UpdateForm({
             className={inputClass}
           />
         </div>
+        {needNote && (
+          <div className="sm:col-span-2">
+            <label className={labelClass}>
+              {v.status === "cancelled" ? "เหตุผลที่ยกเลิก *" : "เหตุผลที่ปิดข้ามขั้น *"}
+            </label>
+            <input
+              value={v.note}
+              onChange={(e) => set("note", e.target.value)}
+              placeholder={
+                v.status === "cancelled"
+                  ? "เช่น เปิดผิดงาน / ไม่ใช่เหตุผิดปกติ"
+                  : "เช่น แผนกยืนยันด้วยวาจาแล้ว / ไม่ต้องรอผลเพิ่ม"
+              }
+              className={inputClass}
+            />
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              {skipping
+                ? "เคสนี้ยังไม่ผ่านขั้น \"แผนกส่งกลับ\" — เหตุผลจะถูกบันทึกลงประวัติ (audit)"
+                : "เหตุผลจะถูกบันทึกลงประวัติ (audit) และ timeline ของเคส"}
+            </p>
+          </div>
+        )}
       </div>
       {error && (
         <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -486,6 +582,196 @@ function UpdateForm({
           className="rounded-md border px-4 py-2 text-sm hover:bg-accent"
         >
           ยกเลิก
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * ขั้นที่ 2 ของ flow — QA ตรวจสอบ (Part C.4 ก้อน 5)
+ * QA คัดแยกประเภทเอกสาร (DEV/OOS/NC) + ใส่เลขที่ + ติ๊กแผนกที่ต้องรับผิดชอบ
+ * เรียกซ้ำได้ตอนสถานะ in_progress เพื่อแก้รายชื่อแผนก (ถอดแผนกที่ยังไม่ตอบออกได้)
+ */
+function QaReviewForm({ jobNo, dev }: { jobNo: string; dev: Deviation }) {
+  const first = dev.status === "qa_review";
+  const [open, setOpen] = useState(false);
+  const [v, setV] = useState({
+    case_type: dev.case_type ?? "",
+    case_no: dev.case_no ?? "",
+    due_date: dev.due_date ?? "",
+    note: "",
+  });
+  const [depts, setDepts] = useState<string[]>(
+    dev.departments.map((d) => d.role_group),
+  );
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  const router = useRouter();
+
+  function set<K extends keyof typeof v>(k: K, val: string) {
+    setV((c) => ({ ...c, [k]: val }));
+  }
+
+  function toggleDept(key: string) {
+    setDepts((c) => (c.includes(key) ? c.filter((d) => d !== key) : [...c, key]));
+  }
+
+  function run(decision: "assign" | "cancel") {
+    setError(null);
+    start(async () => {
+      const res = await qaReviewDeviation(jobNo, {
+        id: dev.id,
+        decision,
+        case_type: v.case_type,
+        case_no: v.case_no,
+        departments: depts,
+        due_date: v.due_date,
+        note: v.note,
+      });
+      if (res.ok) {
+        setOpen(false);
+        setV((c) => ({ ...c, note: "" }));
+        router.refresh();
+        return;
+      }
+      setError(res.error ?? "บันทึกไม่สำเร็จ");
+    });
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="rounded-md border border-violet-400 bg-violet-50 px-3 py-1.5 text-xs font-medium text-violet-800 hover:bg-violet-100 dark:bg-violet-950/30 dark:text-violet-300"
+      >
+        {first ? "🔎 QA ตรวจสอบเคสนี้" : "🔎 แก้ไขการมอบหมาย"}
+      </button>
+    );
+  }
+
+  return (
+    <div className="space-y-3 rounded-md border border-violet-400/50 bg-violet-50/50 p-3 dark:bg-violet-950/20">
+      <p className="text-xs font-medium text-violet-900 dark:text-violet-300">
+        QA ตรวจสอบ — ระบุประเภทเอกสาร เลขที่ และแผนกที่ต้องแก้ไข
+      </p>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div>
+          <label className={labelClass}>ประเภทเคส *</label>
+          <select
+            value={v.case_type}
+            onChange={(e) => set("case_type", e.target.value)}
+            className={inputClass}
+          >
+            <option value="">— เลือกประเภท —</option>
+            {INCIDENT_CASE_TYPE.map((t) => (
+              <option key={t.key} value={t.key}>
+                {t.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className={labelClass}>
+            {v.case_type ? CASE_NO_LABEL[v.case_type] : "เลขที่เอกสาร"} *
+          </label>
+          <input
+            value={v.case_no}
+            onChange={(e) => set("case_no", e.target.value)}
+            placeholder="เช่น 68-001"
+            className={inputClass}
+          />
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            เลขจากระบบเอกสารคุณภาพ — พิมพ์เอง ระบบไม่ออกเลขให้
+          </p>
+        </div>
+
+        <div className="sm:col-span-2">
+          <label className={labelClass}>แผนกที่รับผิดชอบ * (เลือกได้หลายแผนก)</label>
+          <div className="flex flex-wrap gap-2">
+            {INCIDENT_DEPARTMENTS.map((d) => {
+              const picked = depts.includes(d.key);
+              const responded = dev.departments.find(
+                (x) => x.role_group === d.key,
+              )?.responded_at;
+              return (
+                <label
+                  key={d.key}
+                  className={`flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1 text-xs ${
+                    picked ? "border-primary bg-primary/10 font-medium" : ""
+                  } ${responded ? "opacity-60" : ""}`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={picked}
+                    disabled={!!responded}
+                    onChange={() => toggleDept(d.key)}
+                    className="h-3.5 w-3.5"
+                  />
+                  {d.code} · {d.label}
+                  {responded ? " (ตอบแล้ว)" : ""}
+                </label>
+              );
+            })}
+          </div>
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            เคสจะเข้าสถานะ &quot;รอ QA อนุมัติ&quot; เมื่อทุกแผนกที่ติ๊กไว้บันทึกผลครบ ·
+            แผนกที่ตอบแล้วถอดออกไม่ได้ (เป็นหลักฐานที่บันทึกไว้แล้ว)
+          </p>
+        </div>
+
+        <div>
+          <label className={labelClass}>กำหนดปิด</label>
+          <input
+            type="date"
+            value={v.due_date}
+            onChange={(e) => set("due_date", e.target.value)}
+            className={inputClass}
+          />
+        </div>
+        <div>
+          <label className={labelClass}>หมายเหตุ / เหตุผลที่ยกเลิก</label>
+          <input
+            value={v.note}
+            onChange={(e) => set("note", e.target.value)}
+            className={inputClass}
+          />
+        </div>
+      </div>
+
+      {error && (
+        <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          {error}
+        </p>
+      )}
+
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => run("assign")}
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+        >
+          {pending ? "กำลังบันทึก…" : "ส่งให้แผนกที่เกี่ยวข้อง"}
+        </button>
+        {first && (
+          <button
+            type="button"
+            disabled={pending || !v.note.trim()}
+            onClick={() => run("cancel")}
+            className="rounded-md border border-destructive/40 px-4 py-2 text-sm text-destructive hover:bg-destructive/10 disabled:opacity-50"
+          >
+            ยกเลิกเคสนี้
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          className="rounded-md border px-4 py-2 text-sm hover:bg-accent"
+        >
+          ปิดฟอร์ม
         </button>
       </div>
     </div>

@@ -24,7 +24,12 @@ import { getInprocessChecks, getQaSamples } from "@/lib/data/quality-checks";
 import { getJobRoute, listStations } from "@/lib/data/stations";
 import { getJobRouteSteps } from "@/lib/data/job-routes";
 import { getDeviationsByJob } from "@/lib/data/deviations";
-import { canOpenDeviation, canCloseDeviation } from "@/lib/data/deviation-constants";
+import {
+  canOpenDeviation,
+  canCloseDeviation,
+  canReviewIncident,
+  roleGroupOf,
+} from "@/lib/data/deviation-constants";
 import {
   getEditRequestsForJob,
   getPendingTargetIds,
@@ -230,6 +235,7 @@ export default async function JobDetailPage({
           "qa_samples",
           "deviations",
           "deviation_comments",
+          "deviation_departments",
           "edit_requests",
         ]}
       />
@@ -591,6 +597,10 @@ export default async function JobDetailPage({
         failChecks={failChecks}
         canOpen={canOpenDeviation(roles)}
         canClose={canCloseDeviation(roles)}
+        canReview={canReviewIncident(roles)}
+        // ⚠️ ต้องใช้ roleGroupOf() เท่านั้น — ตรงกับ current_role_group() ใน DB
+        //    (hasAnyRole ให้ admin ผ่านทุกฝ่าย จะทำให้ปุ่มโผล่ทั้งที่ DB ปฏิเสธ)
+        currentRoleGroup={roleGroupOf(roles)}
       />
 
       {/* ประวัติการแก้ไขย้อนหลัง (F1) */}

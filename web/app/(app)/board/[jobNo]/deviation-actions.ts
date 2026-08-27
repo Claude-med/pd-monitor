@@ -60,6 +60,8 @@ export async function updateDeviation(
     capa: string;
     severity?: string;
     due_date?: string;
+    /** เหตุผล — บังคับตอนยกเลิก และตอนปิดข้ามขั้น (ด่านจริงอยู่ที่ RPC) */
+    note?: string;
   },
 ): Promise<ActionResult> {
   const profile = await getProfile();
@@ -70,6 +72,8 @@ export async function updateDeviation(
       return { error: "ปิด/ยกเลิก Incident Case ได้เฉพาะ QA/ผู้บริหาร" };
     if (v.status === "closed" && !v.capa.trim())
       return { error: 'ต้องระบุ "การแก้ไขเบื้องต้น" ก่อนปิด Incident Case' };
+    if (v.status === "cancelled" && !v.note?.trim())
+      return { error: "การยกเลิกต้องระบุเหตุผล" };
   }
 
   const supabase = await createClient();
@@ -79,8 +83,53 @@ export async function updateDeviation(
     p_capa: v.capa.trim() || null,
     p_severity: v.severity || null,
     p_due_date: v.due_date?.trim() || null,
+    p_note: v.note?.trim() || null,
   });
   if (error) return { error: error.message || "อัปเดต Incident Case ไม่สำเร็จ" };
+  revalidatePath(`/board/${jobNo}`);
+  return { ok: true };
+}
+
+/**
+ * ขั้น "QA ตรวจสอบ" — QA คัดแยกประเภท/เลขที่เอกสาร แล้วมอบหมายแผนกที่รับผิดชอบ
+ * decision = "assign" ส่งต่อให้แผนก · "cancel" ยกเลิกเคสที่ไม่ใช่เหตุผิดปกติจริง
+ */
+export async function qaReviewDeviation(
+  jobNo: string,
+  v: {
+    id: string;
+    decision: "assign" | "cancel";
+    case_type: string;
+    case_no: string;
+    departments: string[];
+    due_date: string;
+    note: string;
+  },
+): Promise<ActionResult> {
+  const profile = await getProfile();
+  if (!profile || !canReviewIncident(profile.roles))
+    return { error: "ไม่มีสิทธิ์ (เฉพาะ QA/ผู้บริหาร)" };
+
+  if (v.decision === "cancel") {
+    if (!v.note.trim()) return { error: "การยกเลิกต้องระบุเหตุผล" };
+  } else {
+    if (!v.case_type) return { error: "กรุณาเลือกประเภทเคส (DEV / OOS / NC)" };
+    if (!v.case_no.trim()) return { error: "กรุณาระบุเลขที่เอกสาร" };
+    if (v.departments.length === 0)
+      return { error: "กรุณาเลือกแผนกที่รับผิดชอบอย่างน้อย 1 แผนก" };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("qa_review_deviation", {
+    p_id: v.id,
+    p_decision: v.decision,
+    p_case_type: v.decision === "assign" ? v.case_type : null,
+    p_case_no: v.decision === "assign" ? v.case_no.trim() : null,
+    p_departments: v.decision === "assign" ? v.departments : null,
+    p_due_date: v.due_date.trim() || null,
+    p_note: v.note.trim() || null,
+  });
+  if (error) return { error: error.message || "บันทึกผลตรวจสอบไม่สำเร็จ" };
   revalidatePath(`/board/${jobNo}`);
   return { ok: true };
 }
