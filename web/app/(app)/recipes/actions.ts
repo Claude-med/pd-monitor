@@ -178,7 +178,6 @@ export async function upsertStation(v: {
   id: string | null;
   code: string;
   name: string;
-  station_group: string;
   seq: string;
   is_active: boolean;
 }): Promise<ActionResult> {
@@ -186,7 +185,6 @@ export async function upsertStation(v: {
     return { error: "ไม่มีสิทธิ์ (เฉพาะผู้บริหาร)" };
   if (!v.code.trim()) return { error: "กรุณาระบุรหัสสถานี" };
   if (!v.name.trim()) return { error: "กรุณาระบุชื่อสถานี" };
-  if (!v.station_group) return { error: "กรุณาเลือกกลุ่มสถานี" };
 
   let seq = 100;
   if (v.seq.trim() !== "") {
@@ -199,7 +197,6 @@ export async function upsertStation(v: {
     p_id: v.id,
     p_code: v.code.trim(),
     p_name: v.name.trim(),
-    p_group: v.station_group,
     p_seq: seq,
     p_is_active: v.is_active,
   });

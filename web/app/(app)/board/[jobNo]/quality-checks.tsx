@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { STATION_LABEL } from "@/lib/data/station-constants";
 import type { InprocessCheck, QaSample } from "@/lib/data/quality-checks";
 import type { JobRouteStep } from "@/lib/data/stations";
 import { fmtDateTime } from "@/lib/format";
@@ -50,9 +49,7 @@ export function QualityChecks({
 
   // ชื่อสถานีที่จะแสดง (ใช้ทั้งการ์ด/ตาราง)
   const showStation = (c: InprocessCheck) =>
-    (c.station_id && stationName.get(c.station_id)) ||
-    STATION_LABEL[c.station] ||
-    c.station;
+    (c.station_id && stationName.get(c.station_id)) || c.station_name || "—";
 
   // ป้ายผล ผ่าน/ไม่ผ่าน (ใช้ทั้งการ์ด/ตาราง)
   const resultBadge = (c: InprocessCheck) =>

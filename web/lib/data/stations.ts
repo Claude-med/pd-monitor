@@ -1,11 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
-import type { StationKey } from "@/lib/data/station-constants";
 
 export type Station = {
   id: string;
   code: string;
   name: string;
-  station_group: StationKey;
   seq: number;
   is_active: boolean;
 };
@@ -15,7 +13,7 @@ export async function listStations(): Promise<Station[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("stations")
-    .select("id, code, name, station_group, seq, is_active")
+    .select("id, code, name, seq, is_active")
     .order("seq", { ascending: true });
   if (error || !data) return [];
   return data as Station[];
@@ -27,7 +25,6 @@ export type JobRouteStep = {
   code: string;
   name: string;
   step_no: number;
-  station_group: StationKey;
 };
 
 export async function getJobRoute(jobId: string): Promise<JobRouteStep[]> {
@@ -35,7 +32,7 @@ export async function getJobRoute(jobId: string): Promise<JobRouteStep[]> {
   const { data, error } = await supabase
     .from("job_routes")
     .select(
-      `station_id, step_no, station_group,
+      `station_id, step_no,
        station:stations!station_id ( code, name )`,
     )
     .eq("job_id", jobId)
@@ -49,7 +46,6 @@ export async function getJobRoute(jobId: string): Promise<JobRouteStep[]> {
       code: s?.code ?? "",
       name: s?.name ?? "",
       step_no: r.step_no,
-      station_group: r.station_group,
     };
   });
   /* eslint-enable @typescript-eslint/no-explicit-any */

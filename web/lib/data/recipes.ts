@@ -1,12 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
-import type { StationKey } from "@/lib/data/station-constants";
 
 export type RouteStep = {
   id: string;
   station_id: string;
   station_code: string;
   station_name: string;
-  station_group: StationKey;
   step_no: number;
   note: string | null;
 };
@@ -37,7 +35,7 @@ export async function listProductsWithRoutes(): Promise<ProductWithRoute[]> {
       `id, code, name, dosage_form, unit, reg_no, is_active,
        route:product_routes (
          id, station_id, step_no, note,
-         station:stations ( code, name, station_group )
+         station:stations ( code, name )
        )`,
     )
     .order("code", { ascending: true });
@@ -58,7 +56,6 @@ export async function listProductsWithRoutes(): Promise<ProductWithRoute[]> {
         station_id: r.station_id,
         station_code: r.station?.code ?? "—",
         station_name: r.station?.name ?? "",
-        station_group: r.station?.station_group,
         step_no: r.step_no,
         note: r.note,
       }))

@@ -26,7 +26,8 @@ export const EDIT_FIELD_LABEL: Record<string, string> = {
   hours: "ชั่วโมง",
   headcount: "จำนวนคน",
   record_date: "วันที่",
-  station: "สถานี",
+  // Part C.3 ก้อน 2: เลิกใช้ field "station" (กลุ่มหลัก) แล้ว เหลือ station_id อย่างเดียว
+  station_id: "สถานี",
   machine_id: "เครื่องจักร",
   qty: "จำนวน",
   param: "หัวข้อที่ตรวจ",

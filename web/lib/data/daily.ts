@@ -1,12 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
-import type { StationKey } from "@/lib/data/station-constants";
 
 export type DailyRow = {
   id: string;
   job_no: string | null;
   product_name: string | null;
   customer: string | null;
-  station: StationKey;
+  /** ชื่อสถานีจริง (Part C.3 ก้อน 2 — เดิมเป็นกลุ่มหลัก 4 ค่า) */
+  station_name: string | null;
   input_qty: number | null;
   output_qty: number | null;
   loss_qty: number | null;
@@ -16,8 +16,9 @@ export type DailyRow = {
 };
 
 const SELECT = `
-  id, station, input_qty, output_qty, loss_qty, hours, note,
+  id, input_qty, output_qty, loss_qty, hours, note,
   operator:profiles!operator_id ( full_name ),
+  station:stations!station_id ( name ),
   jobs ( job_no, orders ( customer, products ( name ) ) )
 `;
 
@@ -37,7 +38,7 @@ function shape(r: any): DailyRow {
     job_no: job?.job_no ?? null,
     product_name: product?.name ?? null,
     customer: order?.customer ?? null,
-    station: r.station,
+    station_name: one<any>(r.station)?.name ?? null,
     input_qty: r.input_qty,
     output_qty: r.output_qty,
     loss_qty: r.loss_qty,

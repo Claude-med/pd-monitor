@@ -10,11 +10,7 @@ import {
   PROBLEM_FLAGS,
 } from "@/lib/data/job-constants";
 import { getRecordsForJob } from "@/lib/data/production";
-import {
-  STATION_LABEL,
-  STATION_ICON,
-  RECORDABLE_STATUSES,
-} from "@/lib/data/station-constants";
+import { RECORDABLE_STATUSES } from "@/lib/data/station-constants";
 import { getApprovalsForJob } from "@/lib/data/approvals";
 import { listMachines } from "@/lib/data/machines";
 import { getJobMaterials } from "@/lib/data/job-materials";
@@ -158,7 +154,7 @@ export default async function JobDetailPage({
   );
   const failChecks = inprocessChecks
     .filter((c) => c.result === "fail" && !linkedCheckIds.has(c.id))
-    .map((c) => ({ id: c.id, station: c.station, param: c.param }));
+    .map((c) => ({ id: c.id, station_name: c.station_name, param: c.param }));
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -317,7 +313,7 @@ export default async function JobDetailPage({
                 <div key={r.id} className="rounded-lg border bg-muted/20 p-3">
                   <div className="mb-2 flex items-center justify-between gap-2">
                     <span className="text-sm font-medium">
-                      {STATION_ICON[r.station]} {r.station_name ?? STATION_LABEL[r.station] ?? r.station}
+                      {r.station_name ?? "—"}
                     </span>
                     <span className="text-xs text-muted-foreground">{r.record_date}</span>
                   </div>
@@ -368,7 +364,7 @@ export default async function JobDetailPage({
                       <tr className={`align-top ${r.note ? "" : "border-b last:border-0"}`}>
                         <td className="whitespace-nowrap px-2 py-2">{r.record_date}</td>
                         <td className="whitespace-nowrap px-2 py-2">
-                          {STATION_ICON[r.station]} {r.station_name ?? STATION_LABEL[r.station] ?? r.station}
+                          {r.station_name ?? "—"}
                         </td>
                         <td className="whitespace-nowrap px-2 py-2 text-muted-foreground">
                           {r.machine_label ?? "—"}

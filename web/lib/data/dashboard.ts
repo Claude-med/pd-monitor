@@ -1,5 +1,4 @@
 import { createClient } from "@/lib/supabase/server";
-import { STATIONS, type StationKey } from "@/lib/data/station-constants";
 
 /**
  * Data layer ของหน้าแดชบอร์ด (D7) — สรุป KPI + ต้นทุนค่าแรง (DL cost)
@@ -10,7 +9,9 @@ import { STATIONS, type StationKey } from "@/lib/data/station-constants";
 export const DEFAULT_LABOR_RATE = 60;
 
 export type StationAgg = {
-  station: StationKey;
+  /** id ของสถานีจริง (Part C.3 ก้อน 2 — เดิมเป็นกลุ่มหลัก 4 ค่า) */
+  stationId: string;
+  stationName: string;
   hours: number;
   personHours: number; // ชม. × จำนวนคน (คน-ชม.) — A5
   output: number;
@@ -40,14 +41,21 @@ export async function getDashboardData(
 ): Promise<DashboardData> {
   const supabase = await createClient();
 
-  const [{ data: jobs }, { data: records }] = await Promise.all([
-    supabase.from("jobs").select("status, problem"),
-    supabase
-      .from("production_records")
-      .select("station, input_qty, output_qty, loss_qty, hours, headcount")
-      .gte("record_date", from)
-      .lte("record_date", to),
-  ]);
+  const [{ data: jobs }, { data: records }, { data: stations }] =
+    await Promise.all([
+      supabase.from("jobs").select("status, problem"),
+      supabase
+        .from("production_records")
+        .select("station_id, input_qty, output_qty, loss_qty, hours, headcount")
+        .gte("record_date", from)
+        .lte("record_date", to),
+      // ดึงสถานี "ทั้งหมด" รวมที่ปิดใช้งาน — บันทึกเก่าของสถานีที่ปิดไปแล้ว
+      // ต้องยังนับรวมในตาราง ไม่งั้นยอดรายสถานีจะไม่เท่ายอดรวม
+      supabase
+        .from("stations")
+        .select("id, name, seq, is_active")
+        .order("seq", { ascending: true }),
+    ]);
 
   // นับงานตามสถานะ + งานติดปัญหา (ภาพรวมงานปัจจุบัน)
   const statusCounts: Record<string, number> = {};
@@ -58,10 +66,17 @@ export async function getDashboardData(
   }
 
   // ตั้งทุกสถานีเป็น 0 ก่อน เพื่อให้ตารางครบทุกสถานีแม้ช่วงนั้นไม่มีบันทึก
-  const stationMap = new Map<StationKey, StationAgg>(
-    STATIONS.map((s) => [
-      s.key,
-      { station: s.key, hours: 0, personHours: 0, output: 0, loss: 0 },
+  const stationMap = new Map<string, StationAgg>(
+    (stations ?? []).map((s) => [
+      s.id as string,
+      {
+        stationId: s.id as string,
+        stationName: s.name as string,
+        hours: 0,
+        personHours: 0,
+        output: 0,
+        loss: 0,
+      },
     ]),
   );
 
@@ -78,7 +93,7 @@ export async function getDashboardData(
     totalLoss += r.loss_qty ?? 0;
     totalHours += hrs;
     totalPersonHours += ph;
-    const agg = stationMap.get(r.station as StationKey);
+    const agg = r.station_id ? stationMap.get(r.station_id as string) : null;
     if (agg) {
       agg.hours += hrs;
       agg.personHours += ph;
@@ -98,6 +113,13 @@ export async function getDashboardData(
     totalHours,
     totalPersonHours,
     yieldPct: totalInput > 0 ? (totalOutput / totalInput) * 100 : null,
-    byStation: STATIONS.map((s) => stationMap.get(s.key)!),
+    // แสดงสถานีที่เปิดใช้งานทั้งหมด + สถานีที่ปิดไปแล้วแต่มีบันทึกในช่วงนี้
+    // (เรียงตาม seq มาจาก query แล้ว — Map รักษาลำดับที่ใส่)
+    byStation: (stations ?? [])
+      .filter((s) => {
+        const agg = stationMap.get(s.id as string)!;
+        return s.is_active || agg.hours > 0 || agg.output > 0 || agg.loss > 0;
+      })
+      .map((s) => stationMap.get(s.id as string)!),
   };
 }

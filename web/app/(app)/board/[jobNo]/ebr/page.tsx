@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getBatchRecord } from "@/lib/data/ebr";
 import { STATUS_LABEL, formatSubStatus } from "@/lib/data/job-constants";
-import { STATION_LABEL, STATION_ICON } from "@/lib/data/station-constants";
 import {
   SEVERITY_LABEL,
   DEV_STATUS_LABEL,
@@ -251,7 +250,7 @@ export default async function EbrPage({
                   <tr key={rec.id}>
                     <td className={td}>{rec.record_date}</td>
                     <td className={td}>
-                      {STATION_ICON[rec.station]} {STATION_LABEL[rec.station] ?? rec.station}
+                      {rec.station_name ?? "—"}
                     </td>
                     <td className={`${td} text-right tabular-nums`}>{fmt(rec.input_qty)}</td>
                     <td className={`${td} text-right tabular-nums`}>{fmt(rec.output_qty)}</td>
@@ -286,7 +285,7 @@ export default async function EbrPage({
                 {r.inprocessChecks.map((c) => (
                   <tr key={c.id}>
                     <td className={td}>{dt(c.checked_at)}</td>
-                    <td className={td}>{STATION_LABEL[c.station] ?? c.station}</td>
+                    <td className={td}>{c.station_name ?? "—"}</td>
                     <td className={td}>{c.param}</td>
                     <td className={td}>
                       {c.value ?? "—"} {c.unit ?? ""}

@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { getDailyReport } from "@/lib/data/daily";
-import { STATION_LABEL, STATION_ICON } from "@/lib/data/station-constants";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
 
 function fmt(n: number | null): string {
@@ -109,7 +108,7 @@ export default async function DailyReportPage({
                   </td>
                   <td className="px-3 py-2">{r.product_name ?? "—"}</td>
                   <td className="whitespace-nowrap px-3 py-2">
-                    {STATION_ICON[r.station]} {STATION_LABEL[r.station] ?? r.station}
+                    {r.station_name ?? "—"}
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums">{fmt(r.input_qty)}</td>
                   <td className="px-3 py-2 text-right tabular-nums">{fmt(r.output_qty)}</td>

@@ -1,23 +1,10 @@
-// ค่าคงที่ "สถานีผลิต" + ตัวตรวจความถูกต้องของฟอร์มบันทึกผลผลิต
+// ตัวตรวจความถูกต้องของฟอร์มบันทึกผลผลิต
 // ไฟล์นี้ "ไม่มี" server import → ใช้ได้ทั้ง Server และ Client Components
 // ตรรกะ validate ตรงกับฟังก์ชัน add_production_record() ใน DB (DB เป็นด่านตัดสินจริง)
-
-/** สถานีผลิตตามลำดับ flow (PRD: เตรียม → ผสม → ตอก → บรรจุ) */
-export const STATIONS = [
-  { key: "prep", label: "เตรียมวัตถุดิบ", icon: "🧪", color: "#64748b" },
-  { key: "mixing", label: "ผสม", icon: "🌀", color: "#6366f1" },
-  { key: "tableting", label: "ตอกเม็ด", icon: "⚙️", color: "#f59e0b" },
-  { key: "packing", label: "บรรจุ", icon: "📦", color: "#16a34a" },
-] as const;
-
-export type StationKey = (typeof STATIONS)[number]["key"];
-
-export const STATION_LABEL: Record<string, string> = Object.fromEntries(
-  STATIONS.map((s) => [s.key, s.label]),
-);
-export const STATION_ICON: Record<string, string> = Object.fromEntries(
-  STATIONS.map((s) => [s.key, s.icon]),
-);
+//
+// Part C.3 ก้อน 2: ลบ STATIONS / StationKey / STATION_LABEL / STATION_ICON ทิ้งแล้ว
+//   ระบบเลิกใช้ "กลุ่มหลัก" (enum production_station) — ทุกที่อ้าง stations.id + ชื่อสถานีจริง
+//   ต้องการชื่อสถานีให้ join `stations` มาแล้วใช้ `station_name` (ดู lib/data/stations.ts)
 
 /** บันทึกผลผลิตได้เฉพาะงานที่ "กำลังผลิต" เท่านั้น (B3) — ต้องตรงกับ add_production_record ใน DB
  *  ถ้า QC/QA ตีกลับ งานจะกลับมา in_production เอง จึงบันทึกต่อได้ตามปกติ */
@@ -25,9 +12,8 @@ export const RECORDABLE_STATUSES = new Set(["in_production"]);
 
 export type ProductionRecordRow = {
   id: string;
-  station: StationKey; // กลุ่มหลัก (enum) — ใช้ rollup dashboard/รายงาน
-  station_id: string | null; // สถานีย่อยตาม route (ถ้ามี)
-  station_name: string | null; // ชื่อสถานีย่อย (แสดงผล) — fallback เป็นชื่อกลุ่ม
+  station_id: string | null; // สถานีตาม route ของงาน
+  station_name: string | null; // ชื่อสถานี (แสดงผล)
   record_date: string;
   input_qty: number | null;
   output_qty: number | null;

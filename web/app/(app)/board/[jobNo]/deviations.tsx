@@ -15,7 +15,6 @@ import {
   NOTE_ROLE_META,
 } from "@/lib/data/deviation-constants";
 import { fmtDateTime } from "@/lib/format";
-import { STATION_LABEL } from "@/lib/data/station-constants";
 import {
   openDeviation,
   updateDeviation,
@@ -27,7 +26,7 @@ const inputClass =
   "w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring";
 const labelClass = "mb-1 block text-xs font-medium text-muted-foreground";
 
-export type FailCheck = { id: string; station: string; param: string };
+export type FailCheck = { id: string; station_name: string | null; param: string };
 
 export function Deviations({
   jobId,
@@ -516,7 +515,7 @@ function FailQuickOpen({
       const res = await openDeviation(jobNo, {
         job_id: jobId,
         title: `ผลตรวจไม่ผ่าน: ${check.param}`,
-        description: `สถานี ${STATION_LABEL[check.station] ?? check.station} — หัวข้อ ${check.param}`,
+        description: `สถานี ${check.station_name ?? "—"} — หัวข้อ ${check.param}`,
         dev_type: "in_process_fail",
         severity: "major",
         inprocess_check_id: check.id,

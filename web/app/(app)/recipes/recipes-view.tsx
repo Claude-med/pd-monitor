@@ -4,7 +4,6 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { ProductWithRoute } from "@/lib/data/recipes";
 import type { Station } from "@/lib/data/stations";
-import { STATIONS, STATION_LABEL } from "@/lib/data/station-constants";
 import { PRODUCT_UNITS } from "@/lib/data/product-constants";
 import {
   upsertProduct,
@@ -113,7 +112,6 @@ export function RecipesView({
   );
 }
 
-const STATION_GROUP_LABEL: Record<string, string> = STATION_LABEL;
 
 /** แผงจัดการสถานีย่อย (master) — เห็นเฉพาะผู้บริหาร */
 function StationMasterPanel({ stations }: { stations: Station[] }) {
@@ -140,7 +138,7 @@ function StationMasterPanel({ stations }: { stations: Station[] }) {
       {open && (
         <div className="space-y-3 border-t p-5">
           <p className="text-xs text-muted-foreground">
-            สถานีย่อยจริงในกระบวนการ · แต่ละสถานีจัดเข้า 1 ใน 4 กลุ่มหลัก (เตรียม/ผสม/ตอก/บรรจุ)
+            สถานีจริงในกระบวนการผลิต · ใช้ชื่อสถานีอ้างอิงทุกที่ในระบบ
             เพื่อให้แดชบอร์ดสรุปได้เหมือนเดิม
           </p>
 
@@ -186,7 +184,6 @@ function StationMasterPanel({ stations }: { stations: Station[] }) {
                   <th className="px-2 py-1.5 font-medium">ลำดับ</th>
                   <th className="px-2 py-1.5 font-medium">รหัส</th>
                   <th className="px-2 py-1.5 font-medium">ชื่อสถานี</th>
-                  <th className="px-2 py-1.5 font-medium">กลุ่มหลัก</th>
                   <th className="px-2 py-1.5 font-medium">ใช้งาน</th>
                   <th className="px-2 py-1.5" />
                 </tr>
@@ -262,9 +259,6 @@ function StationRow({
         <td className="px-2 py-2 tabular-nums text-muted-foreground">{station.seq}</td>
         <td className="px-2 py-2 font-medium">{station.code}</td>
         <td className="px-2 py-2">{station.name}</td>
-        <td className="px-2 py-2 text-muted-foreground">
-          {STATION_GROUP_LABEL[station.station_group] ?? station.station_group}
-        </td>
         <td className="px-2 py-2">
           {station.is_active ? (
             <span className="text-emerald-600 dark:text-emerald-400">ใช้งาน</span>
@@ -338,14 +332,12 @@ function StationForm({
     id: string | null;
     code: string;
     name: string;
-    station_group: string;
     seq: string;
     is_active: boolean;
   }>({
     id: station?.id ?? null,
     code: station?.code ?? "",
     name: station?.name ?? "",
-    station_group: station?.station_group ?? "mixing",
     seq: String(station?.seq ?? nextSeq ?? 100),
     is_active: station?.is_active ?? true,
   });
@@ -386,20 +378,6 @@ function StationForm({
             placeholder="เช่น คาดแคปซูล"
             className={inputClass}
           />
-        </div>
-        <div>
-          <label className={labelClass}>กลุ่มหลัก (rollup)</label>
-          <select
-            value={v.station_group}
-            onChange={(e) => setV((c) => ({ ...c, station_group: e.target.value }))}
-            className={inputClass}
-          >
-            {STATIONS.map((s) => (
-              <option key={s.key} value={s.key}>
-                {s.label}
-              </option>
-            ))}
-          </select>
         </div>
         <div className="grid grid-cols-2 gap-2">
           <div>
@@ -906,10 +884,6 @@ function ProductForm({
   );
 }
 
-const GROUP_COLOR: Record<string, string> = Object.fromEntries(
-  STATIONS.map((s) => [s.key, s.color]),
-);
-
 /** ส่วน "ขั้นตอนการผลิต (Route)" ของผลิตภัณฑ์แต่ละตัว */
 function RouteSection({
   product,
@@ -949,11 +923,7 @@ function RouteSection({
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           {product.route.map((step, i) => (
             <span key={step.id} className="flex items-center gap-1.5">
-              <span
-                className="rounded px-2 py-1 text-xs font-medium text-white"
-                style={{ backgroundColor: GROUP_COLOR[step.station_group] ?? "#64748b" }}
-                title={STATION_GROUP_LABEL[step.station_group] ?? ""}
-              >
+              <span className="rounded bg-slate-600 px-2 py-1 text-xs font-medium text-white">
                 {i + 1}. {step.station_name}
               </span>
               {i < product.route.length - 1 && (
@@ -1067,7 +1037,7 @@ function RouteEditor({
                 <option value="">— เลือกสถานี —</option>
                 {activeStations.map((s) => (
                   <option key={s.id} value={s.id}>
-                    {s.name} ({STATION_GROUP_LABEL[s.station_group] ?? s.station_group})
+                    {s.name}
                   </option>
                 ))}
               </select>

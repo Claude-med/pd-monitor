@@ -4,7 +4,6 @@ import {
   getDashboardData,
   DEFAULT_LABOR_RATE,
 } from "@/lib/data/dashboard";
-import { STATION_LABEL, STATION_ICON } from "@/lib/data/station-constants";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -221,10 +220,9 @@ export default async function DashboardPage({
                 </thead>
                 <tbody>
                   {d.byStation.map((s) => (
-                    <tr key={s.station} className="border-b last:border-0">
+                    <tr key={s.stationId} className="border-b last:border-0">
                       <td className="whitespace-nowrap px-3 py-2">
-                        {STATION_ICON[s.station]}{" "}
-                        {STATION_LABEL[s.station] ?? s.station}
+                        {s.stationName}
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums">
                         {fmt(s.hours)}

@@ -1,10 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
-import type { StationKey } from "@/lib/data/station-constants";
 
 export type InprocessCheck = {
   id: string;
-  station: StationKey;
   station_id: string | null;
+  /** ชื่อสถานี (join stations) */
+  station_name: string | null;
   param: string;
   value: string | null;
   unit: string | null;
@@ -36,16 +36,17 @@ export async function getInprocessChecks(jobId: string): Promise<InprocessCheck[
   const { data, error } = await supabase
     .from("inprocess_checks")
     .select(
-      `id, station, station_id, param, value, unit, result, checked_at, note,
-       checker:profiles!checked_by ( full_name )`,
+      `id, station_id, param, value, unit, result, checked_at, note,
+       checker:profiles!checked_by ( full_name ),
+       station:stations!station_id ( name )`,
     )
     .eq("job_id", jobId)
     .order("checked_at", { ascending: false });
   if (error || !data) return [];
   return (data as any[]).map((r) => ({
     id: r.id,
-    station: r.station,
     station_id: r.station_id ?? null,
+    station_name: one<any>(r.station)?.name ?? null,
     param: r.param,
     value: r.value,
     unit: r.unit,
