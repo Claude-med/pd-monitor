@@ -14,7 +14,7 @@ import { RECORDABLE_STATUSES } from "@/lib/data/station-constants";
 import { getApprovalsForJob } from "@/lib/data/approvals";
 import { listMachines } from "@/lib/data/machines";
 import { getJobMaterials } from "@/lib/data/job-materials";
-import { getLineClearance } from "@/lib/data/line-clearance";
+import { getLineClearances } from "@/lib/data/line-clearance";
 import { getInprocessChecks, getQaSamples } from "@/lib/data/quality-checks";
 import { getJobRoute, listStations } from "@/lib/data/stations";
 import { getJobRouteSteps } from "@/lib/data/job-routes";
@@ -36,6 +36,8 @@ import {
   canEditJobMaterials,
   canSetJobMaterialStatus,
   canEditJobRouteMachines,
+  canPerformLineClearance,
+  canCheckLineClearance,
 } from "@/lib/data/role-access";
 import { listJobSubStatuses } from "@/lib/data/job-sub-statuses";
 import { listCustomers } from "@/lib/data/customers";
@@ -144,9 +146,10 @@ export default async function JobDetailPage({
   // Part C.2: ฝ่ายผลิตลงรายการ · ฝ่ายคลังกดสถานะ — คนละสิทธิ์กันคนละ helper
   const canEditMat = canEditJobMaterials(roles);
   const canSetMatStatus = canSetJobMaterialStatus(roles);
-  const lineClearance = await getLineClearance(job.id);
-  const canPerformLc = hasAnyRole(roles, ["production", "manager"]);
-  const canCheckLc = hasAnyRole(roles, ["production", "qc", "qa", "manager"]);
+  // Part C.3 ก้อน 4: LC เป็นหลายใบต่องาน (1 ใบต่อ ขั้นตอน × เครื่อง)
+  const lineClearances = await getLineClearances(job.id);
+  const canPerformLc = canPerformLineClearance(roles);
+  const canCheckLc = canCheckLineClearance(roles);
   const inprocessChecks = await getInprocessChecks(job.id);
   const qaSamples = await getQaSamples(job.id);
   const canInprocess = hasAnyRole(roles, ["qc", "manager"]);
@@ -325,16 +328,6 @@ export default async function JobDetailPage({
         )}
       </div>
 
-      {/* Line Clearance (A3) — gate ก่อนเริ่มผลิต */}
-      <LineClearancePanel
-        jobNo={job.job_no}
-        jobId={job.id}
-        clearance={lineClearance}
-        canPerform={canPerformLc}
-        canCheck={canCheckLc}
-        currentProfileId={profile?.id ?? ""}
-      />
-
       {/* เบิกวัตถุดิบ/บรรจุภัณฑ์ (Part C.2) */}
       <JobMaterials
         jobId={job.id}
@@ -367,6 +360,22 @@ export default async function JobDetailPage({
           selected={activeStep.machines}
           allMachines={machines}
           canEdit={canEditRouteMachines}
+        />
+      )}
+
+      {/* Line Clearance — 1 ใบต่อเครื่องจักรของขั้นตอนนี้ (Part C.3 ก้อน 4) */}
+      {activeStep && (
+        <LineClearancePanel
+          jobNo={job.job_no}
+          jobRouteId={activeStep.id}
+          stationName={activeStep.station_name}
+          machines={activeStep.machines}
+          clearances={lineClearances.filter(
+            (c) => c.job_route_id === activeStep.id,
+          )}
+          canPerform={canPerformLc}
+          canCheck={canCheckLc}
+          currentProfileId={profile?.id ?? ""}
         />
       )}
 

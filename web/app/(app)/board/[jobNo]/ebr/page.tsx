@@ -145,26 +145,50 @@ export default async function EbrPage({
 
         {/* 2. Line Clearance */}
         <Section title="2. การเตรียมสายการผลิต (Line Clearance)">
-          {r.lineClearance ? (
-            <div className="grid gap-1 sm:grid-cols-2">
-              <Row label="เคลียร์ของเก่า" value={yes(r.lineClearance.cleared_old)} />
-              <Row label="ทำความสะอาด" value={yes(r.lineClearance.cleaned)} />
-              <Row label="ตั้งเครื่อง (set-up)" value={yes(r.lineClearance.setup_done)} />
-              <Row
-                label="เวลา set-up"
-                value={
-                  r.lineClearance.setup_minutes != null
-                    ? `${r.lineClearance.setup_minutes} นาที`
-                    : null
-                }
-              />
-              <Row label="ผู้เคลียร์" value={r.lineClearance.performed_by_name} />
-              <Row label="ผู้ตรวจรับ" value={r.lineClearance.checked_by_name} />
-              <Row
-                label="สรุป"
-                value={r.lineClearance.passed ? "✓ ผ่านครบ + ลงนามแล้ว" : "ยังไม่ผ่าน"}
-              />
-            </div>
+          {r.lineClearances.length > 0 ? (
+            <table className="w-full text-sm">
+              <thead>
+                <tr>
+                  <th className={th}>ขั้นตอน</th>
+                  <th className={th}>เครื่องจักร</th>
+                  <th className={th}>ห้อง</th>
+                  <th className={th}>เคลียร์ของเก่า</th>
+                  <th className={th}>ทำความสะอาด</th>
+                  <th className={th}>ตั้งเครื่อง</th>
+                  <th className={th}>คน</th>
+                  <th className={th}>ผู้ทำ</th>
+                  <th className={th}>ผู้ยืนยัน</th>
+                  <th className={th}>สรุป</th>
+                </tr>
+              </thead>
+              <tbody>
+                {r.lineClearances.map((c) => (
+                  <tr key={c.id}>
+                    <td className={td}>
+                      {c.step_no}. {c.station_name}
+                    </td>
+                    <td className={td}>{c.machine_label}</td>
+                    <td className={td}>{c.room ?? "—"}</td>
+                    <td className={td}>
+                      {yes(c.cleared_old)}
+                      {c.cleared_old_time ? ` (${c.cleared_old_time})` : ""}
+                    </td>
+                    <td className={td}>
+                      {yes(c.cleaned)}
+                      {c.cleaned_time ? ` (${c.cleaned_time})` : ""}
+                    </td>
+                    <td className={td}>
+                      {yes(c.setup_done)}
+                      {c.setup_minutes != null ? ` (${c.setup_minutes} นาที)` : ""}
+                    </td>
+                    <td className={td}>{c.headcount ?? "—"}</td>
+                    <td className={td}>{c.performed_by_name ?? "—"}</td>
+                    <td className={td}>{c.checked_by_name ?? "—"}</td>
+                    <td className={td}>{c.passed ? "✓ ผ่าน" : "ยังไม่ผ่าน"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           ) : (
             <p className="text-sm text-muted-foreground">— ไม่มีบันทึก Line Clearance</p>
           )}

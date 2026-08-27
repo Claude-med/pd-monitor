@@ -18,6 +18,8 @@ import { hasAnyRole } from "@/lib/auth/roles";
  *      canEditJobMaterials()       ↔ public.can_edit_job_materials()      (0056)
  *      canSetJobMaterialStatus()   ↔ public.can_set_job_material_status() (0056)
  *      canEditJobRouteMachines()   ↔ public.can_edit_job_route_machines() (0061)
+ *      canPerformLineClearance()   ↔ public.can_perform_line_clearance()  (0062)
+ *      canCheckLineClearance()     ↔ public.can_check_line_clearance()    (0062)
  *    DB เป็นด่านบังคับจริง · ฝั่งแอปใช้ตัดสินว่าจะ "แสดงปุ่ม/ช่องกรอก" ไหน
  *    (canSeeCost เป็นการอ่านล้วน — คุมที่แอปอย่างเดียว ไม่มี guard ใน DB)
  */
@@ -255,4 +257,24 @@ export function canSeeCost(roles: AppRole[]): boolean {
  */
 export function canEditJobRouteMachines(roles: AppRole[]): boolean {
   return hasAnyRole(roles, ["production", "production_lead", "manager"]);
+}
+
+/**
+ * บันทึก/ติ๊ก Line Clearance — ตรงกับ can_perform_line_clearance() ใน DB (0062)
+ * พนักงานฝ่ายผลิตเป็นคนทำหน้างาน
+ */
+export function canPerformLineClearance(roles: AppRole[]): boolean {
+  return hasAnyRole(roles, ["production", "production_lead", "manager"]);
+}
+
+/**
+ * ยืนยัน Line Clearance — ตรงกับ can_check_line_clearance() ใน DB (0062)
+ * ⚠️ เปลี่ยนจากของเดิม (production/qc/qa/manager) เป็น "หัวหน้าฝ่ายผลิต/ผู้บริหาร" เท่านั้น
+ *    ทีมยืนยันว่าผู้ตรวจรับคือหัวหน้าห้อง/หัวหน้าฝ่ายผลิต ไม่ใช่ QC
+ *
+ * ⚠️ ห้าม or รวมกับ canPerformLineClearance() — ฝ่ายผลิตต้อง "ทำได้แต่ยืนยันเองไม่ได้"
+ *    (DB ยังกันซ้ำอีกชั้นว่าผู้ยืนยันต้องคนละคนกับผู้ทำ)
+ */
+export function canCheckLineClearance(roles: AppRole[]): boolean {
+  return hasAnyRole(roles, ["production_lead", "manager"]);
 }

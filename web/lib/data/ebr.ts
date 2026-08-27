@@ -3,7 +3,8 @@ import { getJobByNo, type JobRow } from "@/lib/data/jobs";
 import { getRecordsForJob } from "@/lib/data/production";
 import type { ProductionRecordRow } from "@/lib/data/station-constants";
 import { getJobMaterials, type JobMaterialRow } from "@/lib/data/job-materials";
-import { getLineClearance, type LineClearance } from "@/lib/data/line-clearance";
+import { getLineClearances, type LineClearance } from "@/lib/data/line-clearance";
+import { getJobRouteSteps } from "@/lib/data/job-routes";
 import {
   getInprocessChecks,
   getQaSamples,
@@ -28,7 +29,12 @@ export type BatchRecord = {
   job: JobRow;
   records: ProductionRecordRow[];
   materials: JobMaterialRow[];
-  lineClearance: LineClearance | null;
+  /** Part C.3 ก้อน 4: LC เป็นหลายใบต่องาน (1 ใบต่อ ขั้นตอน × เครื่อง) */
+  lineClearances: (LineClearance & {
+    step_no: number;
+    station_name: string;
+    machine_label: string;
+  })[];
   inprocessChecks: InprocessCheck[];
   qaSamples: QaSample[];
   approvals: ApprovalRow[];
@@ -65,7 +71,8 @@ export async function getBatchRecord(jobNo: string): Promise<BatchRecord | null>
   const [
     records,
     materials,
-    lineClearance,
+    lcRows,
+    steps,
     inprocessChecks,
     qaSamples,
     approvals,
@@ -74,13 +81,38 @@ export async function getBatchRecord(jobNo: string): Promise<BatchRecord | null>
   ] = await Promise.all([
     getRecordsForJob(job.id),
     getJobMaterials(job.id),
-    getLineClearance(job.id),
+    getLineClearances(job.id),
+    getJobRouteSteps(job.id),
     getInprocessChecks(job.id),
     getQaSamples(job.id),
     getApprovalsForJob(job.id),
     getDeviationsByJob(job.id),
     getFgReceived(job.id),
   ]);
+
+  // เติมชื่อขั้นตอน/เครื่องให้ใบ LC เพื่อพิมพ์ลงแฟ้ม (LC เก็บแต่ id)
+  const stepById = new Map(steps.map((s) => [s.id, s]));
+  const machineLabel = new Map<string, string>();
+  for (const st of steps) {
+    for (const m of st.machines) {
+      machineLabel.set(m.machine_id, `${m.code} · ${m.name}`);
+    }
+  }
+  const lineClearances = lcRows
+    .map((c) => {
+      const st = stepById.get(c.job_route_id);
+      return {
+        ...c,
+        step_no: st?.step_no ?? 0,
+        station_name: st?.station_name ?? "—",
+        machine_label: machineLabel.get(c.machine_id) ?? "—",
+      };
+    })
+    .sort((a, b) =>
+      a.step_no !== b.step_no
+        ? a.step_no - b.step_no
+        : a.machine_label.localeCompare(b.machine_label),
+    );
 
   const machinesUsed = Array.from(
     new Set(
@@ -94,7 +126,7 @@ export async function getBatchRecord(jobNo: string): Promise<BatchRecord | null>
     job,
     records,
     materials,
-    lineClearance,
+    lineClearances,
     inprocessChecks,
     qaSamples,
     approvals,
