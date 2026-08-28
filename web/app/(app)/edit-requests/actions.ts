@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getProfile } from "@/lib/auth/dal";
 import { hasAnyRole } from "@/lib/auth/roles";
+import { EDIT_REVIEWER_ROLES } from "@/lib/data/edit-request-constants";
 
 export type ActionResult = { ok?: boolean; error?: string };
 
@@ -14,7 +15,7 @@ export async function reviewEditRequest(
   note: string,
 ): Promise<ActionResult> {
   const profile = await getProfile();
-  if (!profile || !hasAnyRole(profile.roles, ["manager", "qa"]))
+  if (!profile || !hasAnyRole(profile.roles, EDIT_REVIEWER_ROLES))
     return { error: "ไม่มีสิทธิ์อนุมัติคำขอแก้ไข" };
 
   const supabase = await createClient();

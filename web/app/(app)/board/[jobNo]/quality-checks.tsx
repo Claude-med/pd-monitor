@@ -343,11 +343,6 @@ export function QualityChecks({
                   <div className="mt-1 text-xs text-muted-foreground">
                     {fmtDateTime(s.collected_at)} · {s.collector_name ?? "—"}
                   </div>
-                  {s.sample_point && (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      จุด/รอบ (ข้อมูลเดิม): {s.sample_point}
-                    </p>
-                  )}
                   {s.note && (
                     <p className="mt-1 text-xs text-muted-foreground">📝 {s.note}</p>
                   )}
@@ -390,11 +385,6 @@ export function QualityChecks({
                       </td>
                       <td className="px-2 py-2 text-muted-foreground">
                         {s.note ?? ""}
-                        {s.sample_point && (
-                          <span className="block text-xs">
-                            จุด/รอบ (ข้อมูลเดิม): {s.sample_point}
-                          </span>
-                        )}
                       </td>
                       {canSample && (
                         <td className="px-2 py-2">

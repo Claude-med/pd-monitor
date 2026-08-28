@@ -59,12 +59,21 @@ export function fieldLabel(key: string): string {
 
 /**
  * ผู้ใช้อนุมัติ/ปฏิเสธคำขอแก้ไขชนิดนี้ได้ไหม — สะท้อนกติกา server RPC review_edit_request
- * (manager/admin อนุมัติได้ทุกชนิด · qa อนุมัติได้เฉพาะผลตรวจ QC ระหว่างผลิต)
+ * (manager/admin อนุมัติได้ทุกชนิด · qa + qc_lead อนุมัติได้เฉพาะผลตรวจ QC ระหว่างผลิต)
+ *
+ * Part D (0073): เพิ่ม qc_lead — เดิมคนที่ "กดขอแก้" ผลตรวจ in-process ได้คือ qc/qc_lead/manager
+ * แต่คนที่ "อนุมัติ" ได้มีแค่ manager/qa → หัวหน้า QC ยื่นเองแล้วไม่มีใครในสายงานกดอนุมัติได้
  */
+export const EDIT_REVIEWER_ROLES: AppRole[] = [
+  "manager",
+  "qa",
+  "qc_lead",
+];
+
 export function canReviewEdit(
   roles: AppRole[],
   targetType: EditTargetType,
 ): boolean {
   if (hasAnyRole(roles, ["manager", "admin"])) return true;
-  return targetType === "inprocess_check" && hasAnyRole(roles, ["qa"]);
+  return targetType === "inprocess_check" && hasAnyRole(roles, ["qa", "qc_lead"]);
 }

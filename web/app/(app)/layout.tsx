@@ -4,6 +4,7 @@ import { getUnreadCount } from "@/lib/data/notifications";
 import { getPendingEditCount } from "@/lib/data/edit-requests";
 import { hasAnyRole } from "@/lib/auth/roles";
 import { AppShell } from "@/components/app-shell";
+import { EDIT_REVIEWER_ROLES } from "@/lib/data/edit-request-constants";
 
 export default async function AppLayout({
   children,
@@ -32,7 +33,7 @@ export default async function AppLayout({
   }
 
   const unreadCount = await getUnreadCount();
-  const pendingEditCount = hasAnyRole(profile.roles, ["manager", "qa"])
+  const pendingEditCount = hasAnyRole(profile.roles, EDIT_REVIEWER_ROLES)
     ? await getPendingEditCount(profile.roles)
     : 0;
 

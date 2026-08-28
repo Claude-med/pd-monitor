@@ -5,13 +5,14 @@ import {
   getPendingEditRequests,
   getTargetSnapshot,
 } from "@/lib/data/edit-requests";
+import { EDIT_REVIEWER_ROLES } from "@/lib/data/edit-request-constants";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
 import { EditRequestsView } from "./edit-requests-view";
 
 export default async function EditRequestsPage() {
   const profile = await getProfile();
   const roles = profile?.roles ?? [];
-  if (!hasAnyRole(roles, ["manager", "qa"])) redirect("/");
+  if (!hasAnyRole(roles, EDIT_REVIEWER_ROLES)) redirect("/");
 
   const pending = await getPendingEditRequests();
   // ค่าเดิม (before) ของแต่ละคำขอ — โชว์ diff

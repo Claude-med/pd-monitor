@@ -51,7 +51,8 @@ export const NAV_ITEMS: NavItem[] = [
   {
     href: "/edit-requests",
     label: "คำขอแก้ไข (Amendment)",
-    roles: ["manager", "qa"],
+    // Part D: หัวหน้า QC อนุมัติคำขอแก้ผลตรวจ in-process ได้แล้ว → ต้องเห็นเมนูนี้ด้วย
+    roles: ["manager", "qa", "qc_lead"],
     ready: true,
   },
   {

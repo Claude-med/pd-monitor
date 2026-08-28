@@ -105,7 +105,9 @@ export async function getTargetSnapshot(
   const cols =
     targetType === "production_record"
       ? "input_qty, output_qty, loss_qty, minutes, headcount, note, record_date, station_id, machine_id, input_unit, output_unit, loss_unit, shift, work_period"
-      : "param, value, unit, result, note";
+      // Part D: เดิมขาด station_id/valid_date ทั้งที่ whitelist ของ request_edit เปิดให้แก้ได้
+      //          (0065:136) → คอลัมน์ "ค่าเดิม" ในหน้ารีวิวขึ้น "—" ผู้อนุมัติเห็น diff ไม่ครบ
+      : "param, value, unit, result, note, station_id, valid_date";
   const { data } = await supabase.from(table).select(cols).eq("id", targetId).single();
   const out: Record<string, string> = {};
   if (data)

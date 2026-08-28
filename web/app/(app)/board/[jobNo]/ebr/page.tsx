@@ -353,12 +353,6 @@ export default async function EbrPage({
                     <td className={td}>{dt(s.collected_at)}</td>
                     <td className={td}>
                       {s.result ? QA_RESULT_META[s.result].label : "—"}
-                      {/* แถวก่อน Part C.4 ยังมีข้อความ "จุด/รอบ" อยู่ — พิมพ์กำกับไว้ ไม่ให้ประวัติหาย */}
-                      {s.sample_point && (
-                        <span className="block text-xs text-muted-foreground">
-                          จุด/รอบ (ข้อมูลเดิม): {s.sample_point}
-                        </span>
-                      )}
                     </td>
                     <td className={`${td} text-right tabular-nums`}>
                       {s.qty == null ? "—" : fmt(s.qty)} {s.unit ?? ""}

@@ -31,7 +31,6 @@ export type InprocessCheck = {
 export type QaSample = {
   id: string;
   /** เลิกใช้ตั้งแต่ Part C.4 — null ในแถวใหม่ · แถวเก่ายังมีข้อความอยู่ (0066) */
-  sample_point: string | null;
   qty: number | null;
   unit: string | null;
   /** ผลตรวจ Finished product — null = แถวเก่าที่ยังไม่ได้ลงผล */
@@ -91,7 +90,7 @@ export async function getQaSamples(jobId: string): Promise<QaSample[]> {
   const { data, error } = await supabase
     .from("qa_samples")
     .select(
-      `id, sample_point, qty, unit, result, collected_at, note,
+      `id, qty, unit, result, collected_at, note,
        collector:profiles!collected_by ( full_name )`,
     )
     .eq("job_id", jobId)
@@ -101,7 +100,6 @@ export async function getQaSamples(jobId: string): Promise<QaSample[]> {
   if (error || !data) return [];
   return (data as any[]).map((r) => ({
     id: r.id,
-    sample_point: r.sample_point ?? null,
     qty: r.qty === null ? null : Number(r.qty),
     unit: r.unit,
     result: r.result ?? null,
