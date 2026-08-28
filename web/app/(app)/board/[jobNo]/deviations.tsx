@@ -31,6 +31,8 @@ import {
 const inputClass =
   "w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring";
 const labelClass = "mb-1 block text-xs font-medium text-muted-foreground";
+const readOnlyClass =
+  "rounded-md border border-dashed border-input bg-muted/40 px-3 py-2 text-sm text-muted-foreground";
 
 export function Deviations({
   jobId,
@@ -143,7 +145,8 @@ function DeviationItem({
   const done = !isDeviationOpen(dev.status);
   // แผนกของผู้ใช้ถูกมอบหมายและยังไม่ได้บันทึกผล → ถึงจะโชว์ปุ่มส่งกลับ
   const myDept = dev.departments.find((d) => d.role_group === currentRoleGroup);
-  const canRespond = dev.status === "in_progress" && myDept && !myDept.responded_at;
+  const canRespond =
+    dev.status === "in_progress" && !!myDept && !myDept.responded_at;
   const respondedCount = dev.departments.filter((d) => d.responded_at).length;
 
   return (
@@ -279,25 +282,45 @@ function DeviationItem({
             </p>
           )}
 
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => setEditing((e) => !e)}
-              className="rounded-md border px-3 py-1 text-xs hover:bg-accent"
-            >
-              {editing ? "ปิดฟอร์ม" : "อัปเดต / ปิด"}
-            </button>
-            {/* ปุ่มส่งกลับ = เฉพาะแผนกที่ถูกมอบหมายและยังไม่ตอบ (DB กันซ้ำอีกชั้น) */}
-            {canRespond && <ResolutionButton jobNo={jobNo} deviationId={dev.id} />}
-          </div>
-          {editing && (
-            <UpdateForm
-              jobNo={jobNo}
-              dev={dev}
-              canClose={canClose}
-              onDone={() => setEditing(false)}
-            />
+          {/* Part D — ปุ่มเดียวต่อบทบาท (เดิมทุกคนเห็น "อัปเดต / ปิด")
+              QA/ผู้บริหาร                 → "ตรวจสอบผลแก้ไข" (แก้สถานะ/ความรุนแรง/ปิดเคสได้)
+              แผนกที่ถูกมอบหมายและยังไม่ตอบ → "รายงานผลแก้ไข" (เขียนผลแล้วส่ง QA ในคลิกเดียว)
+              คนอื่น / เคสยังรอ QA คัดแยก   → ไม่มีปุ่ม เห็นแต่ช่องหมายเหตุ */}
+          {(canReview || canRespond) && (
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setEditing((e) => !e)}
+                className="rounded-md border px-3 py-1 text-xs hover:bg-accent"
+              >
+                {editing
+                  ? "ปิดฟอร์ม"
+                  : canReview
+                    ? "ตรวจสอบผลแก้ไข"
+                    : "รายงานผลแก้ไข"}
+              </button>
+            </div>
           )}
+          {myDept?.responded_at && (
+            <p className="rounded-md bg-emerald-500/10 px-3 py-2 text-xs text-emerald-700 dark:text-emerald-400">
+              ✓ ฝ่ายคุณส่งผลแก้ไขให้ QA แล้ว
+            </p>
+          )}
+          {editing &&
+            (canReview ? (
+              <UpdateForm
+                jobNo={jobNo}
+                dev={dev}
+                canClose={canClose}
+                onDone={() => setEditing(false)}
+              />
+            ) : (
+              <ReportForm
+                jobNo={jobNo}
+                dev={dev}
+                onDone={() => setEditing(false)}
+              />
+            ))}
           <CommentBox jobNo={jobNo} deviationId={dev.id} />
         </div>
       )}
@@ -356,68 +379,96 @@ function CommentBox({
 }
 
 /** D2: ปุ่ม "แก้ไขเรียบร้อย — ส่งให้ QA ตรวจสอบ" */
-function ResolutionButton({
+/**
+ * Part D — "รายงานผลแก้ไข" ของแผนกที่ถูกมอบหมาย
+ *
+ * เขียนผลแล้วส่งกลับให้ QA ในคลิกเดียว (เดิมต้องกด "อัปเดต / ปิด" แล้วออกมากด
+ * ปุ่ม "ส่งกลับให้ QA" อีกที) · สถานะกับความรุนแรงโชว์ให้เห็นแต่แก้ไม่ได้ — เป็นสิทธิ์ของ QA
+ */
+function ReportForm({
   jobNo,
-  deviationId,
+  dev,
+  onDone,
 }: {
   jobNo: string;
-  deviationId: string;
+  dev: Deviation;
+  onDone: () => void;
 }) {
-  const [open, setOpen] = useState(false);
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const router = useRouter();
 
+  const statusLabel =
+    DEVIATION_STATUS.find((s) => s.key === dev.status)?.label ?? dev.status;
+  const severityLabel =
+    DEVIATION_SEVERITY.find((s) => s.key === dev.severity)?.label ?? dev.severity;
+
   function submit() {
     setError(null);
     start(async () => {
-      const res = await submitDeviationResolution(jobNo, deviationId, note);
+      const res = await submitDeviationResolution(jobNo, dev.id, note);
       if (res.ok) {
-        setOpen(false);
         setNote("");
         router.refresh();
+        onDone();
         return;
       }
       setError(res.error ?? "ส่งให้ QA ไม่สำเร็จ");
     });
   }
 
-  if (!open) {
-    return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="rounded-md border border-sky-300 bg-sky-50 px-3 py-1 text-xs text-sky-800 hover:bg-sky-100 dark:bg-sky-950/30 dark:text-sky-300"
-      >
-        ✅ แก้ไขเรียบร้อย — ส่งกลับให้ QA อนุมัติ
-      </button>
-    );
-  }
-
   return (
-    <div className="w-full space-y-2 rounded-md border bg-sky-50/50 p-2 dark:bg-sky-950/20">
-      <label className={labelClass}>สรุปสิ่งที่แก้ไข (ถ้ามี)</label>
-      <textarea
-        value={note}
-        onChange={(e) => setNote(e.target.value)}
-        rows={2}
-        className={inputClass}
-      />
-      {error && <p className="text-xs text-destructive">{error}</p>}
+    <div className="space-y-3 rounded-md border border-sky-300/60 bg-sky-50/50 p-3 dark:bg-sky-950/20">
+      <p className="text-xs font-medium text-sky-900 dark:text-sky-300">
+        รายงานผลแก้ไขของฝ่ายคุณ — กดส่งแล้วเคสกลับไปหา QA ทันที
+      </p>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {/* สถานะ/ความรุนแรง: เห็นได้แต่แก้ไม่ได้ — เป็นสิทธิ์ของ QA */}
+        <div>
+          <label className={labelClass}>สถานะ 🔒</label>
+          <div className={readOnlyClass}>{statusLabel}</div>
+        </div>
+        <div>
+          <label className={labelClass}>ความรุนแรง 🔒</label>
+          <div className={readOnlyClass}>{severityLabel}</div>
+        </div>
+        <div className="sm:col-span-2">
+          <label className={labelClass}>สรุปสิ่งที่แก้ไข</label>
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            rows={3}
+            placeholder="เช่น เปลี่ยนตะแกรงใหม่ + สอบเทียบเครื่องแล้ว"
+            className={inputClass}
+          />
+        </div>
+      </div>
+
+      <p className="text-[11px] text-muted-foreground">
+        สถานะและความรุนแรงปรับได้เฉพาะ QA — ฝ่ายที่รับผิดชอบกรอกได้แค่ผลการแก้ไข
+      </p>
+
+      {error && (
+        <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          {error}
+        </p>
+      )}
+
       <div className="flex gap-2">
         <button
           type="button"
           disabled={pending}
           onClick={submit}
-          className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
         >
-          {pending ? "กำลังส่ง…" : "ส่งกลับให้ QA"}
+          {pending ? "กำลังส่ง…" : "ส่งผลแก้ไขให้ QA"}
         </button>
         <button
           type="button"
-          onClick={() => setOpen(false)}
-          className="rounded-md border px-3 py-1.5 text-xs hover:bg-accent"
+          onClick={onDone}
+          className="rounded-md border px-4 py-2 text-sm hover:bg-accent"
         >
           ยกเลิก
         </button>
@@ -441,9 +492,10 @@ function UpdateForm({
     status: dev.status as string,
     capa: dev.capa ?? "",
     severity: dev.severity as string,
-    due_date: dev.due_date ?? "",
     note: "",
   });
+  // Part D: ตัดช่อง "กำหนดปิด" ออกจากฟอร์มนี้ — ไม่ส่ง p_due_date ไป RPC แล้ว
+  // (update_deviation ใช้ coalesce(p_due_date, due_date) ค่าเดิมจึงคงอยู่)
   // ปิดก่อนที่แผนกจะส่งกลับครบ = ข้ามขั้น ต้องมีเหตุผลกำกับไว้ในประวัติ
   const skipping = v.status === "closed" && dev.status !== "qa_verify";
   const needNote = skipping || v.status === "cancelled";
@@ -470,6 +522,9 @@ function UpdateForm({
 
   return (
     <div className="space-y-3 rounded-md border bg-muted/30 p-3">
+      <p className="text-xs font-medium text-muted-foreground">
+        QA ตรวจสอบผลแก้ไข — ปรับสถานะ/ความรุนแรง หรือปิดเคส
+      </p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <label className={labelClass}>สถานะ</label>
@@ -509,15 +564,6 @@ function UpdateForm({
             value={v.capa}
             onChange={(e) => set("capa", e.target.value)}
             rows={2}
-            className={inputClass}
-          />
-        </div>
-        <div>
-          <label className={labelClass}>กำหนดปิด</label>
-          <input
-            type="date"
-            value={v.due_date}
-            onChange={(e) => set("due_date", e.target.value)}
             className={inputClass}
           />
         </div>
@@ -621,11 +667,29 @@ function QaReviewForm({ jobNo, dev }: { jobNo: string; dev: Deviation }) {
     });
   }
 
+  /**
+   * 🐞 Part D — useState อ่านค่าตั้งต้นแค่ตอน mount เท่านั้น
+   * หลัง router.refresh() React ยังเก็บ state เดิมไว้ (key ของ DeviationItem ไม่เปลี่ยน)
+   * ทำให้แผนกที่เพิ่งถอดออกยัง "ติ๊กค้าง" และถ้ากดบันทึกซ้ำจะถูกใส่กลับเข้าไปจริงๆ
+   * → ล้างค่าจาก props ใหม่ทุกครั้งที่เปิดฟอร์ม
+   */
+  function openForm() {
+    setDepts(dev.departments.map((d) => d.role_group));
+    setV({
+      case_type: dev.case_type ?? "",
+      case_no: dev.case_no ?? "",
+      due_date: dev.due_date ?? "",
+      note: "",
+    });
+    setError(null);
+    setOpen(true);
+  }
+
   if (!open) {
     return (
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={openForm}
         className="rounded-md border border-violet-400 bg-violet-50 px-3 py-1.5 text-xs font-medium text-violet-800 hover:bg-violet-100 dark:bg-violet-950/30 dark:text-violet-300"
       >
         {first ? "🔎 QA ตรวจสอบเคสนี้" : "🔎 แก้ไขการมอบหมาย"}
