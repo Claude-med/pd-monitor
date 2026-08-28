@@ -4,7 +4,7 @@ import { hasAnyRole } from "@/lib/auth/roles";
 import { getJobs, STATUS_COLOR, STATUS_LABEL } from "@/lib/data/jobs";
 import type { JobRow } from "@/lib/data/job-constants";
 import { getRecentApprovals } from "@/lib/data/quality";
-import { fmtDateTime } from "@/lib/format";
+import { fmtDateTime, displayJobNo } from "@/lib/format";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
 
 export const metadata = { title: "ตรวจ QC / QA — PD Monitor" };
@@ -40,7 +40,7 @@ function JobQueue({
                 href={`/board/${encodeURIComponent(j.job_no)}`}
                 className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border bg-background p-3 text-sm hover:border-primary hover:bg-accent/40"
               >
-                <span className="font-semibold text-primary">{j.job_no}</span>
+                <span className="font-semibold text-primary">{displayJobNo(j.job_no)}</span>
                 <span className="font-medium">{j.product_name ?? "—"}</span>
                 <span className="text-muted-foreground">{j.customer ?? "—"}</span>
                 {j.lot_no && (
@@ -123,7 +123,7 @@ export default async function QualityPage() {
                       href={`/board/${encodeURIComponent(a.job_no)}`}
                       className="font-semibold text-primary hover:underline"
                     >
-                      {a.job_no}
+                      {displayJobNo(a.job_no)}
                     </Link>
                   ) : (
                     <span className="font-semibold">—</span>

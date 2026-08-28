@@ -34,3 +34,41 @@ export function formatQty(qty: number | null, unit: string | null): string {
   if (qty == null) return unit ? `— ${unit}` : "— ไม่ระบุจำนวน";
   return `${qty.toLocaleString("th-TH")}${unit ? ` ${unit}` : ""}`;
 }
+
+/**
+ * เลขงานที่ "ให้คนอ่าน" — ตัดอักษรนำของบริษัทออก (Part D · 0071)
+ *
+ * ระบบเก็บ `jobs.job_no` เป็น `690001` (UMEDA) / `P690001` (POUND) เพื่อให้คอลัมน์ยัง unique
+ * แต่ทีมงานเรียกเลขเดียวกันว่า "690001" ทั้งสองบริษัท → ทุกที่ที่เรนเดอร์ให้คนอ่านต้องผ่านฟังก์ชันนี้
+ *
+ * 🚨 ห้ามใช้กับ `href` / `revalidatePath` / query — ตรงนั้นต้องเป็นค่าจริงจาก DB เสมอ
+ */
+export function displayJobNo(jobNo: string | null | undefined): string {
+  if (!jobNo) return "—";
+  return jobNo.replace(/^[A-Za-z]+/, "");
+}
+
+/**
+ * แทนเลขงานที่ฝังอยู่ในข้อความสำเร็จรูปด้วยเลขเปล่า
+ *
+ * ข้อความแจ้งเตือนถูกประกอบใน SQL ตั้งแต่ 0026/0029/0034 (เช่น `'งาน ' || v_job_no || ' ถูกตีกลับ'`)
+ * จึงฝังเลขจริง (`P690001`) ไว้ในตัวข้อความ — แทนตอนอ่านถูกกว่าไล่แก้ฟังก์ชันแจ้งเตือนทุกตัว
+ */
+export function stripJobNo(
+  text: string,
+  jobNo: string | null | undefined,
+): string;
+export function stripJobNo(
+  text: string | null | undefined,
+  jobNo: string | null | undefined,
+): string | null;
+export function stripJobNo(
+  text: string | null | undefined,
+  jobNo: string | null | undefined,
+): string | null {
+  if (!text) return text ?? null;
+  if (!jobNo) return text;
+  const shown = displayJobNo(jobNo);
+  if (shown === jobNo) return text; // ไม่มีอักษรนำ = ไม่ต้องทำอะไร
+  return text.split(jobNo).join(shown);
+}

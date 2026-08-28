@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { AppRole } from "@/lib/auth/dal";
 import type { JobRow } from "@/lib/data/job-constants";
+import { displayJobNo } from "@/lib/format";
 import { formatSubStatus } from "@/lib/data/job-constants";
 import type { JobSubStatusOption } from "@/lib/data/job-sub-statuses";
 import type { CustomerOption } from "@/lib/data/customers";
@@ -79,6 +80,7 @@ function toDraft(job: JobRow): Draft {
     customer_id: job.customer_id ?? "",
     cpo_date: job.cpo_date ?? "",
     request_no: job.request_no ?? "",
+    note: job.note ?? "",
     planned_start: job.planned_start ?? "",
     planned_end: job.planned_end ?? "",
     quantity: job.quantity != null ? String(job.quantity) : "",
@@ -213,10 +215,16 @@ export function JobInfoCard({
           <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             {/* Job No. = jobs.job_no ตรงๆ — orders.order_no คือ 'ORD-' + job_no เสมอ (0048)
                 จึงไม่ต้องตัด prefix ด้วย string ให้เสี่ยงพลาด */}
-            <Field label="Job No." value={job.job_no} />
+            <Field label="Job No." value={displayJobNo(job.job_no)} />
+            <Field label="บริษัท" value={job.company} />
             <Field label="ลูกค้า" value={job.customer} />
             <Field label="ใบคำขอ" value={job.request_no} />
             <Field label="C.P.O DATE" value={job.cpo_date} />
+            <Field
+              label="หมายเหตุ"
+              value={job.note}
+              className="col-span-2 sm:col-span-3"
+            />
             <Field label="กำหนดส่ง (due date)" value={job.due_date} />
             <Field
               label="Status"
@@ -283,7 +291,9 @@ export function JobInfoCard({
   return (
     <div className="space-y-4 rounded-xl border bg-card p-5">
       <div className="flex items-start justify-between gap-2">
-        <p className="text-sm font-semibold">แก้ไขข้อมูลงาน {job.job_no}</p>
+        <p className="text-sm font-semibold">
+          แก้ไขข้อมูลงาน {displayJobNo(job.job_no)}
+        </p>
         <button
           type="button"
           onClick={cancel}
@@ -296,7 +306,17 @@ export function JobInfoCard({
 
       <div className="grid gap-4 sm:grid-cols-2">
         {/* ช่องที่มาจากทะเบียน/ระบบ — ไม่มี role ไหนแก้ได้ */}
-        <LockedField label="Job No." value={job.job_no} reason="ระบบออกเลขให้ ห้ามแก้" />
+        <LockedField
+          label="Job No."
+          value={displayJobNo(job.job_no)}
+          reason="ระบบออกเลขให้ ห้ามแก้"
+        />
+        {/* บริษัทผูกกับเลขงานที่ออกไปแล้ว — เปลี่ยนบริษัท = เลขต้องเปลี่ยนตาม จึงล็อกตายเสมอ */}
+        <LockedField
+          label="บริษัท"
+          value={job.company}
+          reason="ผูกกับเลขงานที่ออกไปแล้ว — เปลี่ยนบริษัทไม่ได้"
+        />
         <LockedField
           label="ผลิตภัณฑ์ · Reg No."
           value={`${job.product_name ?? "—"}${job.reg_no ? ` · ${job.reg_no}` : ""}`}
@@ -351,6 +371,21 @@ export function JobInfoCard({
           </div>
         ) : (
           <LockedField label="C.P.O DATE" value={job.cpo_date} reason={lockReason("cpo_date")} />
+        )}
+
+        {/* หมายเหตุ (Part D) — ช่องข้อความยาว กินเต็มแถว */}
+        {editable("note") ? (
+          <div className="sm:col-span-2">
+            <label className={labelClass}>หมายเหตุ</label>
+            <textarea
+              value={draft.note}
+              onChange={(e) => set("note", e.target.value)}
+              rows={2}
+              className={inputClass}
+            />
+          </div>
+        ) : (
+          <LockedField label="หมายเหตุ" value={job.note} reason={lockReason("note")} />
         )}
 
         {/* กำหนดส่ง */}

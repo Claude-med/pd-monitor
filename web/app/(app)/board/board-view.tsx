@@ -7,6 +7,7 @@ import {
   PROBLEM_FLAGS,
   type JobRow,
 } from "@/lib/data/job-constants";
+import { displayJobNo } from "@/lib/format";
 
 function fmtQty(n: number | null, unit: string | null) {
   if (n == null) return "—";
@@ -32,7 +33,12 @@ function JobCard({ job }: { job: JobRow }) {
     >
       <div className="flex items-start justify-between gap-2">
         <span className="text-sm font-semibold">
-          {job.job_no}
+          {displayJobNo(job.job_no)}
+          {job.company && (
+            <span className="ml-1.5 rounded bg-secondary px-1.5 py-0.5 align-middle text-[10px] font-medium text-secondary-foreground">
+              {job.company}
+            </span>
+          )}
           {job.lot_no && (
             <span className="font-normal text-muted-foreground">
               {" · "}Lot {job.lot_no}
@@ -82,7 +88,7 @@ export function BoardView({
       if (problemOnly && !j.problem) return false;
       if (q) {
         const hay =
-          `${j.job_no} ${j.lot_no ?? ""} ${j.customer ?? ""} ${j.product_name ?? ""}`.toLowerCase();
+          `${j.job_no} ${displayJobNo(j.job_no)} ${j.company ?? ""} ${j.lot_no ?? ""} ${j.customer ?? ""} ${j.product_name ?? ""}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;

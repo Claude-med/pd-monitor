@@ -3,6 +3,7 @@ import { getProfile } from "@/lib/auth/dal";
 import { canPlanJobs } from "@/lib/data/role-access";
 import { getProducts } from "@/lib/data/products";
 import { listCustomers } from "@/lib/data/customers";
+import { listCompanies } from "@/lib/data/companies";
 import { NewJobForm } from "./new-job-form";
 
 export const metadata = { title: "สร้างงานผลิตใหม่ — PD Monitor" };
@@ -10,9 +11,9 @@ export const metadata = { title: "สร้างงานผลิตใหม�
 export default async function NewJobPage() {
   const profile = await getProfile();
   const canCreate = canPlanJobs(profile?.roles ?? []);
-  const [products, customers] = canCreate
-    ? await Promise.all([getProducts(), listCustomers()])
-    : [[], []];
+  const [products, customers, companies] = canCreate
+    ? await Promise.all([getProducts(), listCustomers(), listCompanies()])
+    : [[], [], []];
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -30,7 +31,11 @@ export default async function NewJobPage() {
       </div>
 
       {canCreate ? (
-        <NewJobForm products={products} customers={customers} />
+        <NewJobForm
+          products={products}
+          customers={customers}
+          companies={companies}
+        />
       ) : (
         <p className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
           เฉพาะฝ่ายวางแผน/ผู้บริหารสร้างงานผลิตได้ — บัญชีของคุณไม่มีสิทธิ์นี้

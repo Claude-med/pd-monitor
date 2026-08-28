@@ -54,7 +54,7 @@ import {
 import { canRecordQaSample } from "@/lib/data/qa-sample-constants";
 import { listJobSubStatuses } from "@/lib/data/job-sub-statuses";
 import { listCustomers } from "@/lib/data/customers";
-import { fmtDateTime } from "@/lib/format";
+import { fmtDateTime, displayJobNo } from "@/lib/format";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
 import { JobActions } from "./job-actions";
 import { DeleteJobButton } from "./delete-job-button";
@@ -251,7 +251,14 @@ export default async function JobDetailPage({
 
       {/* หัวเรื่อง */}
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-2xl font-bold tracking-tight">{job.job_no}</h1>
+        <h1 className="text-2xl font-bold tracking-tight">
+          {displayJobNo(job.job_no)}
+        </h1>
+        {job.company && (
+          <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium text-secondary-foreground">
+            {job.company}
+          </span>
+        )}
         <span
           className="rounded-full px-2.5 py-1 text-xs font-medium text-white"
           style={{ backgroundColor: STATUS_COLOR[job.status] }}

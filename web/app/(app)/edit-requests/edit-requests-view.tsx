@@ -10,7 +10,7 @@ import {
   canReviewEdit,
   fieldLabel,
 } from "@/lib/data/edit-request-constants";
-import { fmtDateTime } from "@/lib/format";
+import { fmtDateTime, displayJobNo } from "@/lib/format";
 import { reviewEditRequest } from "./actions";
 
 export function EditRequestsView({
@@ -87,7 +87,7 @@ function RequestCard({
               href={`/board/${encodeURIComponent(req.job_no)}`}
               className="text-sm font-medium text-primary hover:underline"
             >
-              {req.job_no}
+              {displayJobNo(req.job_no)}
             </Link>
           )}
         </div>

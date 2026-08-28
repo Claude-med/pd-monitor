@@ -66,6 +66,12 @@ export const NAV_ITEMS: NavItem[] = [
     roles: ["manager"],
     ready: true,
   },
+  {
+    href: "/admin/companies",
+    label: "บริษัท / เลขงาน",
+    roles: ["manager"],
+    ready: true,
+  },
 ];
 
 /** ลำดับ role ทั้งหมด (ใช้ในหน้า admin จัดการผู้ใช้) — ตรงกับ enum app_role ใน DB */

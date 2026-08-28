@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { deleteJob } from "../actions";
+import { displayJobNo } from "@/lib/format";
 
 /**
  * ปุ่มลบงาน (ข้อ 2) — เห็นเฉพาะผู้บริหาร/ผู้ดูแล
@@ -53,7 +54,7 @@ export function DeleteJobButton({
   return (
     <div className="space-y-3 rounded-md border border-red-300 bg-red-50/60 p-3 dark:bg-red-950/20">
       <p className="text-sm font-medium text-red-800 dark:text-red-300">
-        ยืนยันลบงาน {jobNo}?
+        ยืนยันลบงาน {displayJobNo(jobNo)}?
       </p>
       <p className="text-xs text-red-700 dark:text-red-400">
         การลบจะลบข้อมูลทั้งหมดของงานนี้ถาวร (บันทึกผลผลิต · รายการเบิกวัตถุดิบ/บรรจุภัณฑ์ · ผลตรวจ QC/QA · เคลียร์ไลน์ · เหตุผิดปกติ · คลัง FG)

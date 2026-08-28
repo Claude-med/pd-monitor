@@ -27,6 +27,8 @@ export type MaterialUsed = {
 export type JobTrace = {
   job_id: string;
   job_no: string;
+  /** ชื่อบริษัท (Part D) — เลขงานซ้ำข้ามบริษัทได้ ต้องโชว์คู่กันเสมอ */
+  company: string | null;
   status: string;
   product_name: string | null;
   customer: string | null;
@@ -60,7 +62,7 @@ function assertOk(where: string, error: { message: string } | null): void {
   throw new Error(`ไล่ย้อนล็อตไม่สำเร็จ (${where}): ${error.message}`);
 }
 
-const JOB_SELECT = `id, job_no, status,
+const JOB_SELECT = `id, job_no, company, status,
        batches ( lot_no, manufacture_date, expiry_date ),
        orders ( order_no, customer, products ( name ) ),
        fg:fg_inventory ( qty, unit, location )`;
@@ -79,6 +81,7 @@ function shapeJobTrace(
   return {
     job_id: job.id,
     job_no: job.job_no,
+    company: job.company ?? null,
     status: job.status,
     product_name: product?.name ?? null,
     customer: order?.customer ?? null,

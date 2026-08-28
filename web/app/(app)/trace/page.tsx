@@ -8,7 +8,7 @@ import {
   MaterialTypeBadge,
   ReadyStatusBadge,
 } from "@/components/job-material-card";
-import { formatQty } from "@/lib/format";
+import { formatQty, displayJobNo } from "@/lib/format";
 
 export const metadata = { title: "ไล่ย้อนล็อต (Traceability) — PD Monitor" };
 
@@ -36,8 +36,13 @@ function JobTraceCard({ t }: { t: JobTrace }) {
           href={`/board/${encodeURIComponent(t.job_no)}`}
           className="font-semibold text-primary hover:underline"
         >
-          {t.job_no}
+          {displayJobNo(t.job_no)}
         </Link>
+        {t.company && (
+          <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
+            {t.company}
+          </span>
+        )}
         {statusBadge(t.status)}
         {t.deviation_open > 0 && (
           <span className="rounded-full bg-destructive/15 px-2 py-0.5 text-xs text-destructive">

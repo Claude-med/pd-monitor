@@ -9,6 +9,7 @@ import type { MaterialReadyStatus } from "@/lib/data/job-material-constants";
 import { STATUS_LABEL, STATUS_COLOR } from "@/lib/data/job-constants";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
 import { JobMaterialCard } from "@/components/job-material-card";
+import { displayJobNo } from "@/lib/format";
 
 export const metadata = { title: "เบิกวัตถุดิบ / บรรจุภัณฑ์ — PD Monitor" };
 
@@ -125,7 +126,7 @@ export default async function JobMaterialsPage({
             <section key={g.job_id} className="rounded-xl border bg-card p-5">
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-bold">{g.job_no}</span>
+                  <span className="font-bold">{displayJobNo(g.job_no)}</span>
                   <span className="text-sm text-muted-foreground">
                     {g.product_name ?? "—"}
                   </span>

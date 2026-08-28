@@ -103,6 +103,12 @@ export type JobRow = {
   reg_no: string | null;
   /** ลักษณะยา — products.appearance · ช่อง "รูปร่างลักษณะยา" บนใบแจ้งผลิต (แก้ที่หน้าผลิตภัณฑ์เท่านั้น) */
   appearance: string | null;
+  /** บริษัทเจ้าของงาน (Part D · 0071) — ผูกกับเลขงานที่ออกไปแล้ว แก้ทีหลังไม่ได้ */
+  company_id: string | null;
+  /** ชื่อบริษัท snapshot ตอนสร้างงาน */
+  company: string | null;
+  /** หมายเหตุของงาน — บริษัท POUND ใช้เป็นหลัก */
+  note: string | null;
   quantity: number | null;
   unit: string | null;
   /** กำหนดส่ง (orders.due_date) — Part C ยกมาแสดง/แก้ในหน้ารายละเอียดงาน */

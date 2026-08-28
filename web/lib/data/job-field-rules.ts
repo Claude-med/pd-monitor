@@ -23,6 +23,7 @@ export type JobFieldKey =
   | "customer_id"
   | "cpo_date"
   | "request_no"
+  | "note"
   | "planned_start"
   | "planned_end"
   | "quantity"
@@ -50,6 +51,7 @@ export const JOB_FIELD_RULES: Record<JobFieldKey, JobFieldRule> = {
   customer_id:    { key: "customer_id",    label: "ลูกค้า",             perm: "plan", lockFrom: 6 },
   cpo_date:       { key: "cpo_date",       label: "C.P.O DATE",       perm: "plan", lockFrom: 6 },
   request_no:     { key: "request_no",     label: "ใบคำขอ",            perm: "both", lockFrom: 6 },
+  note:           { key: "note",           label: "หมายเหตุ",           perm: "both", lockFrom: null },
   planned_start:  { key: "planned_start",  label: "แผนเริ่ม",           perm: "prod", lockFrom: 6 },
   planned_end:    { key: "planned_end",    label: "แผนเสร็จ",           perm: "prod", lockFrom: 6 },
   quantity:       { key: "quantity",       label: "Batch Size",       perm: "plan", lockFrom: 3 },

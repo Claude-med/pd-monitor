@@ -13,7 +13,7 @@ import {
   READY_STATUS_LABEL,
 } from "@/lib/data/job-material-constants";
 import { QA_RESULT_META } from "@/lib/data/qa-sample-constants";
-import { fmtDateTime } from "@/lib/format";
+import { fmtDateTime, displayJobNo } from "@/lib/format";
 import { PrintButton } from "./print-button";
 
 export const metadata = { title: "eBR — แฟ้มบันทึกการผลิต" };
@@ -91,7 +91,7 @@ export default async function EbrPage({
             </p>
           </div>
           <div className="text-right text-xs text-muted-foreground">
-            <p>เลขงาน: <b className="text-foreground">{job.job_no}</b></p>
+            <p>เลขงาน: <b className="text-foreground">{displayJobNo(job.job_no)}</b>{job.company ? ` · ${job.company}` : ""}</p>
             <p>สถานะ: {STATUS_LABEL[job.status] ?? job.status}</p>
             <p>พิมพ์เมื่อ: {fmtDateTime(new Date())}</p>
           </div>
@@ -100,7 +100,8 @@ export default async function EbrPage({
         {/* 1. ข้อมูลงาน */}
         <Section title="1. ข้อมูลงาน / ล็อต">
           <div className="grid gap-1 sm:grid-cols-2">
-            <Row label="Job No." value={job.job_no} />
+            <Row label="Job No." value={displayJobNo(job.job_no)} />
+            <Row label="บริษัท" value={job.company} />
             <Row label="ผลิตภัณฑ์" value={job.product_name} />
             <Row label="Reg No." value={job.reg_no} />
             <Row label="ลูกค้า" value={job.customer} />

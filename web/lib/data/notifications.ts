@@ -3,7 +3,7 @@ import { STATUS_LABEL } from "@/lib/data/job-constants";
 import { hasAnyRole } from "@/lib/auth/roles";
 import type { Profile } from "@/lib/auth/dal";
 import { STUCK_DAYS, type InboxItem } from "@/lib/data/notification-constants";
-import { fmtDate } from "@/lib/format";
+import { fmtDate, displayJobNo, stripJobNo } from "@/lib/format";
 
 // B4 — Notification (in-app inbox)
 //   stored  = แจ้งเตือนถาวรจาก event (reject / deviation) เก็บใน notifications + อ่าน/ยังไม่อ่าน
@@ -44,7 +44,7 @@ async function getDerivedAlerts(profile: Profile): Promise<InboxItem[]> {
       out.push({
         id: `overdue-${j.id}`,
         kind: "overdue",
-        title: `งาน ${j.job_no} เลยกำหนดเสร็จแล้ว`,
+        title: `งาน ${displayJobNo(j.job_no)} เลยกำหนดเสร็จแล้ว`,
         body: `แผนเสร็จ ${j.planned_end} · สถานะปัจจุบัน: ${STATUS_LABEL[j.status] ?? j.status}`,
         job_no: j.job_no,
         created_at: j.planned_end,
@@ -56,7 +56,7 @@ async function getDerivedAlerts(profile: Profile): Promise<InboxItem[]> {
       out.push({
         id: `stuck-${j.id}`,
         kind: "stuck",
-        title: `งาน ${j.job_no} ค้างสถานะนานเกิน ${STUCK_DAYS} วัน`,
+        title: `งาน ${displayJobNo(j.job_no)} ค้างสถานะนานเกิน ${STUCK_DAYS} วัน`,
         body: `สถานะ "${STATUS_LABEL[j.status] ?? j.status}" ไม่ขยับตั้งแต่ ${fmtDate(
           j.updated_at,
         )}`,
@@ -108,8 +108,10 @@ export async function getInbox(profile: Profile): Promise<InboxItem[]> {
     .map((n) => ({
       id: n.id,
       kind: n.kind,
-      title: n.title,
-      body: n.body,
+      // หัวข้อจาก SQL ฝังเลขงานจริงไว้ในข้อความ (เช่น "งาน P690001 ถูกตีกลับ")
+      // แทนที่ตอนอ่านให้เหลือเลขเปล่า — ถูกกว่าไปแก้ฟังก์ชันแจ้งเตือนทุกตัวใน migration เก่า
+      title: stripJobNo(n.title, n.job_no),
+      body: stripJobNo(n.body, n.job_no),
       job_no: n.job_no,
       created_at: n.created_at,
       read: readSet.has(n.id),

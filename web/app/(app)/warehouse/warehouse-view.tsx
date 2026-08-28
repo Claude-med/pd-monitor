@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { FgJob } from "@/lib/data/fg";
+import { displayJobNo } from "@/lib/format";
 import { receiveFg } from "./actions";
 
 const inputClass =
@@ -47,7 +48,7 @@ function FgJobCard({ job, canManage }: { job: FgJob; canManage: boolean }) {
               href={`/board/${job.job_no}`}
               className="font-medium hover:underline"
             >
-              {job.job_no}
+              {displayJobNo(job.job_no)}
             </Link>
             <span className="truncate text-sm text-muted-foreground">
               {job.product_name ?? "—"}

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getDailyReport } from "@/lib/data/daily";
+import { displayJobNo } from "@/lib/format";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
 
 function fmt(n: number | null): string {
@@ -100,7 +101,7 @@ export default async function DailyReportPage({
                         href={`/board/${encodeURIComponent(r.job_no)}`}
                         className="text-primary hover:underline"
                       >
-                        {r.job_no}
+                        {displayJobNo(r.job_no)}
                       </Link>
                     ) : (
                       "—"

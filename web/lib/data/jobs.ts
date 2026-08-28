@@ -6,7 +6,7 @@ export * from "@/lib/data/job-constants";
 
 const SELECT = `
   id, job_no, status, problem, problem_note, planned_start, planned_end,
-  request_no, cpo_date, sub_status, plan_month,
+  request_no, cpo_date, sub_status, plan_month, company_id, company, note,
   pack_type, pack_pattern_1, pack_pattern_2, pack_pattern_3,
   batches ( lot_no, manufacture_date, expiry_date ),
   orders ( order_no, customer, customer_id, quantity, unit, due_date, products ( code, name, dosage_form, reg_no, appearance ) )
@@ -45,6 +45,9 @@ function shape(r: any): JobRow {
     unit: order?.unit ?? null,
     due_date: order?.due_date ?? null,
     customer_id: order?.customer_id ?? null,
+    company_id: r.company_id ?? null,
+    company: r.company ?? null,
+    note: r.note ?? null,
     request_no: r.request_no ?? null,
     cpo_date: r.cpo_date ?? null,
     sub_status: r.sub_status ?? null,

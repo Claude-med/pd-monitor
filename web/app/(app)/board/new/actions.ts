@@ -8,6 +8,10 @@ import {
 } from "@/lib/data/job-constants";
 
 export type NewJobValues = {
+  /** id จากทะเบียนบริษัท (Part D · 0071) — ตัวกำหนดว่าเลขงานเดินชุดไหน */
+  company_id: string;
+  /** หมายเหตุ — โผล่เมื่อบริษัทที่เลือกตั้ง requires_note (POUND) */
+  note: string;
   /** id จากทะเบียนลูกค้า (Part 3 ก้อน 1) */
   customer_id: string;
   product_id: string;
@@ -36,6 +40,7 @@ export type ActionResult = { ok?: boolean; jobNos?: string[]; error?: string };
  *   - Status = ตั้งเป็น "ไม่มีแผน" ให้ทุกใบ
  */
 export async function createJobs(v: NewJobValues): Promise<ActionResult> {
+  if (!v.company_id) return { error: "กรุณาเลือกบริษัท" };
   if (!v.customer_id) return { error: "กรุณาเลือกลูกค้า" };
   if (!v.product_id) return { error: "กรุณาเลือกผลิตภัณฑ์" };
 
@@ -78,6 +83,8 @@ export async function createJobs(v: NewJobValues): Promise<ActionResult> {
     p_pack_pattern_2: packs[1] ?? null,
     p_pack_pattern_3: packs[2] ?? null,
     p_count: count,
+    p_company_id: v.company_id,
+    p_note: v.note.trim() || null,
   });
   if (error) return { error: error.message || "สร้างงานไม่สำเร็จ" };
 

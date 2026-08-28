@@ -4,7 +4,7 @@ import { useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { KIND_META, type InboxItem } from "@/lib/data/notification-constants";
-import { fmtDateTime } from "@/lib/format";
+import { fmtDateTime, displayJobNo } from "@/lib/format";
 import { markRead, markAllRead } from "./actions";
 
 export function InboxView({
@@ -99,7 +99,7 @@ function InboxRow({ item }: { item: InboxItem }) {
             href={`/board/${encodeURIComponent(item.job_no)}`}
             className="text-primary hover:underline"
           >
-            ไปที่งาน {item.job_no} →
+            ไปที่งาน {displayJobNo(item.job_no)} →
           </Link>
         )}
         {unread && (

@@ -4,14 +4,18 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { ProductOption } from "@/lib/data/products";
 import type { CustomerOption } from "@/lib/data/customers";
+import type { CompanyOption } from "@/lib/data/companies";
 import { PACK_TYPES } from "@/lib/data/packaging-constants";
 import { MAX_JOBS_PER_CREATE } from "@/lib/data/job-constants";
+import { displayJobNo } from "@/lib/format";
 import { CustomerPicker } from "./customer-picker";
 import { createJobs, type NewJobValues } from "./actions";
 
 const MAX_PACKS = 3;
 
 const EMPTY: NewJobValues = {
+  company_id: "",
+  note: "",
   customer_id: "",
   product_id: "",
   quantity: "",
@@ -30,9 +34,11 @@ const labelClass = "mb-1 block text-xs font-medium text-muted-foreground";
 export function NewJobForm({
   products,
   customers,
+  companies,
 }: {
   products: ProductOption[];
   customers: CustomerOption[];
+  companies: CompanyOption[];
 }) {
   const [v, setV] = useState<NewJobValues>(EMPTY);
   const [error, setError] = useState<string | null>(null);
@@ -48,6 +54,8 @@ export function NewJobForm({
   // (ด่านจริงอยู่ที่ DB — ตรงนี้แค่กันไม่ให้ผู้ใช้กรอกทั้งฟอร์มแล้วเจอ error ตอนท้าย)
   const picked = products.find((p) => p.id === v.product_id);
   const missingRoute = !!picked && !picked.has_route;
+  // บริษัทที่เลือก — ตัวกำหนดว่าจะโชว์ช่อง "หมายเหตุ" ไหม (POUND โชว์ · UMEDA ไม่โชว์)
+  const pickedCompany = companies.find((c) => c.id === v.company_id);
   // Part 3.1: หน่วยล็อกตามทะเบียนยา — แสดงอย่างเดียว ไม่เก็บใน state และไม่ส่งไป server
   // (server อ่านหน่วยจากทะเบียนเองใน createJobs)
 
@@ -100,7 +108,8 @@ export function NewJobForm({
         <p className="text-sm">
           เลขงาน{" "}
           <b>
-            {created[0]} – {created[created.length - 1]}
+            {displayJobNo(created[0])} –{" "}
+            {displayJobNo(created[created.length - 1])}
           </b>
         </p>
         <div className="flex flex-wrap gap-1.5">
@@ -111,7 +120,7 @@ export function NewJobForm({
               onClick={() => router.push(`/board/${encodeURIComponent(no)}`)}
               className="rounded-md border px-2 py-1 font-mono text-xs hover:bg-accent"
             >
-              {no}
+              {displayJobNo(no)}
             </button>
           ))}
         </div>
@@ -145,11 +154,29 @@ export function NewJobForm({
   return (
     <div className="space-y-5 rounded-xl border bg-card p-5">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {/* JOB NO. — Part 3: ระบบออกเลขให้เอง กรอกเองไม่ได้ */}
+        {/* บริษัท — Part D: ตัวกำหนดว่าเลขงานเดินชุดไหน · เลือกแล้วแก้ทีหลังไม่ได้ */}
+        <div>
+          <label className={labelClass}>บริษัท *</label>
+          <select
+            value={v.company_id}
+            onChange={(e) => set("company_id", e.target.value)}
+            className={inputClass}
+          >
+            <option value="">— เลือกบริษัท —</option>
+            {companies.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* JOB NO. — Part 3: ระบบออกเลขให้เอง กรอกเองไม่ได้
+            Part D: เลขเดินแยกชุดต่อบริษัท → บอกให้ชัดว่าเลขซ้ำข้ามบริษัทได้ */}
         <div>
           <label className={labelClass}>JOB NO.</label>
           <div className="rounded-md border border-dashed border-input bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
-            ระบบออกเลขให้อัตโนมัติ (69xxxx)
+            ระบบออกเลขให้อัตโนมัติ (69xxxx) — เดินเลขแยกตามบริษัท
           </div>
         </div>
 
@@ -239,6 +266,22 @@ export function NewJobForm({
             className={inputClass}
           />
         </div>
+
+        {/* หมายเหตุ — โผล่เฉพาะบริษัทที่ตั้ง requires_note ไว้ (POUND) */}
+        {pickedCompany?.requires_note && (
+          <div className="sm:col-span-2">
+            <label className={labelClass}>
+              หมายเหตุ ({pickedCompany.name})
+            </label>
+            <textarea
+              value={v.note}
+              onChange={(e) => set("note", e.target.value)}
+              rows={2}
+              placeholder="ข้อความที่จะไปอยู่บนใบแจ้งผลิตของงานชุดนี้"
+              className={inputClass}
+            />
+          </div>
+        )}
 
         {/* รูปแบบบรรจุ + ขนาดบรรจุ (สูงสุด 3) */}
         <div className="sm:col-span-2">
@@ -337,7 +380,7 @@ export function NewJobForm({
       <div className="flex gap-2">
         <button
           type="button"
-          disabled={pending || missingRoute || countInvalid}
+          disabled={pending || missingRoute || countInvalid || !v.company_id}
           onClick={submit}
           className="rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
         >
