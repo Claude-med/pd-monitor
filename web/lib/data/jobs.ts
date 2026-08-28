@@ -9,7 +9,7 @@ const SELECT = `
   request_no, cpo_date, sub_status, plan_month,
   pack_type, pack_pattern_1, pack_pattern_2, pack_pattern_3,
   batches ( lot_no, manufacture_date, expiry_date ),
-  orders ( order_no, customer, customer_id, quantity, unit, due_date, products ( code, name, dosage_form, reg_no ) )
+  orders ( order_no, customer, customer_id, quantity, unit, due_date, products ( code, name, dosage_form, reg_no, appearance ) )
 `;
 
 // supabase embed FK แบบ many-to-one อาจคืน object หรือ array — normalize ให้เป็น object
@@ -40,6 +40,7 @@ function shape(r: any): JobRow {
     product_code: product?.code ?? null,
     dosage_form: product?.dosage_form ?? null,
     reg_no: product?.reg_no ?? null,
+    appearance: product?.appearance ?? null,
     quantity: order?.quantity ?? null,
     unit: order?.unit ?? null,
     due_date: order?.due_date ?? null,

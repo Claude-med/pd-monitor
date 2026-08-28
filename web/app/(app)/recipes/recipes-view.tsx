@@ -541,6 +541,11 @@ function ProductCard({
             {product.dosage_form ? <> · ชนิด: {product.dosage_form}</> : null}
             {product.reg_no ? <> · REG NO. {product.reg_no}</> : null}
           </p>
+          {product.appearance && (
+            <p className="mt-0.5 break-words text-xs text-muted-foreground">
+              ลักษณะยา: {product.appearance}
+            </p>
+          )}
         </div>
         {canManageProducts && (
           <div className="flex gap-2">
@@ -779,6 +784,7 @@ function ProductForm({
     unit: product?.unit ?? "TAB",
     reg_no: product?.reg_no ?? "",
     dosage_form: product?.dosage_form ?? "",
+    appearance: product?.appearance ?? "",
   });
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -854,6 +860,17 @@ function ProductForm({
             value={v.dosage_form}
             onChange={(e) => setV((c) => ({ ...c, dosage_form: e.target.value }))}
             placeholder="เช่น TAB / CAP / F/C / CRM"
+            className={inputClass}
+          />
+        </div>
+        {/* ลักษณะยา = ช่อง "รูปร่างลักษณะยา" บนใบแจ้งผลิต F.PLN.01 — ข้อความยาว จึงกินเต็มแถว */}
+        <div className="sm:col-span-2">
+          <label className={labelClass}>ลักษณะยา</label>
+          <textarea
+            value={v.appearance}
+            onChange={(e) => setV((c) => ({ ...c, appearance: e.target.value }))}
+            rows={2}
+            placeholder="เช่น ยาเม็ดรูปกลมนูน เคลือบน้ำตาลสีขาว เรียบทั้งสองด้าน"
             className={inputClass}
           />
         </div>

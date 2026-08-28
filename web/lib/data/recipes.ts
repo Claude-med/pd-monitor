@@ -22,6 +22,8 @@ export type ProductWithRoute = {
   dosage_form: string | null;
   unit: string;
   reg_no: string | null;
+  /** ลักษณะยา — ช่อง "รูปร่างลักษณะยา" บนใบแจ้งผลิต F.PLN.01 (Part D · 0070) */
+  appearance: string | null;
   is_active: boolean;
   route: RouteStep[];
 };
@@ -32,7 +34,7 @@ export async function listProductsWithRoutes(): Promise<ProductWithRoute[]> {
   const { data, error } = await supabase
     .from("products")
     .select(
-      `id, code, name, dosage_form, unit, reg_no, is_active,
+      `id, code, name, dosage_form, unit, reg_no, appearance, is_active,
        route:product_routes (
          id, station_id, step_no, note,
          station:stations ( code, name )
@@ -49,6 +51,7 @@ export async function listProductsWithRoutes(): Promise<ProductWithRoute[]> {
     dosage_form: p.dosage_form ?? null,
     unit: p.unit ?? "",
     reg_no: p.reg_no ?? null,
+    appearance: p.appearance ?? null,
     is_active: p.is_active ?? true,
     route: ((p.route ?? []) as any[])
       .map((r) => ({

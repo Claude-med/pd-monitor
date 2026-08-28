@@ -39,6 +39,7 @@ export async function upsertProduct(v: {
   unit: string;
   reg_no: string;
   dosage_form: string;
+  appearance: string;
 }): Promise<ActionResult> {
   if (!(await requireProductManager())) return { error: NO_PRODUCT_PERM };
   if (!v.code.trim()) return { error: "กรุณาระบุรหัสผลิตภัณฑ์" };
@@ -52,6 +53,7 @@ export async function upsertProduct(v: {
     p_unit: v.unit.trim() || "TAB",
     p_reg_no: v.reg_no.trim() || null,
     p_dosage_form: v.dosage_form.trim() || null,
+    p_appearance: v.appearance.trim() || null,
   });
   if (error) return { error: error.message || "บันทึกผลิตภัณฑ์ไม่สำเร็จ" };
   revalidatePath("/recipes");

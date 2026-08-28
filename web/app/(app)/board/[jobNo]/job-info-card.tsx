@@ -23,10 +23,18 @@ const inputClass =
 const labelClass = "mb-1 block text-xs font-medium text-muted-foreground";
 
 /** ช่องอ่านอย่างเดียว — ว่าง (null หรือ "") ต้องขึ้น "—" ไม่ใช่ช่องเปล่า */
-function Field({ label, value }: { label: string; value: React.ReactNode }) {
+function Field({
+  label,
+  value,
+  className,
+}: {
+  label: string;
+  value: React.ReactNode;
+  className?: string;
+}) {
   const shown = value === null || value === undefined || value === "" ? "—" : value;
   return (
-    <div>
+    <div className={className}>
       <dt className="text-xs text-muted-foreground">{label}</dt>
       <dd className="mt-0.5 text-sm font-medium">{shown}</dd>
     </div>
@@ -218,6 +226,13 @@ export function JobInfoCard({
             <Field label="รหัสยา" value={job.product_code} />
             <Field label="ชนิด" value={job.dosage_form} />
             <Field label="Reg No." value={job.reg_no} />
+            {/* ลักษณะยา = ของทะเบียนผลิตภัณฑ์ ไม่ใช่ของงาน → อ่านอย่างเดียวเสมอ
+                ข้อความยาว จึงกินเต็มแถว */}
+            <Field
+              label="ลักษณะยา"
+              value={job.appearance}
+              className="col-span-2 sm:col-span-3"
+            />
             <Field
               label="Batch Size"
               value={

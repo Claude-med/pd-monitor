@@ -101,6 +101,8 @@ export type JobRow = {
   dosage_form: string | null;
   /** เลขทะเบียนตำรับยา — มาจากทะเบียนผลิตภัณฑ์ (แก้ที่หน้าผลิตภัณฑ์เท่านั้น ห้ามแก้ที่งาน) */
   reg_no: string | null;
+  /** ลักษณะยา — products.appearance · ช่อง "รูปร่างลักษณะยา" บนใบแจ้งผลิต (แก้ที่หน้าผลิตภัณฑ์เท่านั้น) */
+  appearance: string | null;
   quantity: number | null;
   unit: string | null;
   /** กำหนดส่ง (orders.due_date) — Part C ยกมาแสดง/แก้ในหน้ารายละเอียดงาน */
