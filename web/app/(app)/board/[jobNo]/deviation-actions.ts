@@ -155,7 +155,10 @@ export async function addDeviationComment(
   return { ok: true };
 }
 
-/** แผนกที่รับผิดชอบแจ้งว่าแก้ไขเรียบร้อย → ส่งกลับให้ QA อนุมัติ (แจ้งเตือน QA/ผู้บริหาร) */
+/**
+ * แผนกที่รับผิดชอบแจ้งว่าแก้ไขเรียบร้อย → ส่งกลับให้ QA อนุมัติ (แจ้งเตือน QA/ผู้บริหาร)
+ * Part C.4 เพิ่มเติม: บังคับกรอก "การแก้ไขเบื้องต้น" — กันซ้ำที่ RPC ด้วย ไม่ใช่แค่ปิดปุ่ม
+ */
 export async function submitDeviationResolution(
   jobNo: string,
   deviationId: string,
@@ -164,13 +167,39 @@ export async function submitDeviationResolution(
   const profile = await getProfile();
   if (!profile || !canCommentDeviation(profile.roles))
     return { error: "ไม่มีสิทธิ์ส่ง Incident Case กลับให้ QA" };
+  if (!note.trim())
+    return { error: 'กรุณากรอก "การแก้ไขเบื้องต้น" ก่อนส่งให้ QA' };
 
   const supabase = await createClient();
   const { error } = await supabase.rpc("submit_deviation_resolution", {
     p_id: deviationId,
-    p_note: note.trim() || null,
+    p_note: note.trim(),
   });
   if (error) return { error: error.message || "ส่งให้ QA ไม่สำเร็จ" };
+  revalidatePath(`/board/${jobNo}`);
+  return { ok: true };
+}
+
+/**
+ * ก้อน 2 — QA ตรวจผลแก้ไขแล้ว "ไม่ผ่าน" → ส่งกลับให้แผนกแก้ไขใหม่
+ * RPC จะถอยสถานะเป็น "ส่งแผนกแก้ไข" และล้าง responded_at ของทุกแผนก (2/2 → 0/2)
+ * เหตุผลที่ส่งกลับ = ไม่บังคับ
+ */
+export async function rejectDeviationResolution(
+  jobNo: string,
+  deviationId: string,
+  note: string,
+): Promise<ActionResult> {
+  const profile = await getProfile();
+  if (!profile || !canReviewIncident(profile.roles))
+    return { error: "ส่งกลับให้แผนกแก้ไขได้เฉพาะ QA/ผู้บริหาร" };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("qa_reject_resolution", {
+    p_id: deviationId,
+    p_note: note.trim() || null,
+  });
+  if (error) return { error: error.message || "ส่งกลับให้แผนกไม่สำเร็จ" };
   revalidatePath(`/board/${jobNo}`);
   return { ok: true };
 }

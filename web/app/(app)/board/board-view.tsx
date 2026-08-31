@@ -7,6 +7,7 @@ import {
   PROBLEM_FLAGS,
   type JobRow,
 } from "@/lib/data/job-constants";
+import type { CompanyOption } from "@/lib/data/companies";
 import { displayJobNo } from "@/lib/format";
 
 function fmtQty(n: number | null, unit: string | null) {
@@ -66,13 +67,16 @@ function JobCard({ job }: { job: JobRow }) {
 
 export function BoardView({
   jobs,
+  companies = [],
   canCreate = false,
 }: {
   jobs: JobRow[];
+  companies?: CompanyOption[];
   canCreate?: boolean;
 }) {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
+  const [company, setCompany] = useState("");
   const [problemOnly, setProblemOnly] = useState(false);
 
   // งานที่รับเข้าคลัง FG แล้ว = ถือว่าจบหน้าที่ ย้ายไปดูที่หน้า "คลัง / FG" → ซ่อนจากบอร์ด
@@ -81,9 +85,17 @@ export function BoardView({
     [jobs],
   );
 
+  // บริษัทเป็น "ขอบเขตการดู" ไม่ใช่ตัวกรองธรรมดา → คั่นไว้เหนือ filtered
+  // เพื่อให้การ์ด KPI นับตามบริษัทที่เลือกด้วย (ต่างจากสถานะ/ค้นหาที่ไม่กระทบ KPI)
+  // 🚨 กรองด้วย company_id — jobs.company เก็บชื่อเต็ม ("UMEDA CO., LTD.") ไม่ใช่ code
+  const companyJobs = useMemo(
+    () => (company ? boardJobs.filter((j) => j.company_id === company) : boardJobs),
+    [boardJobs, company],
+  );
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return boardJobs.filter((j) => {
+    return companyJobs.filter((j) => {
       if (status && j.status !== status) return false;
       if (problemOnly && !j.problem) return false;
       if (q) {
@@ -93,15 +105,21 @@ export function BoardView({
       }
       return true;
     });
-  }, [boardJobs, search, status, problemOnly]);
+  }, [companyJobs, search, status, problemOnly]);
 
-  const total = boardJobs.length;
-  const producing = boardJobs.filter((j) => j.status === "in_production").length;
-  // "เข้าคลังแล้ว" = งานที่รับเข้าคลัง FG จริง (มีใน fg_inventory)
-  const done = jobs.filter(
-    (j) => j.status === "finished_goods" && j.fg_received,
+  const total = companyJobs.length;
+  const producing = companyJobs.filter(
+    (j) => j.status === "in_production",
   ).length;
-  const problem = boardJobs.filter((j) => j.problem).length;
+  // "เข้าคลังแล้ว" = งานที่รับเข้าคลัง FG จริง (มีใน fg_inventory)
+  // นับจาก jobs เต็ม เพราะ boardJobs ตัดงานพวกนี้ออกไปแล้ว — แต่ยังต้องคิดบริษัทด้วย
+  const done = jobs.filter(
+    (j) =>
+      j.status === "finished_goods" &&
+      j.fg_received &&
+      (!company || j.company_id === company),
+  ).length;
+  const problem = companyJobs.filter((j) => j.problem).length;
 
   return (
     <div className="space-y-5">
@@ -151,6 +169,20 @@ export function BoardView({
             </option>
           ))}
         </select>
+        {companies.length > 0 && (
+          <select
+            value={company}
+            onChange={(e) => setCompany(e.target.value)}
+            className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+          >
+            <option value="">ทุกบริษัท</option>
+            {companies.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.code}
+              </option>
+            ))}
+          </select>
+        )}
         <button
           type="button"
           onClick={() => setProblemOnly((v) => !v)}

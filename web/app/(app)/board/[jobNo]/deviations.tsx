@@ -26,6 +26,7 @@ import {
   qaReviewDeviation,
   addDeviationComment,
   submitDeviationResolution,
+  rejectDeviationResolution,
 } from "./deviation-actions";
 
 const inputClass =
@@ -435,7 +436,7 @@ function ReportForm({
           <div className={readOnlyClass}>{severityLabel}</div>
         </div>
         <div className="sm:col-span-2">
-          <label className={labelClass}>สรุปสิ่งที่แก้ไข</label>
+          <label className={labelClass}>การแก้ไขเบื้องต้น *</label>
           <textarea
             value={note}
             onChange={(e) => setNote(e.target.value)}
@@ -447,7 +448,8 @@ function ReportForm({
       </div>
 
       <p className="text-[11px] text-muted-foreground">
-        สถานะและความรุนแรงปรับได้เฉพาะ QA — ฝ่ายที่รับผิดชอบกรอกได้แค่ผลการแก้ไข
+        ต้องกรอก &quot;การแก้ไขเบื้องต้น&quot; ก่อนถึงจะกดส่งได้ ·
+        สถานะและความรุนแรงปรับได้เฉพาะ QA
       </p>
 
       {error && (
@@ -459,7 +461,7 @@ function ReportForm({
       <div className="flex gap-2">
         <button
           type="button"
-          disabled={pending}
+          disabled={pending || !note.trim()}
           onClick={submit}
           className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
         >
@@ -499,6 +501,11 @@ function UpdateForm({
   // ปิดก่อนที่แผนกจะส่งกลับครบ = ข้ามขั้น ต้องมีเหตุผลกำกับไว้ในประวัติ
   const skipping = v.status === "closed" && dev.status !== "qa_verify";
   const needNote = skipping || v.status === "cancelled";
+  // ก้อน 2 — ปุ่ม "ไม่ผ่าน" โผล่เฉพาะตอนเคสรอ QA อนุมัติ และผู้ใช้เป็น QA/ผู้บริหาร
+  // เคสเก่าก่อน 0068 ที่ไม่มีแผนกเลย ตีกลับไม่ได้ (RPC ปฏิเสธ) → ไม่ต้องโชว์ปุ่ม
+  const rejectable =
+    canClose && dev.status === "qa_verify" && dev.departments.length > 0;
+  const [rejectNote, setRejectNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const router = useRouter();
@@ -517,6 +524,20 @@ function UpdateForm({
         return;
       }
       setError(res.error ?? "บันทึกไม่สำเร็จ");
+    });
+  }
+
+  function reject() {
+    setError(null);
+    start(async () => {
+      const res = await rejectDeviationResolution(jobNo, dev.id, rejectNote);
+      if (res.ok) {
+        setRejectNote("");
+        router.refresh();
+        onDone();
+        return;
+      }
+      setError(res.error ?? "ส่งกลับให้แผนกไม่สำเร็จ");
     });
   }
 
@@ -590,6 +611,35 @@ function UpdateForm({
           </div>
         )}
       </div>
+      {/* ก้อน 2 — QA ตรวจแล้วไม่ผ่าน: ส่งกลับให้แผนกแก้ไขใหม่
+          RPC ล้าง responded_at ของทุกแผนก → ตัวนับกลับเป็น 0/N และปุ่ม
+          "รายงานผลแก้ไข" ของแต่ละแผนกโผล่กลับมา (ไม่งั้นเคสล็อกตาย) */}
+      {rejectable && (
+        <div className="space-y-2 rounded-md border border-amber-400/50 bg-amber-500/10 p-3">
+          <p className="text-xs font-medium text-amber-900 dark:text-amber-300">
+            ตรวจแล้วไม่ผ่าน? ส่งกลับให้แผนกแก้ไขใหม่ — ทุกแผนกจะกลับไปเป็น
+            &quot;รอการแก้ไข&quot; (0/{dev.departments.length})
+          </p>
+          <div>
+            <label className={labelClass}>เหตุผลที่ส่งกลับ (ไม่บังคับ)</label>
+            <input
+              value={rejectNote}
+              onChange={(e) => setRejectNote(e.target.value)}
+              placeholder="เช่น ผลยังไม่ครอบคลุมเครื่องที่ 2"
+              className={inputClass}
+            />
+          </div>
+          <button
+            type="button"
+            disabled={pending}
+            onClick={reject}
+            className="rounded-md border border-amber-500/60 bg-background px-4 py-2 text-sm font-medium text-amber-900 hover:bg-amber-500/10 disabled:opacity-50 dark:text-amber-300"
+          >
+            {pending ? "กำลังส่งกลับ…" : "↩️ ไม่ผ่าน — ส่งกลับให้แผนกแก้ไข"}
+          </button>
+        </div>
+      )}
+
       {error && (
         <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {error}
