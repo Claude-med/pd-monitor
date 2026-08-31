@@ -107,7 +107,7 @@ export type JobRow = {
   company_id: string | null;
   /** ชื่อบริษัท snapshot ตอนสร้างงาน */
   company: string | null;
-  /** หมายเหตุของงาน — บริษัท POUND ใช้เป็นหลัก */
+  /** หมายเหตุของงาน — บริษัท POND ใช้เป็นหลัก */
   note: string | null;
   quantity: number | null;
   unit: string | null;

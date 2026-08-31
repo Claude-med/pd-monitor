@@ -162,29 +162,18 @@
 }
 
 /* ============================================================
-   พิมพ์ eBR (D12 / B1) — ซ่อน app chrome เหลือเฉพาะแฟ้ม #ebr
-   ใช้ visibility trick → ไม่ขึ้นกับโครง layout ของ app-shell
+   พิมพ์ — ส่วนกลางที่ "ทุกหน้า" ใช้ร่วมกันเท่านั้น
+   .no-print = ปุ่ม/แถบเครื่องมือ/เมนู ที่ไม่ต้องติดไปกับกระดาษ
+
+   🚨 CSS พิมพ์ที่เป็นของ "หน้าใดหน้าหนึ่ง" (visibility trick · @page · ขนาดกระดาษ)
+      ให้อยู่ที่หน้านั้นเป็น <style> ของตัวเอง — ห้ามย้ายกลับมาที่นี่
+      เหตุผล: @page เป็น global · ถ้าหน้าไหนต้องการขอบ/ขนาดต่างกัน (eBR 14mm vs
+      ใบแจ้งผลิต A4 8mm) มาอยู่รวมกันจะทับกันเงียบ ๆ และหน้าที่ไม่มี #ebr
+      จะโดน `body * { visibility: hidden }` เล่นจนพิมพ์ออกมาเป็นกระดาษเปล่า
+      ดู: app/(app)/board/[jobNo]/ebr/page.tsx · app/(app)/board/print-notice/notice-sheet.tsx
    ============================================================ */
 @media print {
-  body * {
-    visibility: hidden;
-  }
-  #ebr,
-  #ebr * {
-    visibility: visible;
-  }
-  #ebr {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    padding: 0;
-    color: #000;
-    background: #fff;
-  }
   .no-print {
     display: none !important;
-  }
-  @page {
-    margin: 14mm;
   }
 }

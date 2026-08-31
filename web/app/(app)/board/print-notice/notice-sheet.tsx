@@ -1,0 +1,442 @@
+import type { JobRow } from "@/lib/data/job-constants";
+import { displayJobNo, fmtDdMmYy } from "@/lib/format";
+
+/**
+ * ใบแจ้งผลิต F.PLN.01 — ตัวกระดาษ (Part D)
+ *
+ * แปลงตรงจากฟอร์มกระดาษจริงที่ทีมส่งมา 2 ไฟล์ (UMEDA / POND) — ขนาดทุกอย่างเป็น mm
+ * เพราะต้องพิมพ์ลง "กระดาษต่อเนื่องเคมีแบบฉีกครึ่ง A4" แล้วช่องต้องตรงกับของเดิม
+ *
+ * โครง 1 แผ่น = A4 = 2 Job แนวตั้ง สูงเท่ากันเป๊ะ (flex: 1 1 50%) + เส้นประตรงกลางไว้เล็งฉีก
+ *
+ * 🚨 CSS พิมพ์อยู่ในไฟล์นี้ ไม่ใช่ globals.css — @page เป็น global ถ้าเอาไปรวมจะทับกับ eBR
+ *    (เหตุผลเต็มอยู่ในคอมเมนต์ globals.css)
+ */
+
+/* ============================================================
+   CSS
+   ============================================================ */
+const NOTICE_PRINT_CSS = `
+@page { size: A4; margin: 8mm; }
+
+.pn-sheet {
+  box-sizing: border-box;
+  width: 194mm;
+  height: 280mm;
+  padding: 0 8mm;
+  display: flex;
+  flex-direction: column;
+  gap: 3mm;
+  background: #fff;
+  color: #000;
+  font-family: 'AngsanaUPC', 'Angsana New', 'CordiaUPC', 'Cordia New',
+               'TH SarabunPSK', 'Times New Roman', serif;
+  break-inside: avoid;
+}
+.pn-sheet + .pn-sheet { break-before: page; }
+
+.pn-half { flex: 1 1 50%; min-height: 0; display: flex; flex-direction: column; }
+.pn-tear { border-top: 1px dashed #b0b0b0; }
+
+/* ตัวย่ออัตโนมัติ — JS ใส่ transform/width ให้เมื่อฟอร์มสูงเกินครึ่งแผ่น (ดู print-notice-view.tsx) */
+.pn-fit { transform-origin: top left; }
+
+.pn-form { border: 2px solid #000; padding: 3mm 5mm; }
+.pn-header { border-bottom: 1.5px solid #000; padding-bottom: 1.5mm; margin-bottom: 1.5mm; text-align: center; }
+.pn-company { font-size: 17pt; font-weight: 700; letter-spacing: 1px; }
+.pn-company--wide { font-size: 18pt; }
+.pn-title { font-size: 15pt; font-weight: 700; margin-top: 0.5mm; }
+
+.pn-row { display: flex; font-size: 12pt; margin: 1mm 0; }
+.pn-row .pn-col { flex: 1; display: flex; }
+.pn-label { font-weight: 700; white-space: nowrap; }
+.pn-fill { border-bottom: 1px solid #000; flex: 1; margin-left: 2mm; min-height: 4mm; }
+.pn-jobno-label { font-weight: 700; font-size: 12pt; }
+.pn-jobno { font-size: 17pt; font-weight: 700; margin-left: 3mm; border-bottom: 1px solid #000; padding: 0 4mm; }
+.pn-regno { font-size: 15pt; font-weight: 700; margin-left: 3mm; }
+
+.pn-table { width: 100%; border-collapse: collapse; margin-top: 2mm; font-size: 11.5pt; table-layout: fixed; }
+.pn-table td, .pn-table th { border: 1px solid #000; padding: 1mm 1.5mm; text-align: center; word-break: break-word; }
+.pn-table th { font-weight: 700; }
+.pn-table td.pn-name { font-weight: 700; text-align: left; padding-left: 3mm; }
+.pn-table td.pn-desc { text-align: left; padding-left: 3mm; }
+
+.pn-ready-um { display: flex; font-size: 12pt; margin-top: 2mm; }
+.pn-check-row { display: flex; align-items: center; font-size: 11.5pt; margin: 1.3mm 0; }
+.pn-check-row .pn-item { width: 40mm; }
+.pn-box { width: 3mm; height: 3mm; border: 1px solid #000; display: inline-block; margin: 0 1.5mm 0 4mm; flex-shrink: 0; }
+.pn-check-label { margin-right: 2mm; }
+.pn-khad { flex: 1; border-bottom: 1px solid #000; margin-left: 2mm; min-height: 4mm; }
+
+.pn-ready-po { font-size: 12pt; font-weight: 700; margin-top: 2.5mm; margin-bottom: 1mm; }
+.pn-ready-cols { display: flex; }
+.pn-ready-cols .pn-col { flex: 1; }
+.pn-ready-cols .pn-col:first-child { margin-right: 6mm; }
+.pn-ready-head { font-weight: 700; font-size: 11.5pt; margin-bottom: 1mm; }
+.pn-check-line { display: flex; align-items: center; font-size: 11pt; margin: 1mm 0 1mm 6mm; }
+.pn-check-line .pn-box { margin: 0 2mm 0 0; }
+.pn-signline { flex: 1; border-bottom: 1px solid #000; }
+.pn-missing { display: flex; font-size: 11pt; margin-top: 2mm; }
+.pn-missing .pn-col { flex: 1; display: flex; align-items: baseline; }
+.pn-missing .pn-col:first-child { margin-right: 6mm; }
+.pn-dotted { flex: 1; border-bottom: 1px dotted #000; margin-left: 2mm; min-height: 3.5mm; }
+
+.pn-sign-title { text-align: center; font-size: 11.5pt; margin-top: 2mm; }
+.pn-footer { width: 100%; border-collapse: collapse; margin-top: 1mm; }
+.pn-footer td { border: 1px solid #000; height: 13mm; text-align: center; vertical-align: top; font-size: 11.5pt; padding-top: 1mm; }
+.pn-bottom { display: flex; justify-content: space-between; font-size: 9pt; margin-top: 1mm; padding: 0 1mm; }
+
+@media screen {
+  .pn-preview { background: #e9e9ec; padding: 6mm; overflow-x: auto; border-radius: 0.75rem; }
+  /* ปิดตัวอย่าง = ย้ายออกนอกจอ ไม่ใช่ display:none — ต้องคง layout ไว้ให้ auto-fit วัดความสูงได้ */
+  .pn-preview[data-open="false"] { position: absolute; left: -20000px; top: 0; width: 220mm; padding: 0; background: none; }
+  .pn-sheet { margin: 0 auto 6mm; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25); }
+}
+
+@media print {
+  /* 🚨 app-shell ครอบด้วย flex + min-h-screen และ space-y-* ใส่ margin-top ให้ลูกทุกตัว
+     ถ้าไม่ล้างทิ้ง แผ่นแรกจะถูกดันลงมา ~4mm แล้วทุกแผ่นตกไปขึ้นหน้าใหม่ (ได้กระดาษเปล่าคั่น)
+     จำกัดขอบเขตด้วย :has(.pn-preview) → มีผลเฉพาะหน้านี้ ไม่กระทบหน้าอื่น */
+  body:has(.pn-preview),
+  body:has(.pn-preview) > div,
+  body:has(.pn-preview) > div > div { display: block !important; min-height: 0 !important; }
+  body:has(.pn-preview) main { display: block !important; padding: 0 !important; }
+  /* กล่องครอบของหน้านี้ (page.tsx + print-notice-view.tsx) — space-y-* ใส่ margin-top ให้
+     ถ้าไม่ล้าง แผ่นแรกจะเริ่มที่ ~5mm แล้วล้นไปหน้าถัดไปทันที */
+  .pn-page { margin: 0 !important; padding: 0 !important; }
+  .pn-preview {
+    position: static !important;
+    left: auto !important;
+    width: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: none !important;
+    overflow: visible !important;
+  }
+  .pn-sheet { margin: 0; box-shadow: none; }
+}
+`;
+
+/** <style> ของหน้าใบแจ้งผลิต — ไม่ใส่ prop precedence เพื่อไม่ให้ React hoist ขึ้น head */
+export function NoticePrintStyle() {
+  return <style>{NOTICE_PRINT_CSS}</style>;
+}
+
+/* ============================================================
+   ตัวช่วยแปลงค่า
+   ============================================================ */
+
+/** ช่องว่างบนกระดาษใช้ "-" (ไม่ใช่ "—" แบบบนจอ) ตามฟอร์มจริง */
+function dash(v: string | null | undefined): string {
+  const s = (v ?? "").trim();
+  return s === "" ? "-" : s;
+}
+
+/** จำนวนผลิต — คั่นหลักพัน ตัด .00 ทิ้ง (200000 → "200,000") */
+function qty(n: number | null): string {
+  if (n == null) return "-";
+  return n % 1 === 0
+    ? n.toLocaleString("en-US")
+    : n.toLocaleString("en-US", { minimumFractionDigits: 2 });
+}
+
+/** ขนาดบรรจุช่องที่ i (0–2) — ไม่มีก็ "-" */
+function pack(job: JobRow, i: number): string {
+  return dash(job.pack_patterns[i]);
+}
+
+/* ============================================================
+   บล็อกที่ 2 ฟอร์มใช้ร่วมกัน
+   ============================================================ */
+function ItemTable({ job }: { job: JobRow }) {
+  return (
+    <table className="pn-table">
+      <tbody>
+        <tr>
+          <th style={{ width: "20%" }}>รายการ</th>
+          <th>รูปร่างลักษณะยา</th>
+        </tr>
+        <tr>
+          <td className="pn-name">{dash(job.product_name)}</td>
+          <td className="pn-desc">{dash(job.appearance)}</td>
+        </tr>
+      </tbody>
+    </table>
+  );
+}
+
+/* ============================================================
+   ฟอร์ม UMEDA — F.PLN.01 REV.04
+   ต่างจาก POND: มีช่อง "กำหนดส่ง" · ความพร้อมผลิต 3 บรรทัด (RM/ปฐมภูมิ/ทุติยภูมิ)
+   · ช่องลงชื่อ 3 ช่อง (มี "ผู้อนุมัติ")
+   ============================================================ */
+function UmedaForm({ job, companyName }: { job: JobRow; companyName: string }) {
+  return (
+    <>
+      <div className="pn-form">
+        <div className="pn-header">
+          <div className="pn-company">{companyName}</div>
+          <div className="pn-title">ใบแจ้งผลิต</div>
+        </div>
+
+        <div className="pn-row">
+          <div className="pn-col" style={{ flex: 1.3 }}>
+            <span className="pn-label">REG. NO.</span>
+            <span className="pn-fill">&nbsp;{dash(job.reg_no)}</span>
+          </div>
+          <div className="pn-col" style={{ flex: 1 }}>
+            <span className="pn-jobno-label">JOB. NO.</span>
+            <span className="pn-jobno">{displayJobNo(job.job_no)}</span>
+          </div>
+        </div>
+
+        {/* LOT / MFG / EXP — เว้นว่างเสมอ ให้ฝ่ายผลิตเขียนมือ (ตามฟอร์มกระดาษ) */}
+        <div className="pn-row">
+          <div className="pn-col" style={{ flex: 1 }}>
+            <span className="pn-label">LOT. NO.</span>
+            <span className="pn-fill" />
+          </div>
+          <div className="pn-col" style={{ flex: 1 }}>
+            <span className="pn-label">MFG. DATE</span>
+            <span className="pn-fill" />
+          </div>
+          <div className="pn-col" style={{ flex: 1 }}>
+            <span className="pn-label">EXP.DATE</span>
+            <span className="pn-fill" />
+          </div>
+        </div>
+
+        <ItemTable job={job} />
+
+        <table className="pn-table">
+          <tbody>
+            <tr>
+              <th style={{ width: "11%" }}>จำนวนผลิต</th>
+              <th style={{ width: "8%" }}>หน่วย</th>
+              <th style={{ width: "13%" }}>ขนาดบรรจุ (1)</th>
+              <th style={{ width: "13%" }}>ขนาดบรรจุ (2)</th>
+              <th style={{ width: "13%" }}>ขนาดบรรจุ (3)</th>
+              <th style={{ width: "10%" }}>กำหนดส่ง</th>
+              <th style={{ width: "10%" }}>ลูกค้า</th>
+              <th style={{ width: "14%" }}>ใบสั่งขอ</th>
+            </tr>
+            <tr>
+              <td>{qty(job.quantity)}</td>
+              <td>{dash(job.unit)}</td>
+              <td>{pack(job, 0)}</td>
+              <td>{pack(job, 1)}</td>
+              <td>{pack(job, 2)}</td>
+              <td>{dash(fmtDdMmYy(job.due_date))}</td>
+              <td>{dash(job.customer)}</td>
+              <td>{dash(job.request_no)}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div className="pn-ready-um">
+          <span className="pn-label">ความพร้อมผลิต</span>
+          <span style={{ marginLeft: "6mm" }}>หมายเหตุ</span>
+          <span className="pn-fill" />
+        </div>
+
+        {["วัตถุดิบ", "บรรจุภัณฑ์ปฐมภูมิ", "บรรจุภัณฑ์ทุติยภูมิ"].map((name) => (
+          <div className="pn-check-row" key={name}>
+            <span className="pn-item">{name}</span>
+            <span className="pn-box" />
+            <span className="pn-check-label">พร้อม</span>
+            <span className="pn-box" />
+            <span className="pn-check-label">ไม่พร้อม</span>
+            <span>ขาด</span>
+            <span className="pn-khad" />
+          </div>
+        ))}
+
+        <div className="pn-sign-title">ลงชื่อและวันที่</div>
+
+        <table className="pn-footer">
+          <tbody>
+            <tr>
+              <td>ฝ่ายวางแผน</td>
+              <td>ผู้อนุมัติ</td>
+              <td>ฝ่ายผลิต</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div className="pn-bottom">
+        <span>วันที่มีผลบังคับใช้ 25/10/2568</span>
+        <span>F.PLN.01 REV.04</span>
+      </div>
+    </>
+  );
+}
+
+/* ============================================================
+   ฟอร์ม POND — F.PLN.01
+   ต่างจาก UMEDA: มีช่อง "หมายเหตุ" แทน "กำหนดส่ง" · ความพร้อมผลิต 2 คอลัมน์
+   (ครบ/ไม่ครบ + ลงชื่อ) · ช่องลงชื่อ 2 ช่อง · REG. NO. ไม่มีเส้นใต้
+   ============================================================ */
+function PondForm({ job, companyName }: { job: JobRow; companyName: string }) {
+  return (
+    <>
+      <div className="pn-form">
+        <div className="pn-header">
+          <div className="pn-company pn-company--wide">{companyName}</div>
+          <div className="pn-title">ใบแจ้งผลิต</div>
+        </div>
+
+        <div className="pn-row">
+          <div className="pn-col" style={{ flex: 1.3 }}>
+            <span className="pn-label">REG. NO.</span>
+            <span className="pn-regno">{dash(job.reg_no)}</span>
+          </div>
+          <div
+            className="pn-col"
+            style={{ flex: 1, justifyContent: "flex-end" }}
+          >
+            <span className="pn-jobno-label">JOB. NO.</span>
+            <span className="pn-jobno">{displayJobNo(job.job_no)}</span>
+          </div>
+        </div>
+
+        {/* LOT / MFG / EXP — เว้นว่างเสมอ ให้ฝ่ายผลิตเขียนมือ (ตามฟอร์มกระดาษ) */}
+        <div className="pn-row">
+          <div className="pn-col" style={{ flex: 1 }}>
+            <span className="pn-label">LOT. NO.</span>
+            <span className="pn-fill" />
+          </div>
+          <div className="pn-col" style={{ flex: 1 }}>
+            <span className="pn-label">MFG. DATE</span>
+            <span className="pn-fill" />
+          </div>
+          <div className="pn-col" style={{ flex: 1 }}>
+            <span className="pn-label">EXP.DATE.</span>
+            <span className="pn-fill" />
+          </div>
+        </div>
+
+        <ItemTable job={job} />
+
+        <table className="pn-table">
+          <tbody>
+            <tr>
+              <th style={{ width: "11%" }}>จำนวนผลิต</th>
+              <th style={{ width: "8%" }}>หน่วย</th>
+              <th style={{ width: "13%" }}>ขนาดบรรจุ (1)</th>
+              <th style={{ width: "13%" }}>ขนาดบรรจุ (2)</th>
+              <th style={{ width: "13%" }}>ขนาดบรรจุ (3)</th>
+              <th style={{ width: "13%" }}>ลูกค้า</th>
+              <th style={{ width: "14%" }}>ใบคำขอ</th>
+              <th style={{ width: "15%" }}>หมายเหตุ</th>
+            </tr>
+            <tr>
+              <td>{qty(job.quantity)}</td>
+              <td>{dash(job.unit)}</td>
+              <td>{pack(job, 0)}</td>
+              <td>{pack(job, 1)}</td>
+              <td>{pack(job, 2)}</td>
+              <td>{dash(job.customer)}</td>
+              <td>{dash(job.request_no)}</td>
+              <td>{dash(job.note)}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div className="pn-ready-po">ตรวจสอบความพร้อมผลิต ดังนี้</div>
+        <div className="pn-ready-cols">
+          {["วัตถุดิบ", "บรรจุภัณฑ์"].map((head) => (
+            <div className="pn-col" key={head}>
+              <div className="pn-ready-head">{head}</div>
+              <div className="pn-check-line">
+                <span className="pn-box" />
+                <span className="pn-check-label">ครบ ลงชื่อ</span>
+                <span className="pn-signline" />
+              </div>
+              <div className="pn-check-line">
+                <span className="pn-box" />
+                <span className="pn-check-label">ไม่ครบ ลงชื่อ</span>
+                <span className="pn-signline" />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="pn-missing">
+          <div className="pn-col">
+            วัตถุดิบ ขาด<span className="pn-dotted" />
+          </div>
+          <div className="pn-col">
+            บรรจุภัณฑ์ ขาด<span className="pn-dotted" />
+          </div>
+        </div>
+        <div className="pn-missing">
+          <div className="pn-col">
+            กำหนดสินค้าเข้า<span className="pn-dotted" />
+          </div>
+          <div className="pn-col">
+            กำหนดสินค้าเข้า<span className="pn-dotted" />
+          </div>
+        </div>
+
+        <div className="pn-sign-title">ลงชื่อและวันที่</div>
+
+        <table className="pn-footer">
+          <tbody>
+            <tr>
+              <td>ฝ่ายวางแผน</td>
+              <td>ฝ่ายผลิต</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div className="pn-bottom">
+        <span>วันที่บังคับใช้ 20/3/2017</span>
+        <span>F.PLN.01</span>
+      </div>
+    </>
+  );
+}
+
+/* ============================================================
+   ประกอบเป็นแผ่น — A4 ละ 2 Job
+   ============================================================ */
+export function NoticeSheets({
+  jobs,
+  companyCode,
+  companyName,
+}: {
+  jobs: JobRow[];
+  /** companies.code — 'UMEDA' | 'POND' · ตัวเลือก layout (ไม่ใช้ชื่อเต็มเพราะยาวและเปลี่ยนได้) */
+  companyCode: string;
+  companyName: string;
+}) {
+  const Form = companyCode === "UMEDA" ? UmedaForm : PondForm;
+
+  // จับคู่ทีละ 2 ใบ = 1 แผ่น · จำนวนคี่ → ครึ่งล่างว่าง (ถูกต้องตามกระดาษฉีกครึ่ง)
+  const sheets: JobRow[][] = [];
+  for (let i = 0; i < jobs.length; i += 2) sheets.push(jobs.slice(i, i + 2));
+
+  return (
+    <>
+      {sheets.map((pair) => (
+        <div className="pn-sheet" key={pair[0].id}>
+          <div className="pn-half">
+            <div className="pn-fit">
+              <Form job={pair[0]} companyName={companyName} />
+            </div>
+          </div>
+          <div className="pn-tear" />
+          <div className="pn-half">
+            {pair[1] && (
+              <div className="pn-fit">
+                <Form job={pair[1]} companyName={companyName} />
+              </div>
+            )}
+          </div>
+        </div>
+      ))}
+    </>
+  );
+}

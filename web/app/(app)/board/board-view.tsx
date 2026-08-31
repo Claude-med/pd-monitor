@@ -131,12 +131,21 @@ export function BoardView({
           </p>
         </div>
         {canCreate && (
-          <Link
-            href="/board/new"
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
-          >
-            ＋ สร้างงานใหม่
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            {/* ใบแจ้งผลิต F.PLN.01 (Part D) — สิทธิ์เดียวกับปุ่มสร้างงาน (ฝ่ายวางแผน/ผู้บริหาร) */}
+            <Link
+              href="/board/print-notice"
+              className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-accent"
+            >
+              🖨️ ปริ้นใบแจ้งผลิต
+            </Link>
+            <Link
+              href="/board/new"
+              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+            >
+              ＋ สร้างงานใหม่
+            </Link>
+          </div>
         )}
       </div>
 

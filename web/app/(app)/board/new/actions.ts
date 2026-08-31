@@ -10,7 +10,7 @@ import {
 export type NewJobValues = {
   /** id จากทะเบียนบริษัท (Part D · 0071) — ตัวกำหนดว่าเลขงานเดินชุดไหน */
   company_id: string;
-  /** หมายเหตุ — โผล่เมื่อบริษัทที่เลือกตั้ง requires_note (POUND) */
+  /** หมายเหตุ — โผล่เมื่อบริษัทที่เลือกตั้ง requires_note (POND) */
   note: string;
   /** id จากทะเบียนลูกค้า (Part 3 ก้อน 1) */
   customer_id: string;

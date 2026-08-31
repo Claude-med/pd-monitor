@@ -55,6 +55,30 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 const th = "border-b px-2 py-1 text-left text-xs font-medium text-muted-foreground";
 const td = "border-b px-2 py-1 align-top";
 
+/**
+ * CSS พิมพ์ของหน้านี้โดยเฉพาะ — ย้ายออกจาก globals.css (ใบแจ้งผลิต 0075/Part D)
+ *
+ * เดิมอยู่ใน globals.css จึงมีผลกับ "ทุกหน้า": หน้าไหนไม่มี #ebr จะโดน
+ * `body * { visibility: hidden }` จนพิมพ์ออกมาเป็นกระดาษเปล่า และ @page ก็ทับกันเงียบ ๆ
+ * → ย้ายมาไว้ในหน้า (ไม่ใส่ prop precedence เพื่อให้ React คงไว้ในตำแหน่งนี้ ไม่ hoist ขึ้น head)
+ * เนื้อหาเหมือนเดิมทุกบรรทัด — พฤติกรรมพิมพ์ eBR ไม่เปลี่ยน
+ */
+const EBR_PRINT_CSS = `
+@media print {
+  body * { visibility: hidden; }
+  #ebr, #ebr * { visibility: visible; }
+  #ebr {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    padding: 0;
+    color: #000;
+    background: #fff;
+  }
+  @page { margin: 14mm; }
+}
+`;
+
 export default async function EbrPage({
   params,
 }: {
@@ -69,6 +93,7 @@ export default async function EbrPage({
 
   return (
     <div className="mx-auto max-w-4xl space-y-5">
+      <style>{EBR_PRINT_CSS}</style>
       {/* แถบเครื่องมือ (ไม่พิมพ์) */}
       <div className="no-print flex items-center justify-between gap-2">
         <Link

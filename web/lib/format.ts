@@ -36,9 +36,20 @@ export function formatQty(qty: number | null, unit: string | null): string {
 }
 
 /**
+ * วันที่แบบสั้นบนเอกสารกระดาษ: '2027-03-15' → '15/03/27' (วว/ดด/ปป · ค.ศ. 2 หลัก)
+ *
+ * ใช้กับใบแจ้งผลิต F.PLN.01 ช่อง "กำหนดส่ง" (ฟอร์มกระดาษเขียนสั้นแบบนี้ ช่องแคบมาก)
+ * ⚠️ ตัดด้วย string ล้วน ห้ามผ่าน new Date() — timezone ทำให้เลื่อนวันได้ (บทเรียน 0048)
+ */
+export function fmtDdMmYy(iso: string | null | undefined): string {
+  if (!iso || iso.length < 10) return "";
+  return `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(2, 4)}`;
+}
+
+/**
  * เลขงานที่ "ให้คนอ่าน" — ตัดอักษรนำของบริษัทออก (Part D · 0071)
  *
- * ระบบเก็บ `jobs.job_no` เป็น `690001` (UMEDA) / `P690001` (POUND) เพื่อให้คอลัมน์ยัง unique
+ * ระบบเก็บ `jobs.job_no` เป็น `690001` (UMEDA) / `P690001` (POND) เพื่อให้คอลัมน์ยัง unique
  * แต่ทีมงานเรียกเลขเดียวกันว่า "690001" ทั้งสองบริษัท → ทุกที่ที่เรนเดอร์ให้คนอ่านต้องผ่านฟังก์ชันนี้
  *
  * 🚨 ห้ามใช้กับ `href` / `revalidatePath` / query — ตรงนั้นต้องเป็นค่าจริงจาก DB เสมอ

@@ -54,7 +54,7 @@ export function NewJobForm({
   // (ด่านจริงอยู่ที่ DB — ตรงนี้แค่กันไม่ให้ผู้ใช้กรอกทั้งฟอร์มแล้วเจอ error ตอนท้าย)
   const picked = products.find((p) => p.id === v.product_id);
   const missingRoute = !!picked && !picked.has_route;
-  // บริษัทที่เลือก — ตัวกำหนดว่าจะโชว์ช่อง "หมายเหตุ" ไหม (POUND โชว์ · UMEDA ไม่โชว์)
+  // บริษัทที่เลือก — ตัวกำหนดว่าจะโชว์ช่อง "หมายเหตุ" ไหม (POND โชว์ · UMEDA ไม่โชว์)
   const pickedCompany = companies.find((c) => c.id === v.company_id);
   // Part 3.1: หน่วยล็อกตามทะเบียนยา — แสดงอย่างเดียว ไม่เก็บใน state และไม่ส่งไป server
   // (server อ่านหน่วยจากทะเบียนเองใน createJobs)
@@ -267,7 +267,7 @@ export function NewJobForm({
           />
         </div>
 
-        {/* หมายเหตุ — โผล่เฉพาะบริษัทที่ตั้ง requires_note ไว้ (POUND) */}
+        {/* หมายเหตุ — โผล่เฉพาะบริษัทที่ตั้ง requires_note ไว้ (POND) */}
         {pickedCompany?.requires_note && (
           <div className="sm:col-span-2">
             <label className={labelClass}>

@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
  * ทะเบียนบริษัท (Part D · 0071)
  *
  * โรงงานเดินงานให้ 2 บริษัท และ **เดินเลข Job No. แยกชุดกัน** —
- * UMEDA กับ POUND มีเลข 690001 ได้พร้อมกัน
+ * UMEDA กับ POND มีเลข 690001 ได้พร้อมกัน
  *
  * วิธีที่ระบบใช้: `jobs.job_no` เก็บ **อักษรนำของบริษัท** ไว้ข้างหน้า (`P690001`)
  * เพื่อให้คอลัมน์ยัง unique และ URL `/board/<job_no>` ใช้ได้เหมือนเดิม
@@ -14,9 +14,9 @@ export type CompanyOption = {
   id: string;
   code: string;
   name: string;
-  /** อักษรนำหน้าเลขงานใน DB — UMEDA = "" · POUND = "P" */
+  /** อักษรนำหน้าเลขงานใน DB — UMEDA = "" · POND = "P" */
   job_no_prefix: string;
-  /** true = ฟอร์มสร้างงานต้องโชว์ช่อง "หมายเหตุ" (POUND) */
+  /** true = ฟอร์มสร้างงานต้องโชว์ช่อง "หมายเหตุ" (POND) */
   requires_note: boolean;
   /** เลขตั้งต้นของ running 4 หลักเมื่อขึ้นปี พ.ศ. ใหม่ */
   year_start_seq: number;

@@ -115,15 +115,15 @@ export function AppShell({
 
   return (
     <div className="flex min-h-screen w-full">
-      {/* Sidebar — desktop */}
-      <aside className="hidden w-64 shrink-0 border-r bg-sidebar md:sticky md:top-0 md:block md:h-screen">
+      {/* Sidebar — desktop · no-print = ไม่ติดไปกับกระดาษเวลาสั่งพิมพ์ */}
+      <aside className="no-print hidden w-64 shrink-0 border-r bg-sidebar md:sticky md:top-0 md:block md:h-screen">
         {sidebarInner}
       </aside>
 
       {/* เนื้อหา */}
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Topbar — mobile */}
-        <header className="flex items-center gap-3 border-b bg-background px-4 py-3 md:hidden">
+        <header className="no-print flex items-center gap-3 border-b bg-background px-4 py-3 md:hidden">
           <button
             type="button"
             onClick={() => setMenuOpen(true)}
@@ -149,7 +149,7 @@ export function AppShell({
 
         {/* Drawer — mobile */}
         {menuOpen && (
-          <div className="fixed inset-0 z-50 md:hidden">
+          <div className="no-print fixed inset-0 z-50 md:hidden">
             <div
               className="absolute inset-0 bg-black/40"
               onClick={closeMenu}
