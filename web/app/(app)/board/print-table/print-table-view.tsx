@@ -20,10 +20,10 @@ import type { CompanyOption } from "@/lib/data/companies";
 import type { JobSubStatusOption } from "@/lib/data/job-sub-statuses";
 import { displayJobNo } from "@/lib/format";
 import {
-  DEFAULT_MARGINS,
-  DEFAULT_MARGIN_IN,
   MARGIN_SIDES,
   MAX_MARGIN_IN,
+  TABLE_DEFAULT_MARGINS,
+  TABLE_DEFAULT_MARGIN_IN,
   fmtMm,
   isDefaultMargins,
   mm,
@@ -32,15 +32,24 @@ import {
   type Side,
 } from "@/lib/print/paper-margins";
 import {
+  AUTO_FONT_RANGE,
+  FONT_STEP_PT,
+  MANUAL_FONT_RANGE,
   TABLE_FORMATS,
   columnsFor,
-  fontPtFor,
   footerFor,
   maxPackOf,
   orientationFor,
   type TableFormat,
 } from "./table-columns";
-import { MeasureTable, TablePrintStyle, TableSheets } from "./table-sheet";
+import { FIT_REF_PT, fitTable } from "./fit-table";
+import {
+  FitProbe,
+  MeasureTable,
+  TablePrintStyle,
+  TableSheets,
+  type FitApplied,
+} from "./table-sheet";
 
 const inputCls =
   "rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring";
@@ -52,6 +61,19 @@ const ORIENTATION_LABEL = { portrait: "แนวตั้ง", landscape: "แ�
 
 /** identity คงที่ — ใช้เป็นค่าว่างของ pages โดยไม่สร้าง array ใหม่ทุก render */
 const NO_PAGES: JobRow[][] = [];
+
+/** ขนาดฟอนต์ก่อนวัดเสร็จ (เฟรมแรก) — แค่กันตารางกระพริบตัวจิ๋ว ไม่ใช่ค่าที่พิมพ์จริง */
+const INITIAL_FONT_PT = 9;
+
+/** ผลของ auto-fit + ลายเซ็นของสิ่งที่ใช้คิด (ดู fitSig) */
+type FitState = {
+  sig: string;
+  fit: FitApplied;
+  fontPt: number;
+  /** ขนาดที่ auto คำนวณได้ — โชว์ตอนผู้ใช้ปรับเอง */
+  autoPt: number;
+  squeezed: number;
+};
 
 /** วันนี้ตามเวลาไทยแบบ YYYYMMDD — ใช้ต่อท้ายชื่อไฟล์ Excel */
 function todayStamp(): string {
@@ -101,8 +123,23 @@ export function PrintTableView({
   const [busy, setBusy] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
 
-  /** ขอบกระดาษ 4 ด้าน (นิ้ว) — ไม่จำข้ามครั้ง เปิดหน้าใหม่เริ่มที่ 0.32" เสมอ */
-  const [margins, setMargins] = useState<Margins>(DEFAULT_MARGINS);
+  /**
+   * ขอบกระดาษ 4 ด้าน (นิ้ว) — ไม่จำข้ามครั้ง เปิดหน้าใหม่เริ่มที่ 0.2" (5.08mm) เสมอ
+   * บางกว่าใบแจ้งผลิตโดยตั้งใจ: ตารางนี้ต้องการที่ให้ตัวหนังสือมากที่สุด
+   */
+  const [margins, setMargins] = useState<Margins>(TABLE_DEFAULT_MARGINS);
+
+  /** ขนาดฟอนต์ที่ผู้ใช้กด −/+ เอง · null = ปล่อยให้ auto-fit คิดให้ */
+  const [fontOverride, setFontOverride] = useState<number | null>(null);
+
+  /** ผลของ auto-fit (ขนาดฟอนต์ + ความกว้างคอลัมน์ + ช่องที่ต้องบีบ) */
+  const [fitState, setFitState] = useState<FitState>({
+    sig: "",
+    fit: null,
+    fontPt: INITIAL_FONT_PT,
+    autoPt: INITIAL_FONT_PT,
+    squeezed: 0,
+  });
 
   /**
    * ผลการตัดหน้า + ลายเซ็นของสิ่งที่ใช้ตัด (ดู layout.sig)
@@ -122,8 +159,16 @@ export function PrintTableView({
   const company = companies.find((c) => c.id === companyId) ?? null;
   const measureRef = useRef<HTMLDivElement>(null);
 
+  /** ผลวัดดิบของ .pt-fit — cache ไว้เพื่อให้กด −/+ ขนาดฟอนต์แล้วคิดใหม่ได้โดยไม่ต้องแตะ DOM */
+  const rawRef = useRef<{
+    sig: string;
+    textPx: number[][];
+    fixedPx: number[];
+    availPx: number;
+  } | null>(null);
+
   const mIn = useMemo(() => toInches(margins), [margins]);
-  const atDefaultMargins = isDefaultMargins(margins);
+  const atDefaultMargins = isDefaultMargins(margins, TABLE_DEFAULT_MARGIN_IN);
 
   /** ขนาดพื้นที่พิมพ์จริง — ต้องใช้สูตรเดียวกับ .pt-sheet ใน table-sheet.tsx เป๊ะ ๆ */
   const orientationOfPaper = (o: "portrait" | "landscape") =>
@@ -182,17 +227,17 @@ export function PrintTableView({
   const otherCompanyPicked = picked.size - pickedJobs.length;
 
   /* ---------- รูปร่างกระดาษ — คิดจาก "งานที่ติ๊กไว้" เพราะนั่นคือสิ่งที่จะออกมาจริง ----------
-     รวมเป็น memo เดียวเพราะทุกค่าผูกกันหมด (จำนวนช่องขนาดบรรจุ → คอลัมน์ → แนวกระดาษ → ฟอนต์)
-     และ sig ต้องคิดจากชุดเดียวกันเป๊ะ ไม่งั้น "ผลที่วัดไว้" กับ "สิ่งที่กำลังโชว์" หลุดจากกันได้ */
+     รวมเป็น memo เดียวเพราะทุกค่าผูกกันหมด (จำนวนช่องขนาดบรรจุ → คอลัมน์ → แนวกระดาษ)
+     และ sig ต้องคิดจากชุดเดียวกันเป๊ะ ไม่งั้น "ผลที่วัดไว้" กับ "สิ่งที่กำลังโชว์" หลุดจากกันได้
+     ขนาดฟอนต์ไม่ได้อยู่ในนี้แล้ว — มาจาก auto-fit ที่ต้องวัด DOM ก่อน (ดู fitSig ข้างล่าง) */
   const layout = useMemo(() => {
     const maxPack = maxPackOf(pickedJobs);
     return {
       maxPack,
       cols: columnsFor(format, maxPack),
       orientation: orientationFor(format, maxPack),
-      fontPt: fontPtFor(format, maxPack),
       footer: footerFor(format),
-      /** ลายเซ็นของทุกอย่างที่ทำให้ผลการตัดหน้าเปลี่ยน */
+      /** ลายเซ็นของทุกอย่างที่ทำให้ต้องวัด/คิดใหม่ทั้งชุด (auto-fit ต่อด้วยการตัดหน้า) */
       sig: [
         pickedJobs.map((j) => j.id).join(","),
         format,
@@ -205,8 +250,112 @@ export function PrintTableView({
     };
   }, [pickedJobs, format, margins]);
 
-  const { maxPack, cols, orientation, fontPt, footer } = layout;
+  const { maxPack, cols, orientation, footer } = layout;
   const paper = orientationOfPaper(orientation);
+
+  /** ลายเซ็นของ auto-fit = ทุกอย่างที่ทำให้ขนาดฟอนต์/ความกว้างคอลัมน์เปลี่ยน */
+  const fitSig = `${layout.sig}|${fontOverride ?? "auto"}`;
+  const fitReady = fitState.sig === fitSig;
+  const fontPt = fitState.fontPt;
+  /** ลายเซ็นของผลตัดหน้า — ต้องรวมขนาดฟอนต์ด้วย เพราะตัวโตขึ้น = แถวสูงขึ้น = จำนวนหน้าเปลี่ยน */
+  const pageSig = `${fitSig}|${fontPt}`;
+
+  /* ============================================================
+     auto-fit — "ตัวใหญ่ที่สุดเท่าที่ทุกช่องยังอยู่บรรทัดเดียว"
+
+     วัดความกว้างข้อความจริงของทุกช่องจาก .pt-fit ครั้งเดียว (ที่ขนาดคงที่ FIT_REF_PT)
+     แล้วคำนวณย้อนกลับเป็นขนาดฟอนต์ + ความกว้างคอลัมน์ + ช่องที่ต้องบีบ — คณิตศาสตร์อยู่ใน fit-table.ts
+     🔑 ทิศทางเดียว: fit (กว้าง) → paginate (สูง) · ห้ามให้ผลของ fit ย้อนกลับไปเป็น input ของตัวเอง
+     ============================================================ */
+
+  /** อ่านความกว้างข้อความของทุกช่องจาก .pt-fit · null = DOM ยังเป็นของรอบก่อน (ยังวัดไม่ได้) */
+  const readFitProbe = useCallback(() => {
+    const box = measureRef.current?.querySelector<HTMLElement>(".pt-fit");
+    const table = box?.querySelector<HTMLElement>("table");
+    if (!box || !table) return null;
+
+    const heads = [...table.querySelectorAll<HTMLElement>("thead th .pt-t")];
+    const bodyRows = [...table.querySelectorAll<HTMLElement>("tbody tr")];
+    if (heads.length !== cols.length || bodyRows.length !== pickedJobs.length) return null;
+    if (bodyRows.length === 0) return null;
+
+    // −1 = ขอบนอกของตาราง (border-collapse) ที่ไม่ได้เป็นของคอลัมน์ไหน
+    const availPx = box.getBoundingClientRect().width - 1;
+    if (availPx <= 0) return null;
+
+    const textPx: number[][] = [heads.map((el) => el.getBoundingClientRect().width)];
+    for (const tr of bodyRows) {
+      const spans = [...tr.querySelectorAll<HTMLElement>(".pt-t")];
+      if (spans.length !== cols.length) return null;
+      textPx.push(spans.map((el) => el.getBoundingClientRect().width));
+    }
+    // ตอนพิมพ์ .pt-fit ถูก display:none → ทุกค่าเป็น 0 · คงผลรอบก่อนไว้ ดีกว่าล้างทิ้ง
+    if (textPx[0].every((w) => w <= 0)) return null;
+
+    /* padding + เส้นขอบของแต่ละคอลัมน์ = ส่วนที่ "ไม่ยืด" ตามขนาดฟอนต์
+       อ่านจากช่องจริงแทนการ hard-code ค่า mm ซ้ำไว้อีกที่ (แก้ CSS แล้วตรงนี้ตามเองเสมอ)
+       +1 = เส้นขอบที่ border-collapse ให้คอลัมน์ใช้ร่วมกันคอลัมน์ละเส้น */
+    const firstCells = [...bodyRows[0].children] as HTMLElement[];
+    if (firstCells.length !== cols.length) return null;
+    const fixedPx = firstCells.map((td) => {
+      const cs = getComputedStyle(td);
+      return (
+        (Number.parseFloat(cs.paddingLeft) || 0) +
+        (Number.parseFloat(cs.paddingRight) || 0) +
+        1
+      );
+    });
+
+    return { textPx, fixedPx, availPx };
+  }, [cols.length, pickedJobs.length]);
+
+  const computeFit = useCallback(() => {
+    if (pickedJobs.length === 0) {
+      setFitState((prev) =>
+        prev.sig === fitSig ? prev : { ...prev, sig: fitSig, fit: null, squeezed: 0 },
+      );
+      return;
+    }
+
+    // ผลวัดเดิมใช้ซ้ำได้ถ้าข้อมูล/คอลัมน์/ขอบยังเดิม → กด −/+ ขนาดฟอนต์ ไม่ต้องวัด DOM ใหม่
+    let raw = rawRef.current;
+    if (!raw || raw.sig !== layout.sig) {
+      const m = readFitProbe();
+      if (!m) return;
+      raw = { sig: layout.sig, ...m };
+      rawRef.current = raw;
+    }
+
+    const res = fitTable({
+      textPx: raw.textPx,
+      fixedPx: raw.fixedPx,
+      availPx: raw.availPx,
+      refPt: FIT_REF_PT,
+      minPt: AUTO_FONT_RANGE.min,
+      maxPt: AUTO_FONT_RANGE.max,
+      forcedPt: fontOverride,
+    });
+    if (!res) return;
+
+    // scaleX[0] = หัวตาราง · แถวข้อมูลคีย์ด้วย job.id เพราะหลังตัดหน้า index ไม่ตรงกับตอนวัด
+    const rowScale = new Map<string, number[]>();
+    pickedJobs.forEach((j, i) => rowScale.set(j.id, res.scaleX[i + 1]));
+
+    const next: FitState = {
+      sig: fitSig,
+      fit: { widthPct: res.widthPct, headScale: res.scaleX[0], rowScale },
+      fontPt: res.fontPt,
+      autoPt: res.autoPt,
+      squeezed: res.squeezed,
+    };
+    // 🚨 เทียบลายเซ็นก่อนเซ็ตเสมอ — setState ใน useLayoutEffect ที่ไม่เทียบจะวนไม่จบ
+    setFitState((prev) => (prev.sig === next.sig ? prev : next));
+  }, [pickedJobs, layout.sig, fitSig, fontOverride, readFitProbe]);
+
+  useLayoutEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    computeFit();
+  }, [computeFit]);
 
   /* ============================================================
      ตัดหน้า — วัดความสูงจริงของทุกแถวก่อน แล้วค่อยจัดลงหน้า
@@ -218,14 +367,21 @@ export function PrintTableView({
   /** อ่าน DOM แล้วคืนผลการตัดหน้า · null = ยังวัดไม่ได้ (ให้คงผลรอบก่อนไว้) */
   const measurePages = useCallback((): JobRow[][] | null => {
     if (pickedJobs.length === 0) return NO_PAGES;
+    // ยังไม่รู้ขนาดฟอนต์/ความกว้างคอลัมน์ของรอบนี้ = ความสูงแถวที่วัดได้จะเป็นของรอบก่อน
+    if (!fitReady) return null;
     const root = measureRef.current;
     if (!root) return null;
 
-    const probe = root.querySelector<HTMLElement>(".pt-probe");
-    const table = root.querySelector<HTMLElement>("table");
-    const thead = root.querySelector<HTMLElement>("thead");
-    const foot = root.querySelector<HTMLElement>(".pt-foot");
-    const trs = [...root.querySelectorAll<HTMLElement>("tbody tr")];
+    /* 🚨 ต้องเจาะเข้า .pt-measure ก่อนเสมอ — ในกล่องวัดมี 2 ตาราง (.pt-fit อีกตัว)
+       querySelector("table") เฉย ๆ จะไปโดนตารางของ .pt-fit ที่ขนาดฟอนต์คนละตัว */
+    const box = root.querySelector<HTMLElement>(".pt-measure");
+    if (!box) return null;
+
+    const probe = box.querySelector<HTMLElement>(".pt-probe");
+    const table = box.querySelector<HTMLElement>("table");
+    const thead = box.querySelector<HTMLElement>("thead");
+    const foot = box.querySelector<HTMLElement>(".pt-foot");
+    const trs = [...box.querySelectorAll<HTMLElement>("tbody tr")];
     // จำนวนแถวไม่ตรง = DOM ยังเป็นของรอบก่อน ยังวัดไม่ได้
     if (!probe || !table || !thead || trs.length !== pickedJobs.length) return null;
 
@@ -269,18 +425,18 @@ export function PrintTableView({
     }
     if (cur.length > 0) out.push(cur);
     return out;
-  }, [pickedJobs]);
+  }, [pickedJobs, fitReady]);
 
   const paginate = useCallback(() => {
     const next = measurePages();
     if (next === null) return;
     // 🚨 เทียบก่อนเซ็ตเสมอ — setState ใน useLayoutEffect ที่ไม่เทียบจะวนไม่จบ
     setPaged((prev) =>
-      prev.sig === layout.sig && samePages(prev.list, next)
+      prev.sig === pageSig && samePages(prev.list, next)
         ? prev
-        : { sig: layout.sig, list: next },
+        : { sig: pageSig, list: next },
     );
-  }, [measurePages, layout.sig]);
+  }, [measurePages, pageSig]);
 
   useLayoutEffect(() => {
     // กรณี "measure แล้วค่อย layout" ที่ทำใน useLayoutEffect เท่านั้น — ความสูงจริงของแต่ละแถว
@@ -295,19 +451,34 @@ export function PrintTableView({
    * ผลเก่าที่ sig ไม่ตรง (เพิ่งเปลี่ยนตัวเลือกแต่ยังไม่ทันวัดใหม่) = ไม่แสดงอะไรเลย
    * — ยอมกระพริบ 1 เฟรม ดีกว่าพิมพ์ตารางของรอบก่อนออกมา
    */
-  const pages = paged.sig === layout.sig ? paged.list : NO_PAGES;
+  const pages = paged.sig === pageSig ? paged.list : NO_PAGES;
 
   useEffect(() => {
-    // ฟอนต์ AngsanaUPC โหลดช้ากว่า layout รอบแรก → ความสูงแถวเปลี่ยน ต้องวัดซ้ำ
-    document.fonts?.ready.then(paginate).catch(() => {});
+    /* ฟอนต์ AngsanaUPC โหลดช้ากว่า layout รอบแรก → ทั้งความกว้างข้อความและความสูงแถวเปลี่ยน
+       ต้องทิ้งผลวัดที่ cache ไว้แล้ววัดใหม่ทั้ง 2 ชั้น ไม่ใช่แค่ตัดหน้าใหม่ */
+    const remeasure = () => {
+      rawRef.current = null;
+      computeFit();
+      paginate();
+    };
+    document.fonts?.ready.then(remeasure).catch(() => {});
     // กัน Ctrl+P ตอนที่ยังไม่เคยเปิดตัวอย่าง
-    window.addEventListener("beforeprint", paginate);
-    return () => window.removeEventListener("beforeprint", paginate);
-  }, [paginate]);
+    window.addEventListener("beforeprint", remeasure);
+    return () => window.removeEventListener("beforeprint", remeasure);
+  }, [computeFit, paginate]);
 
   /* ============================================================
      ปุ่มต่าง ๆ
      ============================================================ */
+  /** −/+ ขนาดตัวอักษร · ก้าวแรกเริ่มจากขนาดที่เห็นอยู่ (ที่ auto คิดให้) แล้วค่อยล็อกเป็นของผู้ใช้ */
+  function stepFont(dir: 1 | -1) {
+    setFontOverride((prev) => {
+      const base = prev ?? fitState.fontPt;
+      const next = Math.round((base + dir * FONT_STEP_PT) * 10) / 10;
+      return Math.min(MANUAL_FONT_RANGE.max, Math.max(MANUAL_FONT_RANGE.min, next));
+    });
+  }
+
   function toggle(id: string) {
     setPicked((prev) => {
       const next = new Set(prev);
@@ -409,8 +580,12 @@ export function PrintTableView({
     >
       <TablePrintStyle />
       {/* @page ต้อง build เป็น string — var() ใช้ใน @page ไม่ได้ (Chrome ไม่รับ)
-          แนวกระดาษก็อยู่ตรงนี้ เพราะเปลี่ยนตามจำนวนคอลัมน์ขนาดบรรจุ */}
-      <style>{`@page { size: A4 ${orientation}; margin: ${mIn.top}in ${mIn.right}in ${mIn.bottom}in ${mIn.left}in; }`}</style>
+          แนวกระดาษก็อยู่ตรงนี้ เพราะเปลี่ยนตามจำนวนคอลัมน์ขนาดบรรจุ
+
+          🚨 margin: 0 เสมอ ห้ามเอาขอบของผู้ใช้มาใส่ตรงนี้ — Chrome พิมพ์ชื่อเรื่อง/เวลา/URL
+             ของตัวเองลงใน "พื้นที่ขอบของ @page" ไม่เหลือขอบให้ = ไม่มีที่พิมพ์ = หายไปเอง
+             ขอบจริงไปอยู่ที่ padding ของ .pt-sheet แทน (ดู table-sheet.tsx) */}
+      <style>{`@page { size: A4 ${orientation}; margin: 0; }`}</style>
 
       {/* ---------- รูปแบบตาราง ---------- */}
       <div className="no-print space-y-3 rounded-xl border bg-card p-4">
@@ -726,8 +901,58 @@ export function PrintTableView({
         )}
       </div>
 
-      {/* ---------- ขนาดขอบกระดาษ ---------- */}
+      {/* ---------- ขนาดตัวอักษร + ขอบกระดาษ ---------- */}
       <div className="no-print space-y-3 rounded-xl border bg-card p-4">
+        <div className="flex flex-wrap items-end gap-3 border-b pb-3">
+          <div className="mr-1">
+            <div className="text-sm font-semibold">ขนาดตัวอักษรในตาราง</div>
+            <p className="text-xs text-muted-foreground">
+              ปกติระบบเลือกตัวที่ใหญ่ที่สุดเท่าที่ทุกช่องยังอยู่บรรทัดเดียวให้เอง
+            </p>
+          </div>
+
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => stepFont(-1)}
+              disabled={fontPt <= MANUAL_FONT_RANGE.min}
+              aria-label="ลดขนาดตัวอักษร"
+              className="h-10 w-10 rounded-md border text-lg leading-none hover:bg-accent disabled:opacity-40"
+            >
+              −
+            </button>
+            <span className="w-20 text-center text-sm font-semibold tabular-nums">
+              {fontPt} pt
+            </span>
+            <button
+              type="button"
+              onClick={() => stepFont(1)}
+              disabled={fontPt >= MANUAL_FONT_RANGE.max}
+              aria-label="เพิ่มขนาดตัวอักษร"
+              className="h-10 w-10 rounded-md border text-lg leading-none hover:bg-accent disabled:opacity-40"
+            >
+              +
+            </button>
+            <button
+              type="button"
+              onClick={() => setFontOverride(null)}
+              disabled={fontOverride === null}
+              className="ml-1 rounded-md border px-3 py-2 text-sm hover:bg-accent disabled:opacity-40"
+            >
+              ↺ อัตโนมัติ
+            </button>
+          </div>
+
+          <p className="mb-2 text-xs text-muted-foreground">
+            {fontOverride === null
+              ? "อัตโนมัติ"
+              : `ปรับเอง · อัตโนมัติจะได้ ${fitState.autoPt}pt`}
+            {fitState.squeezed > 0
+              ? ` · บีบให้พอดีช่อง ${fitState.squeezed} ช่อง`
+              : ""}
+          </p>
+        </div>
+
         <div className="flex flex-wrap items-end gap-3">
           <div className="mr-1">
             <div className="text-sm font-semibold">ขนาดขอบกระดาษ</div>
@@ -765,11 +990,11 @@ export function PrintTableView({
 
           <button
             type="button"
-            onClick={() => setMargins(DEFAULT_MARGINS)}
+            onClick={() => setMargins(TABLE_DEFAULT_MARGINS)}
             disabled={atDefaultMargins}
             className="mb-[1.35rem] rounded-md border px-3 py-2 text-sm hover:bg-accent disabled:opacity-40"
           >
-            ↺ รีเซ็ตเป็นค่าเริ่มต้น ({DEFAULT_MARGIN_IN}”)
+            ↺ รีเซ็ตเป็นค่าเริ่มต้น ({TABLE_DEFAULT_MARGIN_IN}”)
           </button>
         </div>
 
@@ -783,11 +1008,20 @@ export function PrintTableView({
           </p>
           <p>
             💡 ตอนกด Ctrl+P ให้ตั้ง “ระยะขอบ / Margins” เป็น{" "}
-            <b className="text-foreground">ค่าเริ่มต้น (Default)</b>{" "}
-            ไม่งั้นเบราว์เซอร์จะใช้ขอบของตัวเองแทนค่าที่ตั้งไว้ตรงนี้ ·
-            และอย่าลืมตั้งแนวกระดาษให้เป็น{" "}
+            <b className="text-foreground">ค่าเริ่มต้น (Default)</b> และ “ขนาด / Scale”
+            เป็น <b className="text-foreground">100%</b> — ขอบกระดาษถูกฝังมากับแผ่นแล้ว
+            เลขที่ตั้งตรงนี้จึงเป็นระยะขาวจริงบนกระดาษ · อย่าลืมตั้งแนวกระดาษเป็น{" "}
             <b className="text-foreground">{ORIENTATION_LABEL[orientation]}</b>{" "}
             ถ้าเบราว์เซอร์ไม่เปลี่ยนให้เอง
+          </p>
+          <p>
+            🖨️ เครื่องพิมพ์ส่วนใหญ่พิมพ์ชิดขอบกระดาษได้ไม่เกิน ~4 มม. — ตั้งขอบต่ำกว่านั้น
+            เบราว์เซอร์อาจย่อทั้งหน้าลงให้พอดีพื้นที่พิมพ์ ระยะที่ตั้งไว้จะไม่ตรงของจริง
+          </p>
+          <p>
+            ถ้ายังเห็นชื่อเรื่อง / เวลา / URL โผล่บนกระดาษ ให้เอาติ๊ก{" "}
+            <b className="text-foreground">“หัวและท้ายกระดาษ (Headers and footers)”</b>{" "}
+            ออกในหน้าต่างปริ้น
           </p>
         </div>
       </div>
@@ -797,12 +1031,18 @@ export function PrintTableView({
              margin-top ให้มัน ตอนพิมพ์ margin นั้นจะดันแผ่นแรกลงมา แล้วบรรทัดล่างสุดหลุดหน้า */}
       <div ref={measureRef} className="no-print">
         {pickedJobs.length > 0 && (
-          <MeasureTable
-            jobs={pickedJobs}
-            cols={cols}
-            footer={footer}
-            orientation={orientation}
-          />
+          <>
+            {/* วัดความกว้างข้อความ (ขนาดฟอนต์คงที่) → ได้ขนาดฟอนต์ + ความกว้างคอลัมน์ */}
+            <FitProbe jobs={pickedJobs} cols={cols} orientation={orientation} />
+            {/* แล้วค่อยวัดความสูงแถวที่ขนาดจริง → ตัดหน้า */}
+            <MeasureTable
+              jobs={pickedJobs}
+              cols={cols}
+              footer={footer}
+              orientation={orientation}
+              fit={fitReady ? fitState.fit : null}
+            />
+          </>
         )}
       </div>
 
@@ -816,6 +1056,7 @@ export function PrintTableView({
             cols={cols}
             footer={footer}
             orientation={orientation}
+            fit={fitReady ? fitState.fit : null}
           />
         )}
       </div>

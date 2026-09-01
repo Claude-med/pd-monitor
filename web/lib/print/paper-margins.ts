@@ -10,8 +10,16 @@
 
 export type Side = "top" | "right" | "bottom" | "left";
 
-/** 0.32 นิ้ว = 8.13mm — ค่าเดิมที่เคย hard-code ไว้เป็น @page { margin: 8mm } */
+/** 0.32 นิ้ว = 8.13mm — ค่าเดิมที่เคย hard-code ไว้เป็น @page { margin: 8mm } (ใบแจ้งผลิต) */
 export const DEFAULT_MARGIN_IN = 0.32;
+
+/**
+ * 0.2 นิ้ว = 5.08mm — ค่าเริ่มต้นของ "ตารางบอร์ดงาน" ที่ตั้งใจให้ขอบบางที่สุดเท่าที่ปลอดภัย
+ * 🚨 อย่าลดต่ำกว่านี้เป็นค่าเริ่มต้น: เครื่องพิมพ์ทั่วไปพิมพ์ในระยะ ~4mm จากขอบกระดาษไม่ได้
+ *    ตั้งต่ำกว่านั้นแล้ว Chrome จะย่อทั้งหน้าลงให้พอดีพื้นที่พิมพ์ ระยะที่ตั้งไว้จะไม่ตรงของจริง
+ */
+export const TABLE_DEFAULT_MARGIN_IN = 0.2;
+
 export const MAX_MARGIN_IN = 1.5;
 
 /**
@@ -20,12 +28,14 @@ export const MAX_MARGIN_IN = 1.5;
  */
 export type Margins = Record<Side, string>;
 
-export const DEFAULT_MARGINS: Margins = {
-  top: String(DEFAULT_MARGIN_IN),
-  right: String(DEFAULT_MARGIN_IN),
-  bottom: String(DEFAULT_MARGIN_IN),
-  left: String(DEFAULT_MARGIN_IN),
-};
+/** ขอบเท่ากันทั้ง 4 ด้าน */
+export function makeMargins(inch: number): Margins {
+  const v = String(inch);
+  return { top: v, right: v, bottom: v, left: v };
+}
+
+export const DEFAULT_MARGINS: Margins = makeMargins(DEFAULT_MARGIN_IN);
+export const TABLE_DEFAULT_MARGINS: Margins = makeMargins(TABLE_DEFAULT_MARGIN_IN);
 
 export const MARGIN_SIDES: { key: Side; label: string }[] = [
   { key: "top", label: "บน" },
@@ -60,7 +70,10 @@ export function toInches(m: Margins): Record<Side, number> {
   };
 }
 
-/** ทุกด้านยังเป็นค่าเริ่มต้นอยู่ไหม — ใช้ปิดปุ่ม "รีเซ็ต" */
-export function isDefaultMargins(m: Margins): boolean {
-  return MARGIN_SIDES.every(({ key }) => marginIn(m[key]) === DEFAULT_MARGIN_IN);
+/** ทุกด้านยังเป็นค่าเริ่มต้นของหน้านั้นอยู่ไหม — ใช้ปิดปุ่ม "รีเซ็ต" */
+export function isDefaultMargins(
+  m: Margins,
+  base: number = DEFAULT_MARGIN_IN,
+): boolean {
+  return MARGIN_SIDES.every(({ key }) => marginIn(m[key]) === base);
 }

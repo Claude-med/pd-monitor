@@ -24,7 +24,11 @@ export type Orientation = "portrait" | "landscape";
 export type TableCol = {
   key: string;
   header: string;
-  /** น้ำหนักความกว้าง — normalize รวมเป็น 100% ตอน render (รองรับการตัดคอลัมน์ขนาดบรรจุออก) */
+  /**
+   * น้ำหนักความกว้างตั้งต้น — normalize รวมเป็น 100% ตอน render
+   * ⚠️ ตั้งแต่มี auto-fit ค่านี้เป็นแค่ "ความกว้างก่อนวัดเสร็จ" (เฟรมแรก/SSR) กับความกว้างคอลัมน์ใน Excel
+   *    ความกว้างบนกระดาษจริงมาจาก `fitTable()` ที่วัดข้อความจริง
+   */
   weight: number;
   /** ชิดซ้าย (ชื่อยา) — ที่เหลือ default = กึ่งกลาง ตามฟอร์มกระดาษ */
   left?: boolean;
@@ -213,11 +217,20 @@ export function orientationFor(
   return format === "planned" && maxPack === 1 ? "portrait" : "landscape";
 }
 
-/** ขนาดฟอนต์ในตาราง (pt) — ค่าจากไฟล์ต้นแบบแต่ละใบ */
-export function fontPtFor(format: TableFormat, maxPack: 1 | 2 | 3): number {
-  if (format === "pending") return 7.3;
-  return maxPack === 1 ? 9 : 10;
-}
+/**
+ * ช่วงขนาดฟอนต์ในตาราง (pt)
+ *
+ * ขนาดจริงไม่ได้ fix ไว้แล้ว — `fit-table.ts` วัดความกว้างข้อความจริงแล้วเลือกตัวที่ใหญ่ที่สุด
+ * เท่าที่ทุกช่องยังอยู่บรรทัดเดียว สองค่านี้เป็นแค่กรอบบน/ล่างกันสุดโต่ง
+ * (ของเดิมล็อกไว้ที่ 7.3pt / 9pt / 10pt ตามไฟล์ต้นแบบ → เล็กเกินไปบนกระดาษจริง)
+ */
+export const AUTO_FONT_RANGE = { min: 6.5, max: 14 } as const;
+
+/** ช่วงที่ผู้ใช้กดปุ่ม − / + เองได้ — กว้างกว่า auto เพราะเป็นการตัดสินใจของคนหน้ากระดาษ */
+export const MANUAL_FONT_RANGE = { min: 5, max: 20 } as const;
+
+/** ก้าวละครึ่ง pt — ละเอียดพอให้จูนได้ ไม่ถี่จนกดหลายที */
+export const FONT_STEP_PT = 0.5;
 
 /** ท้ายกระดาษ — มีเฉพาะฟอร์ม "รอแจ้งผลิต" (ต้นแบบ production_list ไม่มีบรรทัดนี้) */
 export function footerFor(
