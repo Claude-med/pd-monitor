@@ -17,6 +17,18 @@ import {
 } from "@/lib/data/job-constants";
 import type { CompanyOption } from "@/lib/data/companies";
 import { displayJobNo } from "@/lib/format";
+import {
+  DEFAULT_MARGINS,
+  DEFAULT_MARGIN_IN,
+  MARGIN_SIDES,
+  MAX_MARGIN_IN,
+  fmtMm,
+  isDefaultMargins,
+  mm,
+  toInches,
+  type Margins,
+  type Side,
+} from "@/lib/print/paper-margins";
 import { NoticePrintStyle, NoticeSheets } from "./notice-sheet";
 
 const inputCls =
@@ -25,48 +37,8 @@ const inputCls =
 /** ระดับความละเอียดของตัวกรอง C.P.O DATE */
 type CpoMode = "" | "year" | "month" | "day";
 
-/* ============================================================
-   ขนาดขอบกระดาษ (ผู้ใช้ปรับได้ 4 ด้าน)
-   ============================================================ */
-
-type Side = "top" | "right" | "bottom" | "left";
-
-/** 0.32 นิ้ว = 8.13mm — ค่าเดิมที่เคย hard-code ไว้เป็น @page { margin: 8mm } */
-const DEFAULT_MARGIN_IN = 0.32;
-const MAX_MARGIN_IN = 1.5;
-
-/**
- * เก็บเป็น string ไม่ใช่ number โดยตั้งใจ — ถ้าเก็บเป็น number แล้ว parse ทุกครั้งที่พิมพ์
- * ผู้ใช้จะพิมพ์ "0." ไม่ได้เลย (มันจะถูกแปลงกลับเป็น "0" ทันที)
- */
-type Margins = Record<Side, string>;
-
-const DEFAULT_MARGINS: Margins = {
-  top: String(DEFAULT_MARGIN_IN),
-  right: String(DEFAULT_MARGIN_IN),
-  bottom: String(DEFAULT_MARGIN_IN),
-  left: String(DEFAULT_MARGIN_IN),
-};
-
-const MARGIN_SIDES: { key: Side; label: string }[] = [
-  { key: "top", label: "บน" },
-  { key: "right", label: "ขวา" },
-  { key: "bottom", label: "ล่าง" },
-  { key: "left", label: "ซ้าย" },
-];
-
-/**
- * string จากช่องกรอก → นิ้วที่ใช้ได้จริง
- * 🚨 ห้ามคืน NaN — NaN หลุดเข้า calc() แล้วทั้งกฎจะถูกทิ้งเงียบ ๆ แผ่นกระดาษจะเสียรูปทันที
- */
-function marginIn(raw: string): number {
-  const n = Number.parseFloat(raw);
-  if (!Number.isFinite(n)) return 0;
-  return Math.min(MAX_MARGIN_IN, Math.max(0, n));
-}
-
-const mm = (inch: number) => inch * 25.4;
-const fmtMm = (v: number) => v.toFixed(1);
+/* ขนาดขอบกระดาษ (ผู้ใช้ปรับได้ 4 ด้าน) — ของกลางอยู่ที่ lib/print/paper-margins.ts
+   ใช้ร่วมกับหน้าตารางบอร์ดงาน (board/print-table) · เลขพวกนี้ต้องตรงกับสูตร calc() ใน CSS เป๊ะ */
 
 /** ย่อได้ต่ำสุด — ต่ำกว่านี้ตัวหนังสือเล็กจนอ่านไม่ออก ยอมให้ถูกตัดแล้วขึ้นเตือนแทน */
 const MIN_FIT_SCALE = 0.6;
@@ -105,15 +77,7 @@ export function PrintNoticeView({
   const previewRef = useRef<HTMLDivElement>(null);
 
   /** ขอบเป็นตัวเลขที่ปลอดภัยแล้ว (clamp 0–1.5 นิ้ว ไม่มี NaN) */
-  const mIn = useMemo(
-    () => ({
-      top: marginIn(margins.top),
-      right: marginIn(margins.right),
-      bottom: marginIn(margins.bottom),
-      left: marginIn(margins.left),
-    }),
-    [margins],
-  );
+  const mIn = useMemo(() => toInches(margins), [margins]);
 
   /**
    * ขนาดจริงบนกระดาษ — ต้องใช้สูตรเดียวกับ .pn-sheet / .pn-half ใน notice-sheet.tsx เป๊ะ ๆ
@@ -127,9 +91,7 @@ export function PrintNoticeView({
     return { sheetW, sheetH, halfH: (sheetH - TEAR) / 2 };
   }, [mIn]);
 
-  const isDefaultMargins = MARGIN_SIDES.every(
-    ({ key }) => marginIn(margins[key]) === DEFAULT_MARGIN_IN,
-  );
+  const atDefaultMargins = isDefaultMargins(margins);
 
   const companyJobs = useMemo(
     () => jobs.filter((j) => j.company_id === companyId),
@@ -570,10 +532,10 @@ export function PrintNoticeView({
           <button
             type="button"
             onClick={() => setMargins(DEFAULT_MARGINS)}
-            disabled={isDefaultMargins}
+            disabled={atDefaultMargins}
             className="mb-[1.35rem] rounded-md border px-3 py-2 text-sm hover:bg-accent disabled:opacity-40"
           >
-            ↺ รีเซ็ตเป็นค่าเริ่มต้น (0.32”)
+            ↺ รีเซ็ตเป็นค่าเริ่มต้น ({DEFAULT_MARGIN_IN}”)
           </button>
         </div>
 

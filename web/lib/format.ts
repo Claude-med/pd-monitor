@@ -83,3 +83,26 @@ export function stripJobNo(
   if (shown === jobNo) return text; // ไม่มีอักษรนำ = ไม่ต้องทำอะไร
   return text.split(jobNo).join(shown);
 }
+
+/**
+ * ค่าว่างบนกระดาษ = "-" (ไม่ใช่ "—" แบบบนจอ) ตามฟอร์มจริงของโรงงาน
+ *
+ * ใช้กับเอกสารที่พิมพ์ทุกใบ — ใบแจ้งผลิต F.PLN.01 · ตารางบอร์ดงาน F.PLN.10
+ */
+export function dashOr(v: string | null | undefined): string {
+  const s = (v ?? "").trim();
+  return s === "" ? "-" : s;
+}
+
+/**
+ * จำนวนบนกระดาษ — คั่นหลักพัน ตัด .00 ทิ้ง (200000 → "200,000")
+ *
+ * ⚠️ ใช้ locale "en-US" ตั้งใจ ไม่ใช่ "th-TH" — ฟอร์มกระดาษของโรงงานเขียนเลขอารบิกคั่นคอมมา
+ *    (ต่างจาก formatQty() ข้างบนที่ใช้บนจอ)
+ */
+export function fmtQtyPlain(n: number | null | undefined): string {
+  if (n == null) return "-";
+  return n % 1 === 0
+    ? n.toLocaleString("en-US")
+    : n.toLocaleString("en-US", { minimumFractionDigits: 2 });
+}

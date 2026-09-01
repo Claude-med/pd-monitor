@@ -1,5 +1,5 @@
 import type { JobRow } from "@/lib/data/job-constants";
-import { displayJobNo, fmtDdMmYy } from "@/lib/format";
+import { dashOr, displayJobNo, fmtDdMmYy, fmtQtyPlain } from "@/lib/format";
 
 /**
  * ใบแจ้งผลิต F.PLN.01 — ตัวกระดาษ (Part D)
@@ -157,23 +157,12 @@ export function NoticePrintStyle() {
    ตัวช่วยแปลงค่า
    ============================================================ */
 
-/** ช่องว่างบนกระดาษใช้ "-" (ไม่ใช่ "—" แบบบนจอ) ตามฟอร์มจริง */
-function dash(v: string | null | undefined): string {
-  const s = (v ?? "").trim();
-  return s === "" ? "-" : s;
-}
-
-/** จำนวนผลิต — คั่นหลักพัน ตัด .00 ทิ้ง (200000 → "200,000") */
-function qty(n: number | null): string {
-  if (n == null) return "-";
-  return n % 1 === 0
-    ? n.toLocaleString("en-US")
-    : n.toLocaleString("en-US", { minimumFractionDigits: 2 });
-}
+/* dashOr() / fmtQtyPlain() อยู่ที่ lib/format.ts — ใช้ร่วมกับตารางบอร์ดงาน (F.PLN.10)
+   สูตรเดียวกันต้องอยู่ที่เดียว ไม่งั้นวันหนึ่งเอกสาร 2 ใบจะเขียนเลขคนละแบบ */
 
 /** ขนาดบรรจุช่องที่ i (0–2) — ไม่มีก็ "-" */
 function pack(job: JobRow, i: number): string {
-  return dash(job.pack_patterns[i]);
+  return dashOr(job.pack_patterns[i]);
 }
 
 /* ============================================================
@@ -188,8 +177,8 @@ function ItemTable({ job }: { job: JobRow }) {
           <th>รูปร่างลักษณะยา</th>
         </tr>
         <tr>
-          <td className="pn-name">{dash(job.product_name)}</td>
-          <td className="pn-desc">{dash(job.appearance)}</td>
+          <td className="pn-name">{dashOr(job.product_name)}</td>
+          <td className="pn-desc">{dashOr(job.appearance)}</td>
         </tr>
       </tbody>
     </table>
@@ -213,7 +202,7 @@ function UmedaForm({ job, companyName }: { job: JobRow; companyName: string }) {
         <div className="pn-row">
           <div className="pn-col" style={{ flex: 1.3 }}>
             <span className="pn-label">REG. NO.</span>
-            <span className="pn-fill">&nbsp;{dash(job.reg_no)}</span>
+            <span className="pn-fill">&nbsp;{dashOr(job.reg_no)}</span>
           </div>
           <div className="pn-col" style={{ flex: 1 }}>
             <span className="pn-jobno-label">JOB. NO.</span>
@@ -252,14 +241,14 @@ function UmedaForm({ job, companyName }: { job: JobRow; companyName: string }) {
               <th style={{ width: "14%" }}>ใบสั่งขอ</th>
             </tr>
             <tr>
-              <td>{qty(job.quantity)}</td>
-              <td>{dash(job.unit)}</td>
+              <td>{fmtQtyPlain(job.quantity)}</td>
+              <td>{dashOr(job.unit)}</td>
               <td>{pack(job, 0)}</td>
               <td>{pack(job, 1)}</td>
               <td>{pack(job, 2)}</td>
-              <td>{dash(fmtDdMmYy(job.due_date))}</td>
-              <td>{dash(job.customer)}</td>
-              <td>{dash(job.request_no)}</td>
+              <td>{dashOr(fmtDdMmYy(job.due_date))}</td>
+              <td>{dashOr(job.customer)}</td>
+              <td>{dashOr(job.request_no)}</td>
             </tr>
           </tbody>
         </table>
@@ -320,7 +309,7 @@ function PondForm({ job, companyName }: { job: JobRow; companyName: string }) {
         <div className="pn-row">
           <div className="pn-col" style={{ flex: 1.3 }}>
             <span className="pn-label">REG. NO.</span>
-            <span className="pn-regno">{dash(job.reg_no)}</span>
+            <span className="pn-regno">{dashOr(job.reg_no)}</span>
           </div>
           <div
             className="pn-col"
@@ -362,14 +351,14 @@ function PondForm({ job, companyName }: { job: JobRow; companyName: string }) {
               <th style={{ width: "15%" }}>หมายเหตุ</th>
             </tr>
             <tr>
-              <td>{qty(job.quantity)}</td>
-              <td>{dash(job.unit)}</td>
+              <td>{fmtQtyPlain(job.quantity)}</td>
+              <td>{dashOr(job.unit)}</td>
               <td>{pack(job, 0)}</td>
               <td>{pack(job, 1)}</td>
               <td>{pack(job, 2)}</td>
-              <td>{dash(job.customer)}</td>
-              <td>{dash(job.request_no)}</td>
-              <td>{dash(job.note)}</td>
+              <td>{dashOr(job.customer)}</td>
+              <td>{dashOr(job.request_no)}</td>
+              <td>{dashOr(job.note)}</td>
             </tr>
           </tbody>
         </table>
