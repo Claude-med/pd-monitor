@@ -263,9 +263,12 @@ export function PrintNoticeView({
       }
     >
       <NoticePrintStyle />
-      {/* @page ต้อง build เป็น string — var() ใช้ใน @page ไม่ได้ (Chrome ไม่รับ)
-          ไม่ใส่ prop precedence เพื่อไม่ให้ React hoist ขึ้น head (แพทเทิร์นเดียวกับ NoticePrintStyle) */}
-      <style>{`@page { size: A4; margin: ${mIn.top}in ${mIn.right}in ${mIn.bottom}in ${mIn.left}in; }`}</style>
+      {/* ไม่ใส่ prop precedence เพื่อไม่ให้ React hoist ขึ้น head (แพทเทิร์นเดียวกับ NoticePrintStyle)
+
+          🚨 margin: 0 เสมอ ห้ามเอาขอบของผู้ใช้มาใส่ตรงนี้ — Chrome พิมพ์ชื่อเรื่อง/เวลา/URL
+             ของตัวเองลงใน "พื้นที่ขอบของ @page" ไม่เหลือขอบให้ = ไม่มีที่พิมพ์ = หายไปเอง
+             ขอบจริงไปอยู่ที่ padding ของ .pn-sheet แทน (ดู notice-sheet.tsx) */}
+      <style>{`@page { size: A4; margin: 0; }`}</style>
 
       {/* ---------- ตัวกรอง ---------- */}
       <div className="no-print space-y-3 rounded-xl border bg-card p-4">
@@ -556,8 +559,18 @@ export function PrintNoticeView({
           </p>
           <p>
             💡 ตอนกด Ctrl+P ให้ตั้ง “ระยะขอบ / Margins” เป็น{" "}
-            <b className="text-foreground">ค่าเริ่มต้น (Default)</b>{" "}
-            ไม่งั้นเบราว์เซอร์จะใช้ขอบของตัวเองแทนค่าที่ตั้งไว้ตรงนี้
+            <b className="text-foreground">ค่าเริ่มต้น (Default)</b> และ “ขนาด / Scale”
+            เป็น <b className="text-foreground">100%</b> — ขอบกระดาษถูกฝังมากับแผ่นแล้ว
+            เลขที่ตั้งตรงนี้จึงเป็นระยะขาวจริงบนกระดาษ
+          </p>
+          <p>
+            🖨️ เครื่องพิมพ์ส่วนใหญ่พิมพ์ชิดขอบกระดาษได้ไม่เกิน ~4 มม. — ตั้งขอบต่ำกว่านั้น
+            เบราว์เซอร์อาจย่อทั้งหน้าลงให้พอดีพื้นที่พิมพ์ ระยะที่ตั้งไว้จะไม่ตรงของจริง
+          </p>
+          <p>
+            ถ้ายังเห็นชื่อเรื่อง / เวลา / URL โผล่บนกระดาษ ให้เอาติ๊ก{" "}
+            <b className="text-foreground">“หัวและท้ายกระดาษ (Headers and footers)”</b>{" "}
+            ออกในหน้าต่างปริ้น
           </p>
           {mIn.top !== mIn.bottom && (
             <p>⚠️ ขอบบนกับล่างไม่เท่ากัน — เส้นประสำหรับฉีกจะไม่อยู่กึ่งกลางกระดาษ</p>

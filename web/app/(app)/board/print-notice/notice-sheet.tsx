@@ -4,37 +4,45 @@ import { dashOr, displayJobNo, fmtDdMmYy, fmtQtyPlain } from "@/lib/format";
 /**
  * ใบแจ้งผลิต F.PLN.01 — ตัวกระดาษ (Part D)
  *
- * แปลงตรงจากฟอร์มกระดาษจริงที่ทีมส่งมา 2 ไฟล์ (UMEDA / POND) — ขนาดทุกอย่างเป็น mm
+ * แปลงตรงจากฟอร์มกระดาษจริงที่ทีมส่งมา 2 ใบ (UMEDA / POND) — ขนาดทุกอย่างเป็น mm
  * เพราะต้องพิมพ์ลง "กระดาษต่อเนื่องเคมีแบบฉีกครึ่ง A4" แล้วช่องต้องตรงกับของเดิม
+ *
+ * 🚨 หน้าตาในไฟล์นี้ถอดจาก "ภาพสแกนฟอร์มจริง" ทั้ง 2 บริษัท (1 ก.ย. 69) ไม่ใช่ค่าที่คิดเอาเอง
+ *    ก่อนแก้ขนาด/น้ำหนัก/เส้นอะไร ให้เทียบภาพต้นฉบับก่อนเสมอ — กติกาที่ยึด:
+ *      · ตารางชนขอบกรอบฟอร์มพอดี (เส้นนอกของตาราง = เส้นกรอบ) ไม่มี padding ซ้าย/ขวาคั่น
+ *      · หัวฟอร์ม (ชื่อบริษัท/ใบแจ้งผลิต) ไม่มีเส้นคาดใต้
+ *      · ช่องเติมมือที่เป็น "วันที่/เลข" = เส้นทึบ · ช่องบรรยาย (หมายเหตุ/ขาด) = เส้นประจุด
+ *      · ป้ายกำกับหนา ข้อมูลน้ำหนักปกติ (ต้นฉบับ dot-matrix หนาทั้งใบ แต่ผู้ใช้เลือกแบบนี้)
  *
  * โครง 1 แผ่น = A4 = 2 Job แนวตั้ง สูงเท่ากันเป๊ะ (flex: 1 1 50%) + เส้นประตรงกลางไว้เล็งฉีก
  * 1 Job = "กล่องแข็ง" ขนาดครึ่ง A4 (อยู่ในกรอบ A5 แนวนอน) — ยาวแค่ไหนก็ขยายไม่ได้ ดู .pn-half
  *
  * 🚨 CSS พิมพ์อยู่ในไฟล์นี้ ไม่ใช่ globals.css — @page เป็น global ถ้าเอาไปรวมจะทับกับ eBR
  *    (เหตุผลเต็มอยู่ในคอมเมนต์ globals.css)
- * 🚨 ตัว @page เองย้ายไปอยู่ที่ print-notice-view.tsx แล้ว เพราะขอบ 4 ด้านผู้ใช้ปรับได้
- *    และ var() ใช้ใน @page ไม่ได้ → ต้อง build เป็น string จาก state
- *    ไฟล์นี้รับค่าผ่านตัวแปร --pn-mt/--pn-mr/--pn-mb/--pn-ml (inline style บน .pn-page)
+ * 🚨 ตัว @page เองอยู่ที่ print-notice-view.tsx และเป็น margin: 0 เสมอ — ขอบกระดาษจริงมาจาก
+ *    padding ของ .pn-sheet ที่นี่ (รับผ่าน --pn-mt/--pn-mr/--pn-mb/--pn-ml)
+ *    เหตุผล: Chrome พิมพ์ชื่อเรื่อง/เวลา/URL ของตัวเองลงใน "พื้นที่ขอบของ @page"
+ *    ไม่เหลือขอบให้ = ไม่มีที่พิมพ์ = หัว/ท้ายของเบราว์เซอร์หายไปเอง (สูตรเดียวกับตารางบอร์ดงาน)
  */
 
 /* ============================================================
    CSS
    ============================================================ */
 const NOTICE_PRINT_CSS = `
-/* ขนาดแผ่น = A4 หักขอบที่ผู้ใช้ตั้ง · ค่า fallback 0.32in = 8.13mm (เท่าของเดิม)
-   ไม่มี padding ในตัวแผ่น — เลขขอบ 4 ด้านที่ผู้ใช้ตั้ง = ระยะขาวจริงบนกระดาษ ไม่มีอะไรซ่อน
+/* ---------- 1 แผ่น = A4 เต็มใบ (ไม่หักขอบ) ----------
+   ขอบ 4 ด้านที่ผู้ใช้ตั้ง = padding ของแผ่น → เลขที่ตั้ง = ระยะขาวจริงบนกระดาษ ไม่มีอะไรซ่อน
+   และเป็นตัวเดียวกันทั้งบนจอกับบนกระดาษ (เดิมบนจอวาดด้วย border บนกระดาษใช้ @page คนละทาง)
 
    🚨 เผื่อ 0.8/1.5mm ไว้เสมอ ห้ามเอาออก: Chrome ปัดขนาดหน้ากระดาษเป็น device pixel ตาม DPI
       ของเครื่องพิมพ์ ถ้าแผ่นสูงเท่าพื้นที่พิมพ์เป๊ะ ๆ เศษที่ปัดจะดันขอบล่างของแผ่น (= บรรทัด
       "วันที่บังคับใช้ · F.PLN.01") หลุดไปหน้าถัดไปทีละนิด — อาการที่ผู้ใช้เจอตอนปริ้นจริง
-      1.5mm จาก 280mm = 0.5% ตาเปล่าไม่เห็น แต่กันหลุดหน้าได้แน่นอน (ของเดิมเผื่อไว้แค่ 1mm)
 
    overflow: hidden — แผ่นเป็นกล่องแข็ง ไม่มีอะไรไหลพ้นขอบล่างไปหน้าถัดไปได้เลย */
 .pn-sheet {
   box-sizing: border-box;
-  width: calc(210mm - var(--pn-ml, 0.32in) - var(--pn-mr, 0.32in) - 0.8mm);
-  height: calc(297mm - var(--pn-mt, 0.32in) - var(--pn-mb, 0.32in) - 1.5mm);
-  padding: 0;
+  width: calc(210mm - 0.8mm);
+  height: calc(297mm - 1.5mm);
+  padding: var(--pn-mt, 0.32in) var(--pn-mr, 0.32in) var(--pn-mb, 0.32in) var(--pn-ml, 0.32in);
   border: 0;
   overflow: hidden;
   display: flex;
@@ -42,8 +50,10 @@ const NOTICE_PRINT_CSS = `
   gap: 3mm;
   background: #fff;
   color: #000;
-  font-family: 'AngsanaUPC', 'Angsana New', 'CordiaUPC', 'Cordia New',
-               'TH SarabunPSK', 'Times New Roman', serif;
+  /* ต้นฉบับเป็นฟอนต์มีหัวตระกูล Angsana (ไทย) + Times (อังกฤษ)
+     🚨 ห้ามใส่ Cordia / TH Sarabun กลับเข้ามาใน fallback — เป็นฟอนต์ไม่มีหัว
+        เครื่องไหนตกมาใช้จะหน้าตาผิดจากฟอร์มกระดาษทันที */
+  font-family: 'AngsanaUPC', 'Angsana New', 'Times New Roman', serif;
   break-inside: avoid;
 }
 .pn-sheet + .pn-sheet { break-before: page; }
@@ -59,64 +69,104 @@ const NOTICE_PRINT_CSS = `
 /* ตัวย่ออัตโนมัติ — JS ใส่ transform/width ให้เมื่อฟอร์มสูงเกินครึ่งแผ่น (ดู print-notice-view.tsx) */
 .pn-fit { transform-origin: top left; }
 
-.pn-form { border: 2px solid #000; padding: 3mm 5mm; }
-.pn-header { border-bottom: 1.5px solid #000; padding-bottom: 1.5mm; margin-bottom: 1.5mm; text-align: center; }
-.pn-company { font-size: 17pt; font-weight: 700; letter-spacing: 1px; }
-.pn-company--wide { font-size: 18pt; }
-.pn-title { font-size: 15pt; font-weight: 700; margin-top: 0.5mm; }
+/* ---------- กรอบฟอร์ม ----------
+   padding: 0 — ตารางต้องชนขอบกรอบเหมือนต้นฉบับ · บล็อกที่เป็นข้อความเว้นระยะเองด้วย .pn-pad */
+.pn-form { border: 1px solid #000; }
+.pn-pad { padding-left: 2mm; padding-right: 2mm; }
 
-.pn-row { display: flex; font-size: 12pt; margin: 1mm 0; }
-.pn-row .pn-col { flex: 1; display: flex; }
-.pn-label { font-weight: 700; white-space: nowrap; }
-.pn-fill { border-bottom: 1px solid #000; flex: 1; margin-left: 2mm; min-height: 4mm; }
-.pn-jobno-label { font-weight: 700; font-size: 12pt; }
-.pn-jobno { font-size: 17pt; font-weight: 700; margin-left: 3mm; border-bottom: 1px solid #000; padding: 0 4mm; }
-.pn-regno { font-size: 15pt; font-weight: 700; margin-left: 3mm; }
+/* หัวฟอร์ม — 🚨 ไม่มีเส้นคาดใต้ (ต้นฉบับไม่มี) */
+.pn-header { text-align: center; padding: 1mm 2mm 0.5mm; }
+.pn-company { font-size: 14pt; font-weight: 700; letter-spacing: 1.5px; line-height: 1.15; }
+/* POND CHEMICAL COMPANY LIMITED ยาวกว่ามาก — ลดลงหน่อยให้ความยาวบรรทัดใกล้ต้นฉบับ */
+.pn-company--wide { font-size: 13pt; }
+.pn-title { font-size: 15pt; font-weight: 700; line-height: 1.2; }
 
-.pn-table { width: 100%; border-collapse: collapse; margin-top: 2mm; font-size: 11.5pt; table-layout: fixed; }
-.pn-table td, .pn-table th { border: 1px solid #000; padding: 1mm 1.5mm; text-align: center; word-break: break-word; }
-.pn-table th { font-weight: 700; }
-.pn-table td.pn-name { font-weight: 700; text-align: left; padding-left: 3mm; }
-.pn-table td.pn-desc { text-align: left; padding-left: 3mm; }
+/* ---------- แถว REG / LOT ---------- */
+.pn-row { display: flex; align-items: flex-end; margin: 0.6mm 0; }
+.pn-row .pn-col { display: flex; align-items: flex-end; min-width: 0; }
+.pn-label { font-size: 11pt; font-weight: 700; white-space: nowrap; line-height: 1.5; }
+/* ช่องเติมมือ (LOT/MFG/EXP) = เส้นทึบ ตามต้นฉบับ */
+.pn-fill { flex: 1; border-bottom: 1px solid #000; margin-left: 2mm; min-height: 5mm; }
+.pn-regno { font-size: 14.5pt; font-weight: 700; line-height: 1.2; padding: 0 2mm; }
+.pn-jobno-label { font-size: 11pt; font-weight: 700; white-space: nowrap; line-height: 1.5; }
+/* เลขงานคือของที่เด่นที่สุดบนฟอร์ม — ตัวใหญ่สุดในใบ เส้นใต้ยาวถึงขอบขวาของกรอบ */
+.pn-jobno { font-size: 18pt; font-weight: 700; line-height: 1.2; text-align: center; }
 
-.pn-ready-um { display: flex; font-size: 12pt; margin-top: 2mm; }
-.pn-check-row { display: flex; align-items: center; font-size: 11.5pt; margin: 1.3mm 0; }
-.pn-check-row .pn-item { width: 40mm; }
-.pn-box { width: 3mm; height: 3mm; border: 1px solid #000; display: inline-block; margin: 0 1.5mm 0 4mm; flex-shrink: 0; }
-.pn-check-label { margin-right: 2mm; }
-.pn-khad { flex: 1; border-bottom: 1px solid #000; margin-left: 2mm; min-height: 4mm; }
+/* ---------- ตาราง ----------
+   🚨 ตัดเส้นนอกซ้าย/ขวาของตารางทิ้ง แล้วใช้เส้นกรอบฟอร์มแทน — ไม่งั้นได้เส้นคู่ 2px ที่ขอบ
+      (ต้นฉบับเป็นเส้นเดียว เพราะตารางกับกรอบเป็นเส้นเดียวกัน) */
+.pn-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 12pt; }
+.pn-table th, .pn-table td {
+  border: 1px solid #000;
+  padding: 0.8mm 1.2mm;
+  text-align: center;
+  line-height: 1.25;
+  word-break: break-word;
+}
+.pn-table tr > *:first-child { border-left: 0; }
+.pn-table tr > *:last-child { border-right: 0; }
+.pn-table th { font-weight: 700; height: 7mm; }
+.pn-table td { height: 7.5mm; }
+/* แถว "รายการ / รูปร่างลักษณะยา" สูงกว่าแถวอื่น ตามต้นฉบับ */
+.pn-table tr.pn-item-row td { height: 11mm; }
+/* ชื่อยาอยู่กึ่งกลางช่อง (ต้นฉบับ) · ลักษณะยาชิดซ้าย
+   🚨 ต้องเขียนเป็น ".pn-table td.pn-desc" ไม่ใช่ ".pn-desc" เฉย ๆ — กฎ ".pn-table td" ข้างบน
+      specificity สูงกว่า class เดี่ยว แล้วจะทับ text-align: left ให้กลายเป็นกึ่งกลาง
+      (และห้ามใช้ backtick ในคอมเมนต์นี้ — ทั้งก้อนอยู่ใน template literal จะปิดสตริงกลางคัน) */
+.pn-table td.pn-name { font-size: 13pt; }
+.pn-table td.pn-name--lg { font-size: 14pt; }
+.pn-table td.pn-desc { text-align: left; padding-left: 2.5mm; }
 
-.pn-ready-po { font-size: 12pt; font-weight: 700; margin-top: 2.5mm; margin-bottom: 1mm; }
-.pn-ready-cols { display: flex; }
-.pn-ready-cols .pn-col { flex: 1; }
-.pn-ready-cols .pn-col:first-child { margin-right: 6mm; }
-.pn-ready-head { font-weight: 700; font-size: 11.5pt; margin-bottom: 1mm; }
-.pn-check-line { display: flex; align-items: center; font-size: 11pt; margin: 1mm 0 1mm 6mm; }
-.pn-check-line .pn-box { margin: 0 2mm 0 0; }
-.pn-signline { flex: 1; border-bottom: 1px solid #000; }
-.pn-missing { display: flex; font-size: 11pt; margin-top: 2mm; }
-.pn-missing .pn-col { flex: 1; display: flex; align-items: baseline; }
+/* ---------- ความพร้อมผลิต — UMEDA ---------- */
+.pn-ready-um { display: flex; align-items: baseline; font-size: 12pt; margin-top: 1.5mm; }
+.pn-ready-um .pn-label { margin-right: 8mm; }
+/* ช่องบรรยาย = เส้นประจุด (ต้นฉบับ) ไม่ใช่เส้นทึบ */
+.pn-dot-fill { flex: 1; border-bottom: 1px dotted #000; margin-left: 2mm; min-height: 4.5mm; }
+.pn-check-row { display: flex; align-items: center; font-size: 12pt; margin: 1.5mm 0; }
+.pn-check-row .pn-item { width: 29mm; font-weight: 700; flex-shrink: 0; }
+.pn-check-opt { display: flex; align-items: center; flex-shrink: 0; }
+.pn-check-opt--ready { width: 17mm; }
+.pn-check-opt--not { width: 24mm; }
+.pn-box { width: 3.6mm; height: 3.6mm; border: 1px solid #000; display: inline-block; margin-right: 1.5mm; flex-shrink: 0; }
+.pn-khad { flex-shrink: 0; }
+
+/* ---------- ความพร้อมผลิต — POND ----------
+   ต้นฉบับยัดไว้ 2 บรรทัด: [หัวข้อ] [วัตถุดิบ ☐ ครบ ลงชื่อ ___] [บรรจุภัณฑ์ ☐ ครบ ลงชื่อ ___]
+   บรรทัดล่างคือ ☐ ไม่ครบ ของทั้งสองกลุ่ม (ชื่อกลุ่มไม่ซ้ำ) */
+.pn-ready-po { display: flex; align-items: center; font-size: 12pt; margin: 1.5mm 0; }
+.pn-ready-po-title { width: 46mm; font-weight: 700; flex-shrink: 0; }
+.pn-ready-po-grp { flex: 1; display: flex; align-items: center; min-width: 0; }
+.pn-ready-po-name { width: 20mm; font-weight: 700; text-align: right; margin-right: 2mm; flex-shrink: 0; }
+.pn-check-label { margin-right: 2mm; white-space: nowrap; }
+.pn-signline { flex: 1; border-bottom: 1px solid #000; min-height: 4.5mm; margin-right: 3mm; }
+.pn-missing { display: flex; font-size: 12pt; margin-top: 1.5mm; }
+.pn-missing .pn-col { flex: 1; display: flex; align-items: baseline; min-width: 0; }
 .pn-missing .pn-col:first-child { margin-right: 6mm; }
-.pn-dotted { flex: 1; border-bottom: 1px dotted #000; margin-left: 2mm; min-height: 3.5mm; }
+.pn-dotted { flex: 1; border-bottom: 1px dotted #000; margin-left: 2mm; min-height: 4mm; }
 
-.pn-sign-title { text-align: center; font-size: 11.5pt; margin-top: 2mm; }
-.pn-footer { width: 100%; border-collapse: collapse; margin-top: 1mm; }
-.pn-footer td { border: 1px solid #000; height: 13mm; text-align: center; vertical-align: top; font-size: 11.5pt; padding-top: 1mm; }
-.pn-bottom { display: flex; justify-content: space-between; font-size: 9pt; margin-top: 1mm; padding: 0 1mm; }
+/* ---------- ลงชื่อและวันที่ ---------- */
+.pn-sign-title { text-align: center; font-size: 11pt; margin: 1mm 0 0.5mm; }
+.pn-footer { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.pn-footer th, .pn-footer td { border: 1px solid #000; text-align: center; }
+.pn-footer tr > *:first-child { border-left: 0; }
+.pn-footer tr > *:last-child { border-right: 0; }
+/* แถวล่างสุดชนขอบกรอบพอดี — ไม่ให้เส้นซ้อนกันเป็น 2px */
+.pn-footer tr:last-child > * { border-bottom: 0; }
+.pn-footer th { font-size: 12pt; font-weight: 700; height: 7mm; }
+/* ช่องเซ็น: เส้นอยู่ใกล้ก้นช่อง (ต้นฉบับ) — UMEDA เส้นประ · POND เส้นทึบ */
+.pn-footer td { height: 12mm; vertical-align: bottom; padding: 0 4mm 2.5mm; }
+.pn-sign-dot { border-bottom: 1px dotted #000; }
+.pn-sign-solid { border-bottom: 1px solid #000; }
+
+/* บรรทัดนอกกรอบ — เลขฟอร์ม/วันที่บังคับใช้ */
+.pn-bottom { display: flex; justify-content: space-between; font-size: 9pt; font-weight: 700; margin-top: 1mm; padding: 0 1mm; }
 
 @media screen {
   .pn-preview { background: #e9e9ec; padding: 6mm; overflow-x: auto; border-radius: 0.75rem; }
   /* ปิดตัวอย่าง = ย้ายออกนอกจอ ไม่ใช่ display:none — ต้องคง layout ไว้ให้ auto-fit วัดความสูงได้ */
   .pn-preview[data-open="false"] { position: absolute; left: -20000px; top: 0; width: 220mm; padding: 0; background: none; }
-  /* วาดพื้นที่ "ขอบ" เป็นสีขาวรอบแผ่น → บนจอได้กระดาษ A4 เต็ม 210x297mm ตามค่าที่ตั้งจริง
-     ใช้ border + content-box แทนการใส่ div ครอบ เพราะ .pn-sheet + .pn-sheet ข้างบนเป็น sibling
-     selector — ถ้าใส่ div ครอบ การขึ้นหน้าใหม่จะพังทันที */
+  /* บนจอ ขอบกระดาษมาจาก padding เหมือนตอนพิมพ์แล้ว เหลือแค่เส้น/เงาให้เห็นว่าเป็นแผ่นกระดาษ */
   .pn-sheet {
-    box-sizing: content-box;
-    border-top: var(--pn-mt, 0.32in) solid #fff;
-    border-right: var(--pn-mr, 0.32in) solid #fff;
-    border-bottom: var(--pn-mb, 0.32in) solid #fff;
-    border-left: var(--pn-ml, 0.32in) solid #fff;
     outline: 1px solid #c9c9d2;
     margin: 0 auto 6mm;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
@@ -143,8 +193,8 @@ const NOTICE_PRINT_CSS = `
     background: none !important;
     overflow: visible !important;
   }
-  /* ล้างขอบขาวที่วาดไว้เฉพาะบนจอ — ตอนพิมพ์ ขอบมาจาก @page ไม่ใช่ border */
-  .pn-sheet { margin: 0; box-shadow: none; border: 0; outline: 0; box-sizing: border-box; }
+  /* ล้างเฉพาะของประดับบนจอ — 🚨 padding ของ .pn-sheet คือขอบกระดาษ ห้ามล้าง */
+  .pn-sheet { margin: 0; box-shadow: none; outline: 0; }
 }
 `;
 
@@ -168,17 +218,91 @@ function pack(job: JobRow, i: number): string {
 /* ============================================================
    บล็อกที่ 2 ฟอร์มใช้ร่วมกัน
    ============================================================ */
-function ItemTable({ job }: { job: JobRow }) {
+function ItemTable({
+  job,
+  nameWidth,
+  bigName,
+}: {
+  job: JobRow;
+  /** ความกว้างช่อง "รายการ" — วัดจากฟอร์มกระดาษของแต่ละบริษัท */
+  nameWidth: string;
+  /** POND พิมพ์ชื่อยาตัวใหญ่กว่า UMEDA */
+  bigName?: boolean;
+}) {
   return (
     <table className="pn-table">
       <tbody>
         <tr>
-          <th style={{ width: "20%" }}>รายการ</th>
+          <th style={{ width: nameWidth }}>รายการ</th>
           <th>รูปร่างลักษณะยา</th>
         </tr>
-        <tr>
-          <td className="pn-name">{dashOr(job.product_name)}</td>
+        <tr className="pn-item-row">
+          <td className={bigName ? "pn-name pn-name--lg" : "pn-name"}>
+            {dashOr(job.product_name)}
+          </td>
           <td className="pn-desc">{dashOr(job.appearance)}</td>
+        </tr>
+      </tbody>
+    </table>
+  );
+}
+
+/** แถว REG. NO. + JOB. NO. — ตำแหน่งช่องถอดจากฟอร์มกระดาษ (REG ~30% · JOB เริ่ม ~62%) */
+function RegJobRow({ job }: { job: JobRow }) {
+  return (
+    <div className="pn-row pn-pad">
+      <div className="pn-col" style={{ flex: "0 0 30%" }}>
+        <span className="pn-label">REG. NO.</span>
+        <span className="pn-fill pn-regno">{dashOr(job.reg_no)}</span>
+      </div>
+      <div style={{ flex: "1 1 auto" }} />
+      <div className="pn-col" style={{ flex: "0 0 38%" }}>
+        <span className="pn-jobno-label">JOB. NO.</span>
+        <span className="pn-fill pn-jobno">{displayJobNo(job.job_no)}</span>
+      </div>
+    </div>
+  );
+}
+
+/** LOT / MFG / EXP — เว้นว่างเสมอ ให้ฝ่ายผลิตเขียนมือ (ตามฟอร์มกระดาษ) */
+function LotRow({ expLabel }: { expLabel: string }) {
+  return (
+    <div className="pn-row pn-pad">
+      <div className="pn-col" style={{ flex: "0 0 30%" }}>
+        <span className="pn-label">LOT. NO.</span>
+        <span className="pn-fill" />
+      </div>
+      <div className="pn-col" style={{ flex: "0 0 32%" }}>
+        <span className="pn-label">MFG. DATE</span>
+        <span className="pn-fill" />
+      </div>
+      <div className="pn-col" style={{ flex: "0 0 38%" }}>
+        <span className="pn-label">{expLabel}</span>
+        <span className="pn-fill" />
+      </div>
+    </div>
+  );
+}
+
+/** ตารางลงชื่อ — หัวช่อง 1 แถว + ช่องเซ็นสูง ๆ ที่มีเส้นอยู่ใกล้ก้นช่อง */
+function SignTable({ heads, dotted }: { heads: string[]; dotted: boolean }) {
+  const width = `${(100 / heads.length).toFixed(2)}%`;
+  return (
+    <table className="pn-footer">
+      <tbody>
+        <tr>
+          {heads.map((h) => (
+            <th key={h} style={{ width }}>
+              {h}
+            </th>
+          ))}
+        </tr>
+        <tr>
+          {heads.map((h) => (
+            <td key={h}>
+              <div className={dotted ? "pn-sign-dot" : "pn-sign-solid"} />
+            </td>
+          ))}
         </tr>
       </tbody>
     </table>
@@ -199,46 +323,23 @@ function UmedaForm({ job, companyName }: { job: JobRow; companyName: string }) {
           <div className="pn-title">ใบแจ้งผลิต</div>
         </div>
 
-        <div className="pn-row">
-          <div className="pn-col" style={{ flex: 1.3 }}>
-            <span className="pn-label">REG. NO.</span>
-            <span className="pn-fill">&nbsp;{dashOr(job.reg_no)}</span>
-          </div>
-          <div className="pn-col" style={{ flex: 1 }}>
-            <span className="pn-jobno-label">JOB. NO.</span>
-            <span className="pn-jobno">{displayJobNo(job.job_no)}</span>
-          </div>
-        </div>
+        <RegJobRow job={job} />
+        <LotRow expLabel="EXP.DATE" />
 
-        {/* LOT / MFG / EXP — เว้นว่างเสมอ ให้ฝ่ายผลิตเขียนมือ (ตามฟอร์มกระดาษ) */}
-        <div className="pn-row">
-          <div className="pn-col" style={{ flex: 1 }}>
-            <span className="pn-label">LOT. NO.</span>
-            <span className="pn-fill" />
-          </div>
-          <div className="pn-col" style={{ flex: 1 }}>
-            <span className="pn-label">MFG. DATE</span>
-            <span className="pn-fill" />
-          </div>
-          <div className="pn-col" style={{ flex: 1 }}>
-            <span className="pn-label">EXP.DATE</span>
-            <span className="pn-fill" />
-          </div>
-        </div>
+        <ItemTable job={job} nameWidth="23.5%" />
 
-        <ItemTable job={job} />
-
+        {/* ความกว้างคอลัมน์วัดจากฟอร์มกระดาษจริง (รวมได้ 100%) */}
         <table className="pn-table">
           <tbody>
             <tr>
-              <th style={{ width: "11%" }}>จำนวนผลิต</th>
-              <th style={{ width: "8%" }}>หน่วย</th>
-              <th style={{ width: "13%" }}>ขนาดบรรจุ (1)</th>
-              <th style={{ width: "13%" }}>ขนาดบรรจุ (2)</th>
-              <th style={{ width: "13%" }}>ขนาดบรรจุ (3)</th>
-              <th style={{ width: "10%" }}>กำหนดส่ง</th>
+              <th style={{ width: "17%" }}>จำนวนผลิต</th>
+              <th style={{ width: "6.5%" }}>หน่วย</th>
+              <th style={{ width: "19%" }}>ขนาดบรรจุ (1)</th>
+              <th style={{ width: "12%" }}>ขนาดบรรจุ (2)</th>
+              <th style={{ width: "11%" }}>ขนาดบรรจุ (3)</th>
+              <th style={{ width: "9.5%" }}>กำหนดส่ง</th>
               <th style={{ width: "10%" }}>ลูกค้า</th>
-              <th style={{ width: "14%" }}>ใบสั่งขอ</th>
+              <th style={{ width: "15%" }}>ใบคำขอ</th>
             </tr>
             <tr>
               <td>{fmtQtyPlain(job.quantity)}</td>
@@ -253,35 +354,31 @@ function UmedaForm({ job, companyName }: { job: JobRow; companyName: string }) {
           </tbody>
         </table>
 
-        <div className="pn-ready-um">
+        <div className="pn-ready-um pn-pad">
           <span className="pn-label">ความพร้อมผลิต</span>
-          <span style={{ marginLeft: "6mm" }}>หมายเหตุ</span>
-          <span className="pn-fill" />
+          <span>หมายเหตุ</span>
+          <span className="pn-dot-fill" />
         </div>
 
         {["วัตถุดิบ", "บรรจุภัณฑ์ปฐมภูมิ", "บรรจุภัณฑ์ทุติยภูมิ"].map((name) => (
-          <div className="pn-check-row" key={name}>
+          <div className="pn-check-row pn-pad" key={name}>
             <span className="pn-item">{name}</span>
-            <span className="pn-box" />
-            <span className="pn-check-label">พร้อม</span>
-            <span className="pn-box" />
-            <span className="pn-check-label">ไม่พร้อม</span>
-            <span>ขาด</span>
-            <span className="pn-khad" />
+            <span className="pn-check-opt pn-check-opt--ready">
+              <span className="pn-box" />
+              พร้อม
+            </span>
+            <span className="pn-check-opt pn-check-opt--not">
+              <span className="pn-box" />
+              ไม่พร้อม
+            </span>
+            <span className="pn-khad">ขาด</span>
+            <span className="pn-dot-fill" />
           </div>
         ))}
 
         <div className="pn-sign-title">ลงชื่อและวันที่</div>
 
-        <table className="pn-footer">
-          <tbody>
-            <tr>
-              <td>ฝ่ายวางแผน</td>
-              <td>ผู้อนุมัติ</td>
-              <td>ฝ่ายผลิต</td>
-            </tr>
-          </tbody>
-        </table>
+        <SignTable heads={["ฝ่ายวางแผน", "ผู้อนุมัติ", "ฝ่ายผลิต"]} dotted />
       </div>
 
       <div className="pn-bottom">
@@ -294,8 +391,8 @@ function UmedaForm({ job, companyName }: { job: JobRow; companyName: string }) {
 
 /* ============================================================
    ฟอร์ม POND — F.PLN.01
-   ต่างจาก UMEDA: มีช่อง "หมายเหตุ" แทน "กำหนดส่ง" · ความพร้อมผลิต 2 คอลัมน์
-   (ครบ/ไม่ครบ + ลงชื่อ) · ช่องลงชื่อ 2 ช่อง · REG. NO. ไม่มีเส้นใต้
+   ต่างจาก UMEDA: มีช่อง "หมายเหตุ" แทน "กำหนดส่ง" · ความพร้อมผลิต 2 บรรทัด
+   (ครบ/ไม่ครบ + ลงชื่อ ของวัตถุดิบกับบรรจุภัณฑ์อยู่บรรทัดเดียวกัน) · ช่องลงชื่อ 2 ช่อง
    ============================================================ */
 function PondForm({ job, companyName }: { job: JobRow; companyName: string }) {
   return (
@@ -306,49 +403,22 @@ function PondForm({ job, companyName }: { job: JobRow; companyName: string }) {
           <div className="pn-title">ใบแจ้งผลิต</div>
         </div>
 
-        <div className="pn-row">
-          <div className="pn-col" style={{ flex: 1.3 }}>
-            <span className="pn-label">REG. NO.</span>
-            <span className="pn-regno">{dashOr(job.reg_no)}</span>
-          </div>
-          <div
-            className="pn-col"
-            style={{ flex: 1, justifyContent: "flex-end" }}
-          >
-            <span className="pn-jobno-label">JOB. NO.</span>
-            <span className="pn-jobno">{displayJobNo(job.job_no)}</span>
-          </div>
-        </div>
+        <RegJobRow job={job} />
+        <LotRow expLabel="EXP.DATE." />
 
-        {/* LOT / MFG / EXP — เว้นว่างเสมอ ให้ฝ่ายผลิตเขียนมือ (ตามฟอร์มกระดาษ) */}
-        <div className="pn-row">
-          <div className="pn-col" style={{ flex: 1 }}>
-            <span className="pn-label">LOT. NO.</span>
-            <span className="pn-fill" />
-          </div>
-          <div className="pn-col" style={{ flex: 1 }}>
-            <span className="pn-label">MFG. DATE</span>
-            <span className="pn-fill" />
-          </div>
-          <div className="pn-col" style={{ flex: 1 }}>
-            <span className="pn-label">EXP.DATE.</span>
-            <span className="pn-fill" />
-          </div>
-        </div>
-
-        <ItemTable job={job} />
+        <ItemTable job={job} nameWidth="26%" bigName />
 
         <table className="pn-table">
           <tbody>
             <tr>
-              <th style={{ width: "11%" }}>จำนวนผลิต</th>
+              <th style={{ width: "18%" }}>จำนวนผลิต</th>
               <th style={{ width: "8%" }}>หน่วย</th>
-              <th style={{ width: "13%" }}>ขนาดบรรจุ (1)</th>
-              <th style={{ width: "13%" }}>ขนาดบรรจุ (2)</th>
-              <th style={{ width: "13%" }}>ขนาดบรรจุ (3)</th>
-              <th style={{ width: "13%" }}>ลูกค้า</th>
-              <th style={{ width: "14%" }}>ใบคำขอ</th>
-              <th style={{ width: "15%" }}>หมายเหตุ</th>
+              <th style={{ width: "14%" }}>ขนาดบรรจุ (1)</th>
+              <th style={{ width: "11%" }}>ขนาดบรรจุ (2)</th>
+              <th style={{ width: "11%" }}>ขนาดบรรจุ (3)</th>
+              <th style={{ width: "12.5%" }}>ลูกค้า</th>
+              <th style={{ width: "12.5%" }}>ใบคำขอ</th>
+              <th style={{ width: "13%" }}>หมายเหตุ</th>
             </tr>
             <tr>
               <td>{fmtQtyPlain(job.quantity)}</td>
@@ -363,26 +433,29 @@ function PondForm({ job, companyName }: { job: JobRow; companyName: string }) {
           </tbody>
         </table>
 
-        <div className="pn-ready-po">ตรวจสอบความพร้อมผลิต ดังนี้</div>
-        <div className="pn-ready-cols">
-          {["วัตถุดิบ", "บรรจุภัณฑ์"].map((head) => (
-            <div className="pn-col" key={head}>
-              <div className="pn-ready-head">{head}</div>
-              <div className="pn-check-line">
+        {/* 2 บรรทัด: บรรทัดแรกมีหัวข้อ + ชื่อกลุ่ม · บรรทัดสองเป็น "ไม่ครบ" ของทั้งสองกลุ่ม */}
+        {[
+          { label: "ครบ ลงชื่อ", showName: true },
+          { label: "ไม่ครบ ลงชื่อ", showName: false },
+        ].map((line, i) => (
+          <div className="pn-ready-po pn-pad" key={line.label}>
+            <span className="pn-ready-po-title">
+              {i === 0 ? "ตรวจสอบความพร้อมผลิต ดังนี้" : ""}
+            </span>
+            {["วัตถุดิบ", "บรรจุภัณฑ์"].map((name) => (
+              <span className="pn-ready-po-grp" key={name}>
+                <span className="pn-ready-po-name">
+                  {line.showName ? name : ""}
+                </span>
                 <span className="pn-box" />
-                <span className="pn-check-label">ครบ ลงชื่อ</span>
+                <span className="pn-check-label">{line.label}</span>
                 <span className="pn-signline" />
-              </div>
-              <div className="pn-check-line">
-                <span className="pn-box" />
-                <span className="pn-check-label">ไม่ครบ ลงชื่อ</span>
-                <span className="pn-signline" />
-              </div>
-            </div>
-          ))}
-        </div>
+              </span>
+            ))}
+          </div>
+        ))}
 
-        <div className="pn-missing">
+        <div className="pn-missing pn-pad">
           <div className="pn-col">
             วัตถุดิบ ขาด<span className="pn-dotted" />
           </div>
@@ -390,7 +463,7 @@ function PondForm({ job, companyName }: { job: JobRow; companyName: string }) {
             บรรจุภัณฑ์ ขาด<span className="pn-dotted" />
           </div>
         </div>
-        <div className="pn-missing">
+        <div className="pn-missing pn-pad">
           <div className="pn-col">
             กำหนดสินค้าเข้า<span className="pn-dotted" />
           </div>
@@ -401,14 +474,7 @@ function PondForm({ job, companyName }: { job: JobRow; companyName: string }) {
 
         <div className="pn-sign-title">ลงชื่อและวันที่</div>
 
-        <table className="pn-footer">
-          <tbody>
-            <tr>
-              <td>ฝ่ายวางแผน</td>
-              <td>ฝ่ายผลิต</td>
-            </tr>
-          </tbody>
-        </table>
+        <SignTable heads={["ฝ่ายวางแผน", "ฝ่ายผลิต"]} dotted={false} />
       </div>
 
       <div className="pn-bottom">
