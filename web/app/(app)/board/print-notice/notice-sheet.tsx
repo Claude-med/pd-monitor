@@ -8,22 +8,35 @@ import { displayJobNo, fmtDdMmYy } from "@/lib/format";
  * เพราะต้องพิมพ์ลง "กระดาษต่อเนื่องเคมีแบบฉีกครึ่ง A4" แล้วช่องต้องตรงกับของเดิม
  *
  * โครง 1 แผ่น = A4 = 2 Job แนวตั้ง สูงเท่ากันเป๊ะ (flex: 1 1 50%) + เส้นประตรงกลางไว้เล็งฉีก
+ * 1 Job = "กล่องแข็ง" ขนาดครึ่ง A4 (อยู่ในกรอบ A5 แนวนอน) — ยาวแค่ไหนก็ขยายไม่ได้ ดู .pn-half
  *
  * 🚨 CSS พิมพ์อยู่ในไฟล์นี้ ไม่ใช่ globals.css — @page เป็น global ถ้าเอาไปรวมจะทับกับ eBR
  *    (เหตุผลเต็มอยู่ในคอมเมนต์ globals.css)
+ * 🚨 ตัว @page เองย้ายไปอยู่ที่ print-notice-view.tsx แล้ว เพราะขอบ 4 ด้านผู้ใช้ปรับได้
+ *    และ var() ใช้ใน @page ไม่ได้ → ต้อง build เป็น string จาก state
+ *    ไฟล์นี้รับค่าผ่านตัวแปร --pn-mt/--pn-mr/--pn-mb/--pn-ml (inline style บน .pn-page)
  */
 
 /* ============================================================
    CSS
    ============================================================ */
 const NOTICE_PRINT_CSS = `
-@page { size: A4; margin: 8mm; }
+/* ขนาดแผ่น = A4 หักขอบที่ผู้ใช้ตั้ง · ค่า fallback 0.32in = 8.13mm (เท่าของเดิม)
+   ไม่มี padding ในตัวแผ่น — เลขขอบ 4 ด้านที่ผู้ใช้ตั้ง = ระยะขาวจริงบนกระดาษ ไม่มีอะไรซ่อน
 
+   🚨 เผื่อ 0.8/1.5mm ไว้เสมอ ห้ามเอาออก: Chrome ปัดขนาดหน้ากระดาษเป็น device pixel ตาม DPI
+      ของเครื่องพิมพ์ ถ้าแผ่นสูงเท่าพื้นที่พิมพ์เป๊ะ ๆ เศษที่ปัดจะดันขอบล่างของแผ่น (= บรรทัด
+      "วันที่บังคับใช้ · F.PLN.01") หลุดไปหน้าถัดไปทีละนิด — อาการที่ผู้ใช้เจอตอนปริ้นจริง
+      1.5mm จาก 280mm = 0.5% ตาเปล่าไม่เห็น แต่กันหลุดหน้าได้แน่นอน (ของเดิมเผื่อไว้แค่ 1mm)
+
+   overflow: hidden — แผ่นเป็นกล่องแข็ง ไม่มีอะไรไหลพ้นขอบล่างไปหน้าถัดไปได้เลย */
 .pn-sheet {
   box-sizing: border-box;
-  width: 194mm;
-  height: 280mm;
-  padding: 0 8mm;
+  width: calc(210mm - var(--pn-ml, 0.32in) - var(--pn-mr, 0.32in) - 0.8mm);
+  height: calc(297mm - var(--pn-mt, 0.32in) - var(--pn-mb, 0.32in) - 1.5mm);
+  padding: 0;
+  border: 0;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: 3mm;
@@ -35,7 +48,12 @@ const NOTICE_PRINT_CSS = `
 }
 .pn-sheet + .pn-sheet { break-before: page; }
 
-.pn-half { flex: 1 1 50%; min-height: 0; display: flex; flex-direction: column; }
+/* 🚨 overflow: hidden = 1 Job เป็น "กล่องแข็ง" ขนาดครึ่งแผ่น ขยายไม่ได้ไม่ว่าข้อความจะตีกี่บรรทัด
+   ตัวย่ออัตโนมัติ (print-notice-view.tsx) ทำให้เนื้อหาพอดีกล่องอยู่แล้ว บรรทัดนี้คือ "ตาข่ายกันตก"
+   เผื่อกรณีที่ JS วัดพลาด/ยังไม่ทันรัน — ของจะถูกตัดในกล่อง ไม่ไหลไปทับอีกครึ่งหรือหลุดไปหน้าถัดไป
+   (ถ้าโดนตัดจริง UI จะขึ้นแถบเตือนพร้อมเลขงาน ไม่ปล่อยให้ข้อมูลหายเงียบ ๆ)
+   .pn-fit ชดเชยความกว้างเป็น 100/scale % (เช่น 113%) — กล่องแข็งนี้กันไม่ให้มันโผล่พ้นขอบขวาด้วย */
+.pn-half { flex: 1 1 50%; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
 .pn-tear { border-top: 1px dashed #b0b0b0; }
 
 /* ตัวย่ออัตโนมัติ — JS ใส่ transform/width ให้เมื่อฟอร์มสูงเกินครึ่งแผ่น (ดู print-notice-view.tsx) */
@@ -90,7 +108,19 @@ const NOTICE_PRINT_CSS = `
   .pn-preview { background: #e9e9ec; padding: 6mm; overflow-x: auto; border-radius: 0.75rem; }
   /* ปิดตัวอย่าง = ย้ายออกนอกจอ ไม่ใช่ display:none — ต้องคง layout ไว้ให้ auto-fit วัดความสูงได้ */
   .pn-preview[data-open="false"] { position: absolute; left: -20000px; top: 0; width: 220mm; padding: 0; background: none; }
-  .pn-sheet { margin: 0 auto 6mm; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25); }
+  /* วาดพื้นที่ "ขอบ" เป็นสีขาวรอบแผ่น → บนจอได้กระดาษ A4 เต็ม 210x297mm ตามค่าที่ตั้งจริง
+     ใช้ border + content-box แทนการใส่ div ครอบ เพราะ .pn-sheet + .pn-sheet ข้างบนเป็น sibling
+     selector — ถ้าใส่ div ครอบ การขึ้นหน้าใหม่จะพังทันที */
+  .pn-sheet {
+    box-sizing: content-box;
+    border-top: var(--pn-mt, 0.32in) solid #fff;
+    border-right: var(--pn-mr, 0.32in) solid #fff;
+    border-bottom: var(--pn-mb, 0.32in) solid #fff;
+    border-left: var(--pn-ml, 0.32in) solid #fff;
+    outline: 1px solid #c9c9d2;
+    margin: 0 auto 6mm;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+  }
 }
 
 @media print {
@@ -113,7 +143,8 @@ const NOTICE_PRINT_CSS = `
     background: none !important;
     overflow: visible !important;
   }
-  .pn-sheet { margin: 0; box-shadow: none; }
+  /* ล้างขอบขาวที่วาดไว้เฉพาะบนจอ — ตอนพิมพ์ ขอบมาจาก @page ไม่ใช่ border */
+  .pn-sheet { margin: 0; box-shadow: none; border: 0; outline: 0; box-sizing: border-box; }
 }
 `;
 
@@ -423,14 +454,15 @@ export function NoticeSheets({
       {sheets.map((pair) => (
         <div className="pn-sheet" key={pair[0].id}>
           <div className="pn-half">
-            <div className="pn-fit">
+            {/* data-job — ให้ตัวย่ออัตโนมัติแจ้งได้ว่า "งานไหน" ยาวเกินจนอาจถูกตัด */}
+            <div className="pn-fit" data-job={displayJobNo(pair[0].job_no)}>
               <Form job={pair[0]} companyName={companyName} />
             </div>
           </div>
           <div className="pn-tear" />
           <div className="pn-half">
             {pair[1] && (
-              <div className="pn-fit">
+              <div className="pn-fit" data-job={displayJobNo(pair[1].job_no)}>
                 <Form job={pair[1]} companyName={companyName} />
               </div>
             )}

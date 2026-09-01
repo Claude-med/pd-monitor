@@ -1,6 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import {
   JOB_STATUS,
   STATUS_COLOR,
@@ -17,6 +25,52 @@ const inputCls =
 /** ระดับความละเอียดของตัวกรอง C.P.O DATE */
 type CpoMode = "" | "year" | "month" | "day";
 
+/* ============================================================
+   ขนาดขอบกระดาษ (ผู้ใช้ปรับได้ 4 ด้าน)
+   ============================================================ */
+
+type Side = "top" | "right" | "bottom" | "left";
+
+/** 0.32 นิ้ว = 8.13mm — ค่าเดิมที่เคย hard-code ไว้เป็น @page { margin: 8mm } */
+const DEFAULT_MARGIN_IN = 0.32;
+const MAX_MARGIN_IN = 1.5;
+
+/**
+ * เก็บเป็น string ไม่ใช่ number โดยตั้งใจ — ถ้าเก็บเป็น number แล้ว parse ทุกครั้งที่พิมพ์
+ * ผู้ใช้จะพิมพ์ "0." ไม่ได้เลย (มันจะถูกแปลงกลับเป็น "0" ทันที)
+ */
+type Margins = Record<Side, string>;
+
+const DEFAULT_MARGINS: Margins = {
+  top: String(DEFAULT_MARGIN_IN),
+  right: String(DEFAULT_MARGIN_IN),
+  bottom: String(DEFAULT_MARGIN_IN),
+  left: String(DEFAULT_MARGIN_IN),
+};
+
+const MARGIN_SIDES: { key: Side; label: string }[] = [
+  { key: "top", label: "บน" },
+  { key: "right", label: "ขวา" },
+  { key: "bottom", label: "ล่าง" },
+  { key: "left", label: "ซ้าย" },
+];
+
+/**
+ * string จากช่องกรอก → นิ้วที่ใช้ได้จริง
+ * 🚨 ห้ามคืน NaN — NaN หลุดเข้า calc() แล้วทั้งกฎจะถูกทิ้งเงียบ ๆ แผ่นกระดาษจะเสียรูปทันที
+ */
+function marginIn(raw: string): number {
+  const n = Number.parseFloat(raw);
+  if (!Number.isFinite(n)) return 0;
+  return Math.min(MAX_MARGIN_IN, Math.max(0, n));
+}
+
+const mm = (inch: number) => inch * 25.4;
+const fmtMm = (v: number) => v.toFixed(1);
+
+/** ย่อได้ต่ำสุด — ต่ำกว่านี้ตัวหนังสือเล็กจนอ่านไม่ออก ยอมให้ถูกตัดแล้วขึ้นเตือนแทน */
+const MIN_FIT_SCALE = 0.6;
+
 export function PrintNoticeView({
   jobs,
   companies,
@@ -32,6 +86,14 @@ export function PrintNoticeView({
   const [cpoValue, setCpoValue] = useState("");
   const [showPreview, setShowPreview] = useState(false);
 
+  /** ขอบกระดาษ 4 ด้าน (นิ้ว) — ไม่จำข้ามครั้ง เปิดหน้าใหม่เริ่มที่ 0.32" เสมอ */
+  const [margins, setMargins] = useState<Margins>(DEFAULT_MARGINS);
+  /** ผลของตัวย่ออัตโนมัติรอบล่าสุด — เอาไว้บอกผู้ใช้ว่าย่อไปเท่าไร / ใบไหนเสี่ยงถูกตัด */
+  const [fitInfo, setFitInfo] = useState<{ minScale: number; clipped: string[] }>({
+    minScale: 1,
+    clipped: [],
+  });
+
   /**
    * งานที่ติ๊กไว้ (เก็บ job.id)
    * 🔑 เก็บแยกจากตัวกรองโดยตั้งใจ — เปลี่ยนตัวกรองแล้วของที่ติ๊กต้องไม่หาย (requirement)
@@ -41,6 +103,33 @@ export function PrintNoticeView({
 
   const company = companies.find((c) => c.id === companyId) ?? null;
   const previewRef = useRef<HTMLDivElement>(null);
+
+  /** ขอบเป็นตัวเลขที่ปลอดภัยแล้ว (clamp 0–1.5 นิ้ว ไม่มี NaN) */
+  const mIn = useMemo(
+    () => ({
+      top: marginIn(margins.top),
+      right: marginIn(margins.right),
+      bottom: marginIn(margins.bottom),
+      left: marginIn(margins.left),
+    }),
+    [margins],
+  );
+
+  /**
+   * ขนาดจริงบนกระดาษ — ต้องใช้สูตรเดียวกับ .pn-sheet / .pn-half ใน notice-sheet.tsx เป๊ะ ๆ
+   * ไม่งั้นตัวเลขที่โชว์จะโกหกผู้ใช้ · แก้ที่ไหนต้องแก้อีกที่ด้วย
+   * แผ่นเป็น flex column ที่มีลูก 3 ตัว (ครึ่งบน · เส้นประ · ครึ่งล่าง) → gap 3mm นับ 2 ช่อง
+   */
+  const paper = useMemo(() => {
+    const sheetW = 210 - mm(mIn.left) - mm(mIn.right) - 0.8;
+    const sheetH = 297 - mm(mIn.top) - mm(mIn.bottom) - 1.5;
+    const TEAR = 3 * 2 + 25.4 / 96; // gap 2 ช่อง + เส้นประ border-top 1px
+    return { sheetW, sheetH, halfH: (sheetH - TEAR) / 2 };
+  }, [mIn]);
+
+  const isDefaultMargins = MARGIN_SIDES.every(
+    ({ key }) => marginIn(margins[key]) === DEFAULT_MARGIN_IN,
+  );
 
   const companyJobs = useMemo(
     () => jobs.filter((j) => j.company_id === companyId),
@@ -99,24 +188,54 @@ export function PrintNoticeView({
   const fitSheets = useCallback(() => {
     const root = previewRef.current;
     if (!root) return;
+
+    // pass 1 — ล้างของรอบก่อน "ทุกตัว" ก่อนเริ่มวัด
+    // (ล้าง/วัด/เขียนสลับกันในลูปเดียวทำให้ตัวถัดไปวัดจาก layout ที่ยังไม่นิ่ง)
+    const fits: HTMLElement[] = [];
     for (const half of root.querySelectorAll<HTMLElement>(".pn-half")) {
       const fit = half.querySelector<HTMLElement>(".pn-fit");
       if (!fit) continue;
-      // รีเซ็ตก่อนวัดเสมอ — ความกว้างที่ชดเชยไว้รอบก่อนทำให้ตัดบรรทัดไม่เหมือนเดิม
       fit.style.transform = "";
       fit.style.width = "";
-      const avail = half.clientHeight;
-      const need = fit.scrollHeight;
-      if (!avail || !need || need <= avail) continue;
-      const scale = Math.max(0.6, Math.floor((avail / need) * 1000) / 1000);
+      fits.push(fit);
+    }
+
+    // pass 2 — อ่านอย่างเดียว · ใช้ getBoundingClientRect เพราะได้ทศนิยม
+    //          (clientHeight/scrollHeight ปัดเป็น px เต็ม พลาดได้ ~0.26mm)
+    const plans = fits.map((fit) => {
+      const half = fit.parentElement as HTMLElement;
+      return {
+        fit,
+        avail: half.getBoundingClientRect().height - 1, // เผื่อ 1px กันปัดเศษของเบราว์เซอร์
+        need: fit.getBoundingClientRect().height,
+      };
+    });
+
+    // pass 3 — เขียนอย่างเดียว
+    let minScale = 1;
+    const clipped: string[] = [];
+    for (const { fit, avail, need } of plans) {
+      if (avail <= 0 || need <= 0 || need <= avail) continue;
+      const exact = avail / need;
+      const scale = Math.max(MIN_FIT_SCALE, Math.floor(exact * 1000) / 1000);
       fit.style.transform = `scale(${scale})`;
       fit.style.width = `${100 / scale}%`;
+      if (scale < minScale) minScale = scale;
+      // ชนพื้น 0.6 แล้วยังไม่พอ = .pn-half (overflow:hidden) จะตัดทิ้งจริง → ต้องเตือน
+      if (exact < MIN_FIT_SCALE) clipped.push(fit.dataset.job ?? "?");
     }
+
+    // 🚨 เทียบก่อนเซ็ตเสมอ — setState ใน useLayoutEffect ที่ไม่เทียบจะวนไม่จบ
+    setFitInfo((prev) =>
+      prev.minScale === minScale && prev.clipped.join() === clipped.join()
+        ? prev
+        : { minScale, clipped },
+    );
   }, []);
 
   useLayoutEffect(() => {
     fitSheets();
-  }, [fitSheets, pickedJobs, company]);
+  }, [fitSheets, pickedJobs, company, margins]);
 
   useEffect(() => {
     // ฟอนต์ AngsanaUPC โหลดช้ากว่า layout รอบแรก → ความสูงเปลี่ยน ต้องวัดซ้ำ
@@ -152,6 +271,10 @@ export function PrintNoticeView({
     });
   }
 
+  function setMargin(side: Side, raw: string) {
+    setMargins((prev) => ({ ...prev, [side]: raw }));
+  }
+
   function changeCpoMode(mode: CpoMode) {
     setCpoMode(mode);
     setCpoValue(""); // เปลี่ยนระดับความละเอียด = เริ่มเลือกค่าใหม่
@@ -166,8 +289,21 @@ export function PrintNoticeView({
   }
 
   return (
-    <div className="pn-page space-y-4">
+    <div
+      className="pn-page space-y-4"
+      style={
+        {
+          "--pn-mt": `${mIn.top}in`,
+          "--pn-mr": `${mIn.right}in`,
+          "--pn-mb": `${mIn.bottom}in`,
+          "--pn-ml": `${mIn.left}in`,
+        } as CSSProperties
+      }
+    >
       <NoticePrintStyle />
+      {/* @page ต้อง build เป็น string — var() ใช้ใน @page ไม่ได้ (Chrome ไม่รับ)
+          ไม่ใส่ prop precedence เพื่อไม่ให้ React hoist ขึ้น head (แพทเทิร์นเดียวกับ NoticePrintStyle) */}
+      <style>{`@page { size: A4; margin: ${mIn.top}in ${mIn.right}in ${mIn.bottom}in ${mIn.left}in; }`}</style>
 
       {/* ---------- ตัวกรอง ---------- */}
       <div className="no-print space-y-3 rounded-xl border bg-card p-4">
@@ -393,6 +529,85 @@ export function PrintNoticeView({
               </li>
             ))}
           </ul>
+        )}
+      </div>
+
+      {/* ---------- ขนาดขอบกระดาษ (ใช้ตอนปริ้น + วาดให้เห็นในตัวอย่าง) ---------- */}
+      <div className="no-print space-y-3 rounded-xl border bg-card p-4">
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="mr-1">
+            <div className="text-sm font-semibold">ขนาดขอบกระดาษ</div>
+            <p className="text-xs text-muted-foreground">
+              หน่วยนิ้ว · ใช้ตอนกด “ปริ้นใบแจ้งผลิต / PDF”
+            </p>
+          </div>
+
+          {MARGIN_SIDES.map(({ key, label }) => (
+            <div key={key}>
+              <label
+                htmlFor={`pn-m-${key}`}
+                className="mb-1 block text-xs font-medium text-muted-foreground"
+              >
+                {label}
+              </label>
+              <input
+                id={`pn-m-${key}`}
+                type="number"
+                inputMode="decimal"
+                step="0.01"
+                min="0"
+                max={MAX_MARGIN_IN}
+                value={margins[key]}
+                onChange={(e) => setMargin(key, e.target.value)}
+                className={`${inputCls} w-24`}
+              />
+              <p className="mt-0.5 text-[11px] text-muted-foreground">
+                = {mm(mIn[key]).toFixed(2)} มม.
+              </p>
+            </div>
+          ))}
+
+          <button
+            type="button"
+            onClick={() => setMargins(DEFAULT_MARGINS)}
+            disabled={isDefaultMargins}
+            className="mb-[1.35rem] rounded-md border px-3 py-2 text-sm hover:bg-accent disabled:opacity-40"
+          >
+            ↺ รีเซ็ตเป็นค่าเริ่มต้น (0.32”)
+          </button>
+        </div>
+
+        <div className="space-y-1 border-t pt-3 text-xs text-muted-foreground">
+          <p>
+            พื้นที่พิมพ์{" "}
+            <b className="text-foreground">
+              {fmtMm(paper.sheetW)} × {fmtMm(paper.sheetH)} มม.
+            </b>{" "}
+            · 1 Job ={" "}
+            <b className="text-foreground">
+              {fmtMm(paper.sheetW)} × {fmtMm(paper.halfH)} มม.
+            </b>{" "}
+            (อยู่ในกรอบ A5 แนวนอน 210 × 148.5 มม.)
+            {fitInfo.minScale < 1 && (
+              <> · ย่ออัตโนมัติมากสุด {Math.round(fitInfo.minScale * 100)}%</>
+            )}
+          </p>
+          <p>
+            💡 ตอนกด Ctrl+P ให้ตั้ง “ระยะขอบ / Margins” เป็น{" "}
+            <b className="text-foreground">ค่าเริ่มต้น (Default)</b>{" "}
+            ไม่งั้นเบราว์เซอร์จะใช้ขอบของตัวเองแทนค่าที่ตั้งไว้ตรงนี้
+          </p>
+          {mIn.top !== mIn.bottom && (
+            <p>⚠️ ขอบบนกับล่างไม่เท่ากัน — เส้นประสำหรับฉีกจะไม่อยู่กึ่งกลางกระดาษ</p>
+          )}
+        </div>
+
+        {fitInfo.clipped.length > 0 && (
+          <div className="rounded-md border border-amber-500/60 bg-amber-50 p-2.5 text-xs text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+            ⚠️ งาน <b>{fitInfo.clipped.join(", ")}</b> มีเนื้อหายาวเกินครึ่งแผ่นมาก
+            ย่อจนสุดแล้วยังไม่พอ — บางส่วนอาจถูกตัด
+            กด “ดูตัวอย่าง” ตรวจก่อนปริ้น หรือเพิ่มพื้นที่ด้วยการลดขอบบน/ล่าง
+          </div>
         )}
       </div>
 
