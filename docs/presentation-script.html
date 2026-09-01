@@ -1,0 +1,484 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<title>สคริปต์นำเสนอ · PD Monitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;700;800&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#0f2747; --blue:#1d4ed8; --blue2:#2563eb; --cyan:#0891b2;
+    --ink:#1e293b; --muted:#64748b; --line:#e2e8f0; --soft:#f1f5f9;
+    --red:#dc2626; --green:#16a34a; --amber:#d97706; --violet:#7c3aed;
+    --paper:#ffffff;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    font-family:'Sarabun','Leelawadee UI','Tahoma',sans-serif;
+    color:var(--ink); background:#f8fafc; line-height:1.62; font-size:15px;
+  }
+  h1,h2,h3,h4,.kanit{ font-family:'Kanit','Leelawadee UI','Tahoma',sans-serif; }
+
+  .page{
+    background:var(--paper); max-width:820px; margin:0 auto 22px;
+    padding:44px 54px; box-shadow:0 6px 24px rgba(15,39,71,.06);
+  }
+
+  /* ---------- ปก ---------- */
+  .cover{
+    background:linear-gradient(155deg,#0f2747 0%, #1d4ed8 60%, #0891b2 100%);
+    color:#fff; text-align:center; padding:70px 54px;
+  }
+  .cover .badge{
+    width:78px;height:78px;border-radius:20px;margin:0 auto 22px;
+    background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.3);
+    display:flex;align-items:center;justify-content:center;font-size:40px;
+  }
+  .cover .tag{
+    display:inline-block;border:1px solid rgba(255,255,255,.45);
+    padding:6px 18px;border-radius:99px;font-size:12.5px;letter-spacing:.04em;margin-bottom:18px;
+  }
+  .cover h1{ font-size:42px; margin:.1em 0 .15em; font-weight:800; letter-spacing:-.5px; }
+  .cover .sub{ font-size:18px; color:rgba(255,255,255,.92); margin:0 auto; max-width:24em; }
+  .cover .meta{
+    margin-top:34px;padding-top:20px;border-top:1px solid rgba(255,255,255,.25);
+    display:flex;gap:34px;justify-content:center;color:rgba(255,255,255,.92);font-size:13px;
+  }
+  .cover .meta b{ font-family:'Kanit',sans-serif;display:block;font-size:16px;margin-bottom:2px;color:#fff; }
+
+  /* ---------- section heads ---------- */
+  .kicker{
+    display:inline-block;font-family:'Kanit',sans-serif;font-weight:600;font-size:12px;
+    letter-spacing:.08em;color:#fff;background:var(--blue);padding:4px 12px;border-radius:8px;text-transform:uppercase;
+  }
+  .act-head{
+    background:linear-gradient(135deg,#0f2747,#1d4ed8);color:#fff;border-radius:14px;
+    padding:22px 26px;margin:6px 0 22px;
+  }
+  .act-head .n{ font-family:'Kanit',sans-serif;font-weight:800;font-size:13px;letter-spacing:.12em;color:#7dd3fc; }
+  .act-head h2{ margin:.15em 0 0;font-size:24px;color:#fff; }
+  .act-head p{ margin:.35em 0 0;color:rgba(255,255,255,.85);font-size:14px; }
+
+  h2.doc{ font-size:23px;color:var(--navy);margin:.2em 0 .1em; }
+  .rule{ height:4px;width:64px;border-radius:2px;background:linear-gradient(90deg,var(--blue),var(--cyan));margin:10px 0 22px; }
+
+  /* ---------- slide block ---------- */
+  .slide{
+    border:1px solid var(--line);border-radius:14px;margin:0 0 20px;overflow:hidden;
+    break-inside:avoid; page-break-inside:avoid;
+  }
+  .slide > .top{
+    display:flex;align-items:center;gap:12px;background:var(--soft);
+    padding:11px 18px;border-bottom:1px solid var(--line);
+  }
+  .slide .snum{
+    font-family:'Kanit',sans-serif;font-weight:800;font-size:14px;color:#fff;
+    background:var(--navy);min-width:30px;height:30px;border-radius:8px;
+    display:flex;align-items:center;justify-content:center;padding:0 6px;
+  }
+  .slide .stitle{ font-family:'Kanit',sans-serif;font-weight:600;font-size:16px;color:var(--navy);flex:1; }
+  .slide .time{ font-size:12.5px;color:var(--muted);white-space:nowrap; }
+  .slide .body{ padding:16px 20px 18px; }
+
+  .say{
+    background:#eef4ff;border-left:4px solid var(--blue);border-radius:0 10px 10px 0;
+    padding:12px 16px;margin:0 0 12px;font-size:15px;line-height:1.66;
+  }
+  .say .lab{ font-family:'Kanit',sans-serif;font-weight:600;font-size:12.5px;color:var(--blue);display:block;margin-bottom:4px; }
+  .say q{ quotes:none; }
+
+  .focus{ margin:0 0 10px; }
+  .focus .lab{ font-family:'Kanit',sans-serif;font-weight:600;font-size:12.5px;color:var(--navy);display:block;margin-bottom:4px; }
+  .focus ul{ margin:0;padding-left:20px; }
+  .focus li{ margin:2px 0;font-size:14px; }
+  .focus li b{ color:var(--navy); }
+
+  .next{
+    font-size:13.5px;color:var(--cyan);font-style:italic;
+    border-top:1px dashed var(--line);padding-top:9px;margin-top:4px;
+  }
+  .next b{ font-style:normal; }
+
+  /* ---------- callout boxes ---------- */
+  .note{
+    background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:16px 20px;margin:0 0 18px;
+  }
+  .note h3{ margin:0 0 8px;font-size:16px;color:var(--amber); }
+  .note ul{ margin:0;padding-left:20px; } .note li{ margin:3px 0;font-size:14px; }
+
+  .hook{
+    background:linear-gradient(135deg,#0f2747,#0891b2);color:#fff;border-radius:14px;padding:22px 26px;margin:0 0 22px;
+  }
+  .hook h3{ margin:0 0 8px;font-size:17px;color:#7dd3fc;font-family:'Kanit',sans-serif; }
+  .hook p{ margin:.3em 0;font-size:15.5px;line-height:1.7;color:#fff; }
+
+  .qa{ border:1px solid var(--line);border-radius:12px;padding:14px 18px;margin:0 0 12px;break-inside:avoid; }
+  .qa .q{ font-family:'Kanit',sans-serif;font-weight:600;color:var(--navy);font-size:15px;margin-bottom:5px; }
+  .qa .a{ font-size:14px;color:var(--ink); }
+  .qa .a b{ color:var(--green); }
+
+  .tips{ background:var(--soft);border-radius:12px;padding:16px 22px; }
+  .tips li{ margin:5px 0;font-size:14.5px; }
+
+  .foot{ text-align:center;color:var(--muted);font-size:12.5px;margin-top:8px; }
+
+  strong{ color:var(--navy); }
+
+  /* ---------- print ---------- */
+  @page{ size:A4; margin:14mm 12mm; }
+  @media print{
+    body{ background:#fff;font-size:12.5px; }
+    .page{ box-shadow:none;margin:0 auto;max-width:none;padding:0; }
+    .cover{ border-radius:0; }
+    .slide,.qa,.note,.hook,.act-head{ break-inside:avoid;page-break-inside:avoid; }
+    .say{ font-size:12.8px; } .focus li,.qa .a{ font-size:12px; }
+    .pb{ page-break-before:always; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===================== ปก ===================== -->
+<section class="page cover">
+  <div class="badge">💊</div>
+  <div class="tag">สคริปต์สำหรับผู้พูด · นำเสนอผู้บริหาร</div>
+  <h1>PD&nbsp;Monitor</h1>
+  <p class="sub">บทพูดประกอบสไลด์นำเสนอ — เปลี่ยนการ “จดมือ” ทั้งโรงงาน ให้เป็นระบบติดตามการผลิตยาออนไลน์</p>
+  <div class="meta">
+    <div><b>~15 นาที</b>เวลารวม (ไม่รวม Q&amp;A)</div>
+    <div><b>24</b>สไลด์ · 4 ตอน</div>
+    <div><b>Live</b>ใช้งานจริงแล้ว</div>
+  </div>
+</section>
+
+<!-- ===================== วิธีใช้ + hook ===================== -->
+<section class="page">
+  <span class="kicker">ก่อนเริ่ม</span>
+  <h2 class="doc">วิธีใช้สคริปต์นี้</h2>
+  <div class="rule"></div>
+  <div class="note">
+    <h3>🎯 โทนการพูด (อ่าน 30 วินาทีก่อนขึ้นเวที)</h3>
+    <ul>
+      <li>ในแต่ละสไลด์มี <b>🎤 พูดว่า</b> (พูดตามได้เลย) · <b>📌 จุดเน้น</b> (ถ้ามีเวลา/มีคนถามค่อยขยาย) · <b>➡️ เชื่อม</b> (ประโยคส่งไปสไลด์ถัดไป)</li>
+      <li><b>อย่าอ่านสไลด์คำต่อคำ</b> — สไลด์คือภาพ ปากคือเรื่องเล่า พูดช้า ชัด สบตาผู้ฟัง</li>
+      <li><b>ชูคุณค่าธุรกิจก่อนเทคนิค</b> — ผู้บริหารสนใจ “ได้อะไร/เสี่ยงอะไร” มากกว่าชื่อเทคโนโลยี</li>
+      <li>เจอศัพท์เทคนิค (GMP, eBR, RLS) ให้แปลเป็นภาษาคนทันทีในประโยคเดียว</li>
+      <li>ตัวเลขคุมจังหวะเป็นค่าประมาณ — เร่ง/ผ่อนได้ตามบรรยากาศห้อง</li>
+    </ul>
+  </div>
+  <div class="hook">
+    <h3>🎬 ประโยคเปิด (ก่อนกดสไลด์แรก)</h3>
+    <p>“ลองนึกภาพนะครับ/คะ — ทุกวันนี้ในโรงงานเรา แต่ละฝ่ายยังจดงานผลิตลงกระดาษวันละ 20 กว่ารายการ พอจะสรุปว่างานไหนถึงไหน ต้นทุนเท่าไหร่ ต้องมานั่งรวมทีหลัง กว่าจะรู้ก็สิ้นวันไปแล้ว”</p>
+    <p>“วันนี้ผม/ดิฉันจะพาไปดูระบบตัวหนึ่ง <b>ที่เราสร้างเสร็จและใช้งานจริงแล้ว</b> — มันเปลี่ยนกระดาษพวกนั้นให้เป็นข้อมูลชุดเดียวที่ทุกฝ่ายเห็นตรงกันแบบเรียลไทม์ ชื่อว่า PD Monitor ครับ/ค่ะ”</p>
+  </div>
+  <p class="foot">แล้วกดไปสไลด์ที่ 1 (หน้าปก)</p>
+</section>
+
+<!-- ===================== ตอนที่ 1 ===================== -->
+<section class="page">
+  <div class="act-head">
+    <div class="n">ตอนที่ 1</div>
+    <h2>ทำไมต้องมีระบบ — ปัญหา ทางแก้ และคุณค่า</h2>
+    <p>สไลด์ 1–6 · ~4 นาที · เป้าหมาย: ให้ผู้บริหาร “อิน” กับปัญหา แล้วเห็นว่าคุ้มค่าตรงไหน</p>
+  </div>
+
+  <div class="slide">
+    <div class="top"><span class="snum">1</span><span class="stitle">หน้าปก — PD Monitor</span><span class="time">⏱ 0:20</span></div>
+    <div class="body">
+      <div class="say"><span class="lab">🎤 พูดว่า</span><q>นี่คือ PD Monitor ระบบติดตามการผลิตยา — จุดขายสั้นๆ คือ เปลี่ยนการจดมือทั้งโรงงานให้เป็นระบบออนไลน์ และย้ำอีกครั้งว่านี่ <b>ไม่ใช่ต้นแบบ</b> แต่ใช้งานจริงอยู่แล้วที่ pd-monitor.vercel.app</q></div>
+      <div class="focus"><span class="lab">📌 จุดเน้น</span><ul><li>คำว่า <b>“Live / ใช้งานจริงแล้ว”</b> คือหมัดแรก — พูดให้หนักแน่น</li></ul></div>
+      <div class="next"><b>➡️ เชื่อม:</b> “ก่อนจะลงรายละเอียด ขอเล่าคร่าวๆ ว่าวันนี้จะพาดูอะไรบ้าง”</div>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="top"><span class="snum">2</span><span class="stitle">สารบัญ — วันนี้จะเล่าอะไรบ้าง</span><span class="time">⏱ 0:20</span></div>
+    <div class="body">
+      <div class="say"><span class="lab">🎤 พูดว่า</span><q>เราจะไป 4 เรื่องนะครับ — หนึ่ง ทำไมต้องมีระบบ, สอง เดินตามงานผลิตจริงหนึ่งงานตั้งแต่ต้นจนจบ, สาม เครื่องมือรอบด้านและมาตรฐาน GMP, และสี่ ความปลอดภัยกับก้าวต่อไป</q></div>
+      <div class="focus"><span class="lab">📌 จุดเน้น</span><ul><li>บอกล่วงหน้าว่ามี “เดินงานจริง 1 งาน” เพื่อให้ผู้ฟังรอดูตอนที่สนุกที่สุด</li></ul></div>
+      <div class="next"><b>➡️ เชื่อม:</b> “เริ่มที่คำถามสำคัญที่สุดก่อน — ทำไมต้องมีระบบ?”</div>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="top"><span class="snum">3</span><span class="stitle">ปัญหาวันนี้ — ทำไมต้องมีระบบ?</span><span class="time">⏱ 1:00</span></div>
+    <div class="body">
+      <div class="say"><span class="lab">🎤 พูดว่า</span><q>ปัญหาที่เจอจริงจากการคุยกับทีมและดูผังงานมี 4 ข้อ — จดมือทุกวัน ตกหล่นง่าย; ข้อมูลกระจัดกระจาย ต่างคนต่างเก็บ ไม่ตรงกัน; เคยลองใช้ Google Sheets ก็ช้าและแก้ทับกัน; และสุดท้าย ตามสถานะงานยาก กว่าจะรู้ต้นทุนหรือ KPI ก็ต้องมารวมทีหลัง</q></div>
+      <div class="focus"><span class="lab">📌 จุดเน้น</span><ul><li>4 การ์ดแดง = 4 ความเจ็บ พูดทีละใบสั้นๆ อย่ายืด</li><li>ถ้าผู้ฟังพยักหน้า = ปัญหานี้ “ของจริง” สำหรับเขา</li></ul></div>
+      <div class="next"><b>➡️ เชื่อม:</b> “แล้วถ้าเราแก้ทั้ง 4 ข้อนี้ด้วยระบบเดียว หน้าตาจะเป็นยังไง?”</div>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="top"><span class="snum">4</span><span class="stitle">ทางแก้ — ก่อน/หลังมีระบบ</span><span class="time">⏱ 0:40</span></div>
+    <div class="body">
+      <div class="say"><span class="lab">🎤 พูดว่า</span><q>ฝั่งซ้ายคือวันนี้ จดกระดาษซ้ำๆ ข้อมูลแยกกัน ตามงานไม่ทัน สรุปช้า — ฝั่งขวาคือหลังมีระบบ บันทึกผ่านคอมหรือมือถือโดยเลือกจากรายการ ข้อมูลกลางชุดเดียวเรียลไทม์ เห็นทุกงานบนบอร์ดเดียว และแดชบอร์ดกับต้นทุนสรุปให้อัตโนมัติ</q></div>
+      <div class="focus"><span class="lab">📌 จุดเน้น</span><ul><li>เทคนิคเล่าแบบ “ซ้ายเจ็บ–ขวาหาย” ทีละคู่ ให้เห็นความต่างชัด</li></ul></div>
+      <div class="next"><b>➡️ เชื่อม:</b> “ทีนี้ ถ้ามองในมุมธุรกิจล้วนๆ ระบบนี้คุ้มตรงไหน?”</div>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="top"><span class="snum">5</span><span class="stitle">คุณค่าเชิงธุรกิจ — คุ้มค่าตรงไหน</span><span class="time">⏱ 0:50</span></div>
+    <div class="body">
+      <div class="say"><span class="lab">🎤 พูดว่า</span><q>คุณค่ามี 4 ด้านครับ — <b>ประหยัดเวลา</b> ไม่ต้องจดซ้ำหรือรวมรายงานเอง; <b>ลดข้อผิดพลาด</b> เพราะเลือกจากรายการ กันข้ามขั้น ตัดสต็อกและกันล็อตหมดอายุอัตโนมัติ; <b>พร้อมตรวจ GMP/FDA</b> มีประวัติแก้ไม่ได้และเอกสารครบ ยื่นตรวจได้ทันที; และ <b>ผู้บริหารเห็นสด</b> รู้สถานะและต้นทุนค่าแรงแบบเรียลไทม์ ตัดสินใจได้เร็วโดยไม่ต้องรอสิ้นวัน</q></div>
+      <div class="focus"><span class="lab">📌 จุดเน้น</span><ul><li>สไลด์นี้คือ “ทำไมถึงควรลงทุน” — พูดช้าลงหน่อย ให้ผู้บริหารซึมกับข้อ 3 และ 4</li></ul></div>
+      <div class="next"><b>➡️ เชื่อม:</b> “เบื้องหลัง 4 คุณค่านี้ มีหัวใจของระบบอยู่ 4 อย่าง”</div>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="top"><span class="snum">6</span><span class="stitle">4 จุดเด่นที่เปลี่ยนทั้งโรงงาน</span><span class="time">⏱ 0:40</span></div>
+    <div class="body">
+      <div class="say"><span class="lab">🎤 พูดว่า</span><q>หัวใจมี 4 อย่าง — <b>เรียลไทม์</b> มีคนอัปเดตทุกจอเปลี่ยนเอง ไม่ต้องรีเฟรช; <b>บันทึกว่าใครทำอะไร</b> ตามแนว GMP ทุกขั้นมีหลักฐาน แก้ย้อนหลังไม่ได้; <b>กันข้ามขั้น</b> เช่นยังไม่เคลียร์ไลน์ก็เริ่มผลิตไม่ได้; และ <b>ทุกฝ่ายเห็นข้อมูลชุดเดียวกัน</b> ทั้งผลิต QC QA คลัง และผู้บริหาร</q></div>
+      <div class="focus"><span class="lab">📌 จุดเน้น</span><ul><li>4 ข้อนี้จะวนกลับมาให้เห็น “ของจริง” ในตอนที่ 2 — เกริ่นไว้</li></ul></div>
+      <div class="next"><b>➡️ เชื่อม:</b> “พูดมาเยอะแล้ว ลองดูของจริงกันดีกว่า — ผมจะพาเดินตามงานผลิตหนึ่งงาน ตั้งแต่รับออเดอร์จนเข้าคลัง”</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== ตอนที่ 2 ===================== -->
+<section class="page pb">
+  <div class="act-head">
+    <div class="n">ตอนที่ 2</div>
+    <h2>เดินงานครบวงจร 1 งาน</h2>
+    <p>สไลด์ 7–16 · ~5 นาที · เป้าหมาย: ให้เห็นระบบทำงานจริงเป็นเรื่องเล่าต่อเนื่อง (ส่วนที่คนจำได้มากที่สุด)</p>
+  </div>
+
+  <div class="slide">
+    <div class="top"><span class="snum">7</span><span class="stitle">ตัวคั่น — เดินงานครบวงจร 1 งาน</span><span class="time">⏱ 0:15</span></div>
+    <div class="body">
+      <div class="say"><span class="lab">🎤 พูดว่า</span><q>ต่อจากนี้ เราจะตามงานผลิตจริงหนึ่งงาน ตั้งแต่ตอนรับออเดอร์ จนถึงตอนปิดเข้าคลัง — เพื่อให้เห็นว่าแต่ละฝ่ายทำงานร่วมกันบนระบบนี้ยังไง</q></div>
+      <div class="next"><b>➡️ เชื่อม:</b> “เริ่มจากภาพรวมเส้นทางของงานก่อน”</div>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="top"><span class="snum">8</span><span class="stitle">6 สถานะ — จากรับออเดอร์ถึงเข้าคลัง</span><span class="time">⏱ 0:40</span></div>
+    <div class="body">
+      <div class="say"><span class="lab">🎤 พูดว่า</span><q>งานทุกงานวิ่งผ่าน 6 สถานะ — รอแจ้งผลิต → มีแผนแล้ว → กำลังผลิต → QC → QA → เข้าคลัง FG จุดสำคัญคือ <b>ทุกลูกศรมีคนรับผิดชอบชัดเจน</b> และระบบบังคับเงื่อนไขก่อนเลื่อนขั้น เช่น ต้องลงนาม QC/QA ก่อน หรือห้ามมี deviation ค้าง</q></div>
+      <div class="focus"><span class="lab">📌 จุดเน้น</span><ul><li>ชี้ไล่ตามลูกศรทีละขั้น ให้ผู้ฟังจับ “เส้นทาง” ได้ก่อนลงรายละเอียด</li></ul></div>
+      <div class="next"><b>➡️ เชื่อม:</b> “แล้วใครทำอะไรได้บ้างในแต่ละขั้น?”</div>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="top"><span class="snum">9</span><span class="stitle">6 บทบาท — เห็นและทำได้เฉพาะหน้าที่ตน</span><span class="time">⏱ 0:35</span></div>
+    <div class="body">
+      <div class="say"><span class="lab">🎤 พูดว่า</span><q>ระบบแบ่ง 6 บทบาท — ฝ่ายผลิต, QC, QA, คลัง, ผู้บริหาร และผู้ดูแลระบบ แต่ละคน <b>เห็นเมนูเฉพาะที่ตรงกับหน้าที่ตัวเอง</b> คือแต่ละคนเห็นไม่เท่ากัน ซึ่งเป็นเรื่องปกติและปลอดภัย ไม่ต้องกลัวใครไปกดในส่วนที่ไม่ใช่งานตัวเอง</q></div>
+      <div class="focus"><span class="lab">📌 จุดเน้น</span><ul><li>ผู้บริหาร = ทำได้แทบทุกอย่าง + เห็นต้นทุนค่าแรง (ชี้ให้ CEO เห็นว่าเป็นมุมของเขา)</li></ul></div>
+      <div class="next"><b>➡️ เชื่อม:</b> “ทีนี้มาเริ่มเดินงานจริง — หน้าแรกที่ทุกคนเห็นคือบอร์ดงาน”</div>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="top"><span class="snum">10</span><span class="stitle">บอร์ดงาน — เห็นทุกงานในจอเดียว</span><span class="time">⏱ 0:30</span></div>
+    <div class="body">
+      <div class="say"><span class="lab">🎤 พูดว่า</span><q>นี่คือบอร์ดงาน หัวใจของระบบ — เปิดมาเห็นทุกงานว่าอยู่ขั้นไหนในจอเดียว ไม่ต้องเดินไปถามทีละฝ่ายอีกต่อไป และทุกอย่างอัปเดตแบบเรียลไทม์</q></div>
+      <div class="focus"><span class="lab">📌 จุดเน้น</span><ul><li>ถ้าฉายภาพจริงได้ ให้ชี้ว่าแต่ละสีคือแต่ละสถานะที่เพิ่งเล่าไป</li></ul></div>
+      <div class="next"><b>➡️ เชื่อม:</b> “งานเริ่มต้นที่ผู้บริหารสร้างงานและยืนยันแผน”</div>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="top"><span class="snum">11</span><span class="stitle">ขั้น 1–2 · สร้างงาน → ยืนยันแผน</span><span class="time">⏱ 0:30</span></div>
+    <div class="body">
+      <div class="say"><span class="lab">🎤 พูดว่า</span><q>ผู้บริหารสร้างออเดอร์และงานได้ในครั้งเดียว เพิ่มยาใหม่ได้ตรงฟอร์มเลย ระบบออกเลขงานให้อัตโนมัติ เช่น JOB-2569-0001 งานขึ้นบอร์ดทันที พอกดยืนยันแผน ฝ่ายผลิตก็เริ่มเตรียมงานได้เลย</q></div>
+      <div class="next"><b>➡️ เชื่อม:</b> “ก่อนผลิตจริง มีสองด่านสำคัญ — เบิกของ กับเคลียร์ไลน์”</div>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="top"><span class="snum">12</span><span class="stitle">ขั้น 3–4 · เบิกวัตถุดิบ → Line Clearance</span><span class="time">⏱ 0:40</span></div>
+    <div class="body">
+      <div class="say"><span class="lab">🎤 พูดว่า</span><q>ตอนเบิกวัตถุดิบ คลังจ่ายของแล้ว <b>ระบบตัดสต็อกให้อัตโนมัติ</b> และกันไม่ให้จ่ายล็อตที่หมดอายุ ไม่ผ่าน QC หรือของไม่พอ — ส่วน Line Clearance คือด่าน GMP ก่อนผลิต ต้องมี <b>2 ลายเซ็น คนทำกับคนตรวจคนละคน</b> ถ้ายังไม่ผ่านด่านนี้ ระบบจะไม่ให้เริ่มผลิตเด็ดขาด</q></div>
+      <div class="focus"><span class="lab">📌 จุดเน้น</span><ul><li>“กันจ่ายล็อตหมดอายุอัตโนมัติ” = จุดที่ลดความเสี่ยงคุณภาพจริง เน้นได้</li></ul></div>
+      <div class="next"><b>➡️ เชื่อม:</b> “ผ่านด่านแล้ว ก็ถึงเวลาผลิตและบันทึกผล”</div>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="top"><span class="snum">13</span><span class="stitle">ขั้น 5–6 · บันทึกผลผลิต · ทนเน็ตกระตุก</span><span class="time">⏱ 0:40</span></div>
+    <div class="body">
+      <div class="say"><span class="lab">🎤 พูดว่า</span><q>ฝ่ายผลิตบันทึกยอดผลิต ของเสีย ชั่วโมง จำนวนคน และเลือกเครื่องจักร — ระบบกันไม่ให้เลือกเครื่องที่กำลังซ่อม ที่เด็ดคือ <b>ใช้บนมือถือได้เต็มรูปแบบ</b> และ <b>บันทึกแบบออฟไลน์ได้</b> เน็ตหลุดข้อมูลไม่หาย พอเน็ตกลับมาระบบส่งให้เองอัตโนมัติและไม่ซ้ำ</q></div>
+      <div class="focus"><span class="lab">📌 จุดเน้น</span><ul><li>ออฟไลน์+มือถือ = ตอบโจทย์หน้างานโรงงานจริง เป็นจุดที่คนงานชอบ</li></ul></div>
+      <div class="next"><b>➡️ เชื่อม:</b> “ระหว่างผลิต QC ก็ทำงานคู่ขนานไปด้วย”</div>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="top"><span class="snum">14</span><span class="stitle">ขั้น 7 · ตรวจระหว่างผลิต (In-process QC)</span><span class="time">⏱ 0:30</span></div>
+    <div class="body">
+      <div class="say"><span class="lab">🎤 พูดว่า</span><q>QC ตรวจคู่ขนานระหว่างผลิตได้เลย ไม่ต้องรอผลิตเสร็จ บันทึกว่าตรวจสถานีไหน หัวข้ออะไร ค่าที่วัดได้ ผ่านหรือไม่ผ่าน — ถ้าไม่ผ่าน มีปุ่มลัดเปิด deviation ทันที และส่วนนี้เห็นและแก้ได้เฉพาะ QC มีหลักฐานผู้ตรวจครบ</q></div>
+      <div class="next"><b>➡️ เชื่อม:</b> “พอถึงจุดตัดสินใจ QC และ QA ต้องลงนาม”</div>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="top"><span class="snum">15</span><span class="stitle">ขั้น 8–10 · QC/QA ลงนาม · กัน deviation ค้าง</span><span class="time">⏱ 0:35</span></div>
+    <div class="body">
+      <div class="say"><span class="lab">🎤 พูดว่า</span><q>ทุกครั้งที่ QC หรือ QA จะปล่อยผ่านหรือตีกลับ ต้อง <b>ยืนยันด้วยรหัสผ่านตัวเอง</b> เหมือนลงลายเซ็นดิจิทัล ระบบเก็บชื่อ เวลา และเหตุผลไว้เป็นหลักฐาน — และกฎเหล็กคือ <b>ถ้ายังมี deviation เปิดค้างอยู่ QA จะปล่อยของเข้าคลังไม่ได้</b> จนกว่าจะปิดพร้อมระบุสาเหตุและการแก้ไข</q></div>
+      <div class="focus"><span class="lab">📌 จุดเน้น</span><ul><li>นี่คือ “ตาข่ายกันของมีปัญหาหลุดออกไป” — จุดขายด้านคุณภาพที่ผู้บริหารควรจำ</li></ul></div>
+      <div class="next"><b>➡️ เชื่อม:</b> “ผ่านหมดแล้ว งานก็ถึงปลายทาง — เข้าคลัง”</div>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="top"><span class="snum">16</span><span class="stitle">ขั้น 11 · รับเข้าคลัง (FG) = ปิดงาน</span><span class="time">⏱ 0:25</span></div>
+    <div class="body">
+      <div class="say"><span class="lab">🎤 พูดว่า</span><q>คลังเห็นงานที่ผ่าน QA แล้ว กดรับเข้าพร้อมระบุจำนวน หน่วย ตำแหน่ง และเลขล็อต มีการ์ดสรุปยอดให้ครบ — พอรับเข้า งานก็ <b>จบครบวงจร</b> และข้อมูลทั้งหมดพร้อมออกเป็นแฟ้มบันทึกการผลิตทันที</q></div>
+      <div class="next"><b>➡️ เชื่อม:</b> “นั่นคือหนึ่งงานเต็มวงจร ทีนี้ผมจะพาดูเครื่องมือรอบด้านที่ทำให้ทั้งโรงงานครบจริง”</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== ตอนที่ 3 ===================== -->
+<section class="page pb">
+  <div class="act-head">
+    <div class="n">ตอนที่ 3</div>
+    <h2>เครื่องมือรอบด้าน &amp; มาตรฐาน GMP</h2>
+    <p>สไลด์ 17–21 · ~3 นาที · เป้าหมาย: แสดงว่าไม่ใช่แค่ตามงาน แต่ครอบคลุมและตรวจสอบได้จริง</p>
+  </div>
+
+  <div class="slide">
+    <div class="top"><span class="snum">17</span><span class="stitle">ตัวคั่น — เครื่องมือรอบด้าน &amp; GMP</span><span class="time">⏱ 0:15</span></div>
+    <div class="body">
+      <div class="say"><span class="lab">🎤 พูดว่า</span><q>นอกจากตามงานผลิต ระบบยังมีเครื่องมืออีกหลายอย่าง — รายงานประจำวัน แจ้งเตือน ตามรอยล็อต คลัง เครื่องจักร และสูตรการผลิต</q></div>
+      <div class="next"><b>➡️ เชื่อม:</b> “เริ่มจากตัวที่เป็นหัวใจเดิมของโปรเจค — รายงานประจำวัน”</div>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="top"><span class="snum">18</span><span class="stitle">รายงานประจำวัน (Daily Report)</span><span class="time">⏱ 0:30</span></div>
+    <div class="body">
+      <div class="say"><span class="lab">🎤 พูดว่า</span><q>เลือกวันที่ ระบบก็สรุปบันทึกผลผลิตของวันนั้นให้ แยกตามสถานีว่าผลิตได้เท่าไหร่ ของเสียเท่าไหร่ ชั่วโมงรวมเท่าไหร่ มีชื่อผู้บันทึกครบ — พูดง่ายๆ คือ <b>มันแทนสมุดจดมือ Daily Report เดิมทั้งเล่ม</b></q></div>
+      <div class="next"><b>➡️ เชื่อม:</b> “และระบบยังคอยสะกิดเราเองด้วย เมื่อมีเรื่องต้องรู้”</div>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="top"><span class="snum">19</span><span class="stitle">กล่องแจ้งเตือน 🔔 (Notification)</span><span class="time">⏱ 0:30</span></div>
+    <div class="body">
+      <div class="say"><span class="lab">🎤 พูดว่า</span><q>ระบบเตือนอัตโนมัติเมื่องานถูกตีกลับ มี deviation สำคัญ หรืองานเกินกำหนด/ค้างนานผิดปกติ กระดิ่งจะมีตัวเลขเรื่องที่ยังไม่อ่าน และที่ดีคือ <b>ส่งเฉพาะเรื่องที่เกี่ยวกับฝ่ายของคุณ</b> ไม่รบกวนด้วยเรื่องไม่เกี่ยว</q></div>
+      <div class="next"><b>➡️ เชื่อม:</b> “ทีนี้มาถึงเรื่องที่สำคัญมากสำหรับโรงงานยา — การตรวจสอบย้อนกลับตามมาตรฐาน GMP”</div>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="top"><span class="snum">20</span><span class="stitle">GMP — ตามรอยได้ · มีหลักฐานครบ</span><span class="time">⏱ 0:45</span></div>
+    <div class="body">
+      <div class="say"><span class="lab">🎤 พูดว่า</span><q>ด้าน GMP มี 3 อย่างที่ผู้ตรวจถามหาเสมอ — <b>ไล่ย้อนล็อต</b> จากวัตถุดิบไปถึง FG และย้อนกลับได้ เผื่อต้องเรียกคืนสินค้า; <b>eBR</b> คือแฟ้มบันทึกการผลิตของล็อต รวมทุกอย่างในหน้าเดียว พิมพ์หรือเซฟ PDF ได้; และ <b>Audit ที่แก้ไม่ได้</b> ทุกการเปลี่ยนแปลงถูกบันทึกว่าใครทำอะไรเมื่อไหร่ ลบไม่ได้ — สามอย่างนี้ทำให้เรา <b>ยื่นตรวจ FDA ได้อย่างมั่นใจ</b></q></div>
+      <div class="focus"><span class="lab">📌 จุดเน้น</span><ul><li>สไลด์นี้คือมูลค่าเชิงความเสี่ยง/กฎหมาย — ผู้บริหารโรงงานยาให้ค่าสูงมาก พูดเต็มเสียง</li></ul></div>
+      <div class="next"><b>➡️ เชื่อม:</b> “และระบบไม่ได้เก็บแค่ตัวงาน แต่เก็บข้อมูลหลักทั้งโรงงาน”</div>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="top"><span class="snum">21</span><span class="stitle">ครอบคลุมข้อมูลหลักทั้งโรงงาน</span><span class="time">⏱ 0:25</span></div>
+    <div class="body">
+      <div class="say"><span class="lab">🎤 พูดว่า</span><q>มีทะเบียนเครื่องจักรพร้อมเตือนซ่อมและสอบเทียบ, คลังวัตถุดิบที่ดูล็อต สต็อก และวันหมดอายุได้, และสูตรยากับ BOM ที่กำหนดวิธีบรรจุและลำดับสถานีการผลิต — ครบพอที่จะเป็นฐานข้อมูลกลางของโรงงาน</q></div>
+      <div class="next"><b>➡️ เชื่อม:</b> “คำถามสุดท้ายที่ผู้บริหารมักถาม — แล้วมันปลอดภัยและไปต่อได้ไหม?”</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== ตอนที่ 4 ===================== -->
+<section class="page pb">
+  <div class="act-head">
+    <div class="n">ตอนที่ 4</div>
+    <h2>ความปลอดภัย สถานะ และก้าวต่อไป</h2>
+    <p>สไลด์ 22–24 · ~2 นาที · เป้าหมาย: สร้างความมั่นใจ + ปิดด้วยการชวนลองใช้จริง</p>
+  </div>
+
+  <div class="slide">
+    <div class="top"><span class="snum">22</span><span class="stitle">ปลอดภัย · ขยายได้ · ดูแลน้อย</span><span class="time">⏱ 0:45</span></div>
+    <div class="body">
+      <div class="say"><span class="lab">🎤 พูดว่า</span><q>ระบบอยู่บน Cloud (Supabase + Vercel) เรา <b>ไม่ต้องดูแลเซิร์ฟเวอร์เอง</b> สำรองข้อมูลและอัปเดตอัตโนมัติ; มีการคุมสิทธิ์ระดับข้อมูล แต่ละคนเข้าถึงได้เฉพาะที่ควรเห็น บังคับที่ตัวฐานข้อมูลเลย; รองรับ ~30 คนทั้ง 5 ฝ่ายใช้พร้อมกันเห็นตรงกัน; และมีการลงนามดิจิทัลยืนยันตัวตนทุกจุดตัดสินใจ ตามแนว GMP</q></div>
+      <div class="focus"><span class="lab">📌 จุดเน้น</span><ul><li>“ดูแลน้อย ไม่ต้องมีห้องเซิร์ฟเวอร์” = ประหยัดต้นทุน IT — จุดที่ผู้บริหารชอบ</li><li>ไม่ต้องอ่านชื่อเทคโนโลยีท้ายสไลด์ทุกตัว พูดผ่านๆ พอ</li></ul></div>
+      <div class="next"><b>➡️ เชื่อม:</b> “แล้วตอนนี้ไปถึงไหนแล้ว?”</div>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="top"><span class="snum">23</span><span class="stitle">สถานะวันนี้ — เสร็จแล้ว ใช้งานจริงแล้ว</span><span class="time">⏱ 0:30</span></div>
+    <div class="body">
+      <div class="say"><span class="lab">🎤 พูดว่า</span><q>ย้ำอีกครั้งครับ — ระบบนี้ <b>Live</b> ใช้งานจริงบน Vercel แล้ว, รองรับผู้ใช้ ~30 คนทั้ง 5 ฝ่าย, มีครบทั้ง 6 สถานะงาน, และบันทึกทุกอย่างตามแนว GMP นี่ไม่ใช่สิ่งที่ “กำลังจะทำ” แต่พร้อมใช้วันนี้</q></div>
+      <div class="focus"><span class="lab">📌 จุดเน้น</span><ul><li>ตัวเลขใหญ่ 4 ตัว = ความน่าเชื่อถือ พูดหนักแน่น ช้าๆ</li></ul></div>
+      <div class="next"><b>➡️ เชื่อม:</b> “และเราไม่ได้หยุดแค่นี้ — มีแผนต่อยอด และเชิญทุกท่านลองเองเลย”</div>
+    </div>
+  </div>
+
+  <div class="slide">
+    <div class="top"><span class="snum">24</span><span class="stitle">ก้าวต่อไป + ปิด (QR + บัญชีลองใช้)</span><span class="time">⏱ 0:45</span></div>
+    <div class="body">
+      <div class="say"><span class="lab">🎤 พูดว่า</span><q>ก้าวต่อไปคือต่อยอดสู่ระบบ MES เต็มรูปแบบ — เพิ่มบาร์โค้ด/QR, วัดประสิทธิภาพเครื่องจักร OEE, วางแผนกำลังผลิต และเชื่อมกับ ERP/LIMS — และ <b>ขอเชิญทุกท่านหยิบมือถือขึ้นมาสแกน QR นี้ได้เลยครับ</b> ลองล็อกอินดูของจริง มีบัญชีให้ลองครบทั้ง 5 ฝ่าย รหัสผ่านทุกบัญชีคือ 1-2-3 อยากลองเป็นผู้บริหารก็ manager, เป็นฝ่ายผลิตก็ production ได้เลย</q></div>
+      <div class="focus"><span class="lab">📌 จุดเน้น</span><ul><li>ค้างสไลด์นี้ไว้ให้คนสแกน — อย่ารีบปิด</li><li>ปิดท้าย: <b>“PD Monitor พร้อมใช้วันนี้ พร้อมโตในวันหน้า — ขอบคุณครับ/ค่ะ”</b></li></ul></div>
+      <div class="next"><b>➡️ จบการนำเสนอ</b> → เปิดช่วงถาม-ตอบ (ดูหน้าถัดไป)</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== Q&A ===================== -->
+<section class="page pb">
+  <span class="kicker">เตรียมรับมือ</span>
+  <h2 class="doc">ช่วงถาม-ตอบ — คำถามที่น่าเจอ + แนวคำตอบ</h2>
+  <div class="rule"></div>
+
+  <div class="qa">
+    <div class="q">❓ ต้นทุนและค่าดูแลระบบเท่าไหร่?</div>
+    <div class="a"><b>แนวตอบ:</b> ระบบอยู่บน Cloud จ่ายแบบรายเดือนตามการใช้งาน ไม่ต้องซื้อเซิร์ฟเวอร์หรือจ้างทีมดูแลห้องเครื่องเอง สำรองข้อมูลและอัปเดตให้อัตโนมัติ — ต้นทุนดูแลจึงต่ำกว่าระบบที่ติดตั้งในองค์กรมาก</div>
+  </div>
+  <div class="qa">
+    <div class="q">❓ ข้อมูลปลอดภัยแค่ไหน ใครเห็นอะไรได้บ้าง?</div>
+    <div class="a"><b>แนวตอบ:</b> คุมสิทธิ์ระดับข้อมูล (RLS) บังคับที่ฐานข้อมูล แต่ละคนเข้าถึงได้เฉพาะตามบทบาท ทุกการเปลี่ยนแปลงมีบันทึก audit ที่ลบ/แก้ไม่ได้ ว่าใครทำอะไรเมื่อไหร่</div>
+  </div>
+  <div class="qa">
+    <div class="q">❓ พร้อมให้ FDA/ผู้ตรวจ GMP ตรวจจริงไหม?</div>
+    <div class="a"><b>แนวตอบ:</b> พร้อมครับ — มี eBR แฟ้มบันทึกการผลิตรายล็อตพิมพ์ได้, ไล่ย้อนล็อตจากวัตถุดิบถึงสินค้าและย้อนกลับเพื่อ recall, Line Clearance สองลายเซ็น และลงนามดิจิทัลทุกจุดตัดสินใจ</div>
+  </div>
+  <div class="qa">
+    <div class="q">❓ พนักงานหน้างานใช้ยากไหม ต้องเทรนนานไหม?</div>
+    <div class="a"><b>แนวตอบ:</b> ออกแบบให้เลือกจากรายการแทนการพิมพ์ ใช้บนมือถือได้ ทีมทดสอบจริงแล้ว เทรนแต่ละฝ่ายเฉพาะเมนูของตัวเองซึ่งมีไม่กี่ปุ่ม ใช้เวลาไม่นาน</div>
+  </div>
+  <div class="qa">
+    <div class="q">❓ ถ้าเน็ตในโรงงานหลุด ข้อมูลหายไหม?</div>
+    <div class="a"><b>แนวตอบ:</b> ไม่หายครับ — การบันทึกผลผลิตทำงานแบบออฟไลน์ได้ เก็บไว้ในเครื่องก่อน พอเน็ตกลับมาระบบส่งขึ้นเองอัตโนมัติและกันบันทึกซ้ำ</div>
+  </div>
+  <div class="qa">
+    <div class="q">❓ เชื่อมกับระบบ ERP/บัญชี/LIMS เดิมได้ไหม?</div>
+    <div class="a"><b>แนวตอบ:</b> อยู่ใน roadmap ก้าวต่อไปครับ (เชื่อม ERP/LIMS) โครงสร้างข้อมูลออกแบบมาเผื่อไว้แล้ว ค่อยทำเป็นเฟสเมื่อพร้อม</div>
+  </div>
+  <div class="qa">
+    <div class="q">❓ ข้อมูลเก่าที่จดมือ ต้องย้ายเข้าระบบไหม?</div>
+    <div class="a"><b>แนวตอบ:</b> เริ่มใช้กับงานใหม่ได้ทันทีโดยไม่ต้องย้ายของเก่าทั้งหมด ถ้าต้องการข้อมูลย้อนหลังค่อยทยอยนำเข้าเฉพาะที่จำเป็น</div>
+  </div>
+
+  <div class="note" style="margin-top:18px;">
+    <h3>💡 ถ้าตอบคำถามไม่ได้ทันที</h3>
+    <ul>
+      <li>พูดตรงๆ ว่า “ขอจดไว้แล้วกลับไปตรวจให้ชัดเจนครับ” ดีกว่าเดา — รักษาความน่าเชื่อถือ</li>
+      <li>ดึงกลับมาที่คุณค่าหลัก: ประหยัดเวลา ลดข้อผิดพลาด พร้อมตรวจ GMP เห็นสด</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ===================== Tips ===================== -->
+<section class="page pb">
+  <span class="kicker">เช็กลิสต์</span>
+  <h2 class="doc">เคล็ดลับก่อนขึ้นเวที &amp; คุมเวลา</h2>
+  <div class="rule"></div>
+  <ul class="tips">
+    <li>⏱ <b>งบเวลา ~15 นาที:</b> ตอน 1 ≈ 4 นาที · ตอน 2 ≈ 5 นาที · ตอน 3 ≈ 3 นาที · ตอน 4 ≈ 2 นาที · เผื่อ Q&amp;A 5–10 นาที</li>
+    <li>🔌 <b>เตรียมล่วงหน้า:</b> เปิด pd-monitor.vercel.app ค้างไว้ 1 แท็บเผื่อสาธิตสด · เช็กเน็ต/จอ/QR ว่าสแกนติด</li>
+    <li>🗣 <b>ถ้าเวลาเหลือ:</b> สาธิตสดตอนสไลด์ 10 (บอร์ด) หรือ 13 (บันทึกบนมือถือ) จะว้าวที่สุด</li>
+    <li>⏩ <b>ถ้าเวลาน้อย:</b> ตัดสไลด์ 11, 14, 21 ให้สั้นลง แต่ <b>ห้ามตัด</b> สไลด์ 5 (คุณค่า), 15 (กันของเสีย), 20 (GMP), 24 (ปิด)</li>
+    <li>👀 <b>เปิดด้วย hook, ปิดด้วยการชวนลองจริง</b> — คนจำต้นกับท้ายได้มากที่สุด ลงแรงสองจุดนี้</li>
+    <li>😊 ยิ้ม พูดช้ากว่าที่คิดนิดหนึ่ง และหยุดให้ผู้ฟังได้คิดหลังตัวเลขหรือจุดสำคัญ</li>
+  </ul>
+  <p class="foot">สคริปต์นี้อ้างอิงสไลด์จริงจาก docs/presentation.html · PD Monitor — Pending Order &amp; PD Monitoring System</p>
+</section>
+
+</body>
+</html>
