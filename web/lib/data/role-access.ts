@@ -5,6 +5,12 @@ import { hasAnyRole } from "@/lib/auth/roles";
  * แหล่งความจริงเดียวของ "สิทธิ์แต่ละ role" ฝั่งแอป (Part A)
  * — ไม่มี server import → ใช้ได้ทั้ง Server และ Client Components
  *
+ * 🔑 กติกาสืบทอด (Part E · migration 0078): role "<ฝ่าย>_lead" มีสิทธิ์ของ "<ฝ่าย>" ด้วยเสมอ
+ *    บังคับที่ hasRole() ใน lib/auth/roles.ts คู่กับ has_role() ใน DB
+ *    → helper ด้านล่างจึงไม่ต้องไล่ใส่ role หัวหน้าทีละตัว (ใส่ไว้บางตัวเพื่ออ่านง่ายเท่านั้น)
+ *    ⚠️ ยกเว้น helper ที่ตั้งใจให้ "เฉพาะหัวหน้า" เช่น canCheckLineClearance / canApproveInprocess
+ *       — พวกนี้ระบุ "<ฝ่าย>_lead" ตรง ๆ และพนักงานฐานจะไม่ผ่าน (สืบทอดเป็นทางเดียว)
+ *
  * ⚠️ helper ด้านล่างต้อง "ตรงกับ guard ใน DB" เสมอ (migration 0039 · 0044 · 0046 · 0049):
  *      canPlanJobs()          ↔ public.can_plan_jobs()
  *      canManageProducts()    ↔ public.can_manage_products()
@@ -22,6 +28,7 @@ import { hasAnyRole } from "@/lib/auth/roles";
  *      canCheckLineClearance()     ↔ public.can_check_line_clearance()    (0062)
  *      canRecordInprocess()        ↔ public.can_record_inprocess()        (0064)
  *      canApproveInprocess()       ↔ public.can_approve_inprocess()       (0064)
+ *      canApproveProductionRecord()↔ public.can_approve_production_record() (0080)
  *      canRecordQaSample()         ↔ public.can_record_qa_sample()        (0066)
  *      canReviewIncident()         ↔ public.can_review_incident()         (0067)
  *      canOpenDeviation()          ↔ แค่ล็อกอิน (ทุกฝ่ายเปิด Incident Case ได้ · 0067)
@@ -56,6 +63,15 @@ export const ROLE_ACCESS: Record<AppRole, RoleAccess> = {
     ],
     view: ["ความคืบหน้าทุกงานบนบอร์ด"],
   },
+  planner_lead: {
+    code: "PLN-L",
+    duty: "หัวหน้าฝ่ายวางแผน — ดูแลทีมวางแผน",
+    manage: [
+      "ทำได้ทุกอย่างเหมือนฝ่ายวางแผน",
+      "สร้าง/ดูแลบัญชีพนักงานในฝ่ายวางแผน",
+    ],
+    view: ["ความคืบหน้าทุกงานบนบอร์ด"],
+  },
   production: {
     code: "PROD",
     duty: "ผลิตจริงหน้างาน — บันทึกผลผลิตรายวัน",
@@ -76,6 +92,8 @@ export const ROLE_ACCESS: Record<AppRole, RoleAccess> = {
       "ทำได้ทุกอย่างเหมือนฝ่ายผลิต",
       "ยืนยัน Line Clearance ที่พนักงานติ๊กไว้ (ต้องคนละคนกับผู้ทำ)",
       "เลือกเครื่องจักรของแต่ละขั้นตอนการผลิต",
+      "อนุมัติ / ไม่อนุมัติ บันทึกผลผลิตที่พนักงานลงไว้ (ต้องคนละคนกับผู้บันทึก)",
+      "สร้าง/ดูแลบัญชีพนักงานในฝ่ายผลิต",
     ],
     view: [],
   },
@@ -97,6 +115,15 @@ export const ROLE_ACCESS: Record<AppRole, RoleAccess> = {
       "อนุมัติ / ไม่อนุมัติ ผลตรวจ in-process ที่ QC ลงไว้",
     ],
     view: ["หน้าตรวจ QC / QA"],
+  },
+  qa_lead: {
+    code: "QA-L",
+    duty: "หัวหน้า QA — ดูแลทีม QA",
+    manage: [
+      "ทำได้ทุกอย่างเหมือน QA",
+      "สร้าง/ดูแลบัญชีพนักงานในฝ่าย QA",
+    ],
+    view: ["ประวัติ / Audit", "ไล่ย้อนล็อต (Trace)", "คำขอแก้ไข (Amendment)"],
   },
   qa: {
     code: "QA",
@@ -120,6 +147,15 @@ export const ROLE_ACCESS: Record<AppRole, RoleAccess> = {
     ],
     view: ["คลัง / FG", "เบิกวัตถุดิบ / บรรจุภัณฑ์", "ไล่ย้อนล็อต (Trace)"],
   },
+  warehouse_lead: {
+    code: "WH-L",
+    duty: "หัวหน้าคลังสินค้า — ดูแลทีมคลัง",
+    manage: [
+      "ทำได้ทุกอย่างเหมือนฝ่ายคลัง",
+      "สร้าง/ดูแลบัญชีพนักงานในฝ่ายคลัง",
+    ],
+    view: ["คลัง / FG", "เบิกวัตถุดิบ / บรรจุภัณฑ์", "ไล่ย้อนล็อต (Trace)"],
+  },
   engineering: {
     code: "ENG",
     duty: "ดูแลเครื่องจักร — ซ่อมบำรุง / สอบเทียบ",
@@ -127,6 +163,15 @@ export const ROLE_ACCESS: Record<AppRole, RoleAccess> = {
       "เพิ่ม/แก้ทะเบียนเครื่องจักร (รวมห้อง/สถานะ)",
       "กำหนดวันซ่อมบำรุง + วันสอบเทียบครั้งหน้า",
       "บันทึกหมายเหตุ Incident Case ในนามฝ่ายวิศวกรรม",
+    ],
+    view: ["รายงานการใช้เครื่อง"],
+  },
+  engineering_lead: {
+    code: "ENG-L",
+    duty: "หัวหน้าฝ่ายวิศวกรรม — ดูแลทีมวิศวกรรม",
+    manage: [
+      "ทำได้ทุกอย่างเหมือนฝ่ายวิศวกรรม",
+      "สร้าง/ดูแลบัญชีพนักงานในฝ่ายวิศวกรรม",
     ],
     view: ["รายงานการใช้เครื่อง"],
   },
@@ -141,9 +186,13 @@ export const ROLE_ACCESS: Record<AppRole, RoleAccess> = {
   },
   manager: {
     code: "MGR",
-    duty: "ผู้บริหาร — ดูภาพรวมและอนุมัติทุกขั้น",
+    duty: "ผู้บริหาร — ดูภาพรวมและอนุมัติงานส่วนใหญ่",
     manage: [
-      "ทำได้ทุกขั้นของงานผลิต (สร้างงาน/ยืนยันแผน/เครื่องจักร/ผลิตภัณฑ์)",
+      "สร้างงาน / ยืนยันแผน / เครื่องจักร / ผลิตภัณฑ์ / เริ่มผลิต",
+      // ⚠️ ตามจริง: ผู้บริหารลงนาม “QC ผ่าน / QA ปล่อยผ่าน” ไม่ได้ —
+      //    sign_job_decision (0008:84-89) บังคับว่าผู้ลงนามต้องถือ role qc / qa จริง
+      //    (ตั้งใจตามแนว GMP: คนลงนามปล่อยผ่านต้องเป็นผู้มีคุณสมบัติของฝ่ายนั้น)
+      "ลงนามขั้น QC/QA ไม่ได้ — ต้องเป็น QC / QA (หรือหัวหน้าฝ่ายนั้น) เท่านั้น",
       "จัดการผู้ใช้ + กำหนดสิทธิ์ · รีเซ็ตรหัสผ่าน · ระงับบัญชี",
       "สถานีการผลิต (master) + ขั้นตอนการผลิต (route) ของแต่ละผลิตภัณฑ์",
       "อนุมัติคำขอแก้ไขย้อนหลังทุกชนิด · ลบงาน",
@@ -300,4 +349,14 @@ export function canRecordInprocess(roles: AppRole[]): boolean {
  */
 export function canApproveInprocess(roles: AppRole[]): boolean {
   return hasAnyRole(roles, ["qc_lead", "manager"]);
+}
+
+/**
+ * อนุมัติ/ไม่อนุมัติบันทึกผลผลิต — ตรงกับ can_approve_production_record() ใน DB (0080)
+ *
+ * ⚠️ ห้าม or รวมกับสิทธิ์ "บันทึกผลผลิต" — พนักงานฝ่ายผลิตต้องบันทึกได้แต่อนุมัติเองไม่ได้
+ *    (DB ยังกันซ้ำอีกชั้นว่าผู้อนุมัติต้องคนละคนกับผู้บันทึก — สองลายเซ็นตามแนว GMP)
+ */
+export function canApproveProductionRecord(roles: AppRole[]): boolean {
+  return hasAnyRole(roles, ["production_lead", "manager"]);
 }

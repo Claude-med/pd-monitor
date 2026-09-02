@@ -1,10 +1,16 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { ALL_ROLES, ROLE_LABELS } from "@/lib/nav";
 import { ROLE_ACCESS, COMMON_VIEW } from "@/lib/data/role-access";
 import type { AppRole } from "@/lib/auth/dal";
 import type { AdminUser } from "@/lib/data/admin-users";
+import {
+  DEPT_LABEL,
+  assignableRolesForHead,
+  headMayManage,
+  type UserAdminScope,
+} from "@/lib/data/dept-constants";
 import {
   createUser,
   setRoles,
@@ -17,19 +23,28 @@ const inputClass =
   "w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring";
 const labelClass = "mb-1 block text-xs font-medium text-muted-foreground";
 
+/**
+ * กล่องติ๊กสิทธิ์ — `options` จำกัดว่าเห็น/เลือกได้แค่ไหน
+ * (หัวหน้าแผนกเห็นเฉพาะสิทธิ์ของลูกน้องในฝ่ายตัวเอง)
+ * ⚠️ นี่เป็นแค่การจัดหน้าจอ — ด่านจริงคือ admin_set_roles() ใน DB (0079)
+ */
 function RoleChecks({
   value,
   onChange,
+  options = ALL_ROLES,
+  disabled = false,
 }: {
   value: AppRole[];
   onChange: (roles: AppRole[]) => void;
+  options?: AppRole[];
+  disabled?: boolean;
 }) {
   function toggle(r: AppRole) {
     onChange(value.includes(r) ? value.filter((x) => x !== r) : [...value, r]);
   }
   return (
     <div className="flex flex-wrap gap-2">
-      {ALL_ROLES.map((r) => (
+      {options.map((r) => (
         <label
           key={r}
           className={[
@@ -43,6 +58,7 @@ function RoleChecks({
             type="checkbox"
             className="mr-1.5 align-middle"
             checked={value.includes(r)}
+            disabled={disabled}
             onChange={() => toggle(r)}
           />
           {ROLE_LABELS[r]}
@@ -60,12 +76,20 @@ function RoleCountBar({
   users,
   filter,
   onFilter,
+  roleOptions,
+  scope,
 }: {
   users: AdminUser[];
   filter: RoleFilter;
   onFilter: (f: RoleFilter) => void;
+  roleOptions: AppRole[];
+  scope: UserAdminScope;
 }) {
   const noneCount = users.filter((u) => u.roles.length === 0).length;
+  const isHead = scope.kind === "head";
+  const heading = isHead
+    ? `บัญชีใน${scope.depts.map((d) => DEPT_LABEL[d]).join(" · ")}`
+    : "จำนวนบัญชีแต่ละฝ่าย";
 
   function chipClass(active: boolean) {
     return [
@@ -78,7 +102,7 @@ function RoleCountBar({
 
   return (
     <div className="rounded-xl border bg-card p-4">
-      <p className="mb-2 text-sm font-semibold">จำนวนบัญชีแต่ละฝ่าย</p>
+      <p className="mb-2 text-sm font-semibold">{heading}</p>
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
@@ -87,7 +111,7 @@ function RoleCountBar({
         >
           ทั้งหมด · {users.length}
         </button>
-        {ALL_ROLES.map((r) => {
+        {roleOptions.map((r) => {
           const n = users.filter((u) => u.roles.includes(r)).length;
           return (
             <button
@@ -117,13 +141,14 @@ function RoleCountBar({
       <p className="mt-2 text-xs text-muted-foreground">
         กดชิปเพื่อกรองรายชื่อด้านล่าง · 1 บัญชีมีได้หลายสิทธิ์ →
         จะถูกนับในทุกฝ่ายที่ได้รับสิทธิ์
+        {isHead ? " · แสดงเฉพาะพนักงานในฝ่ายของคุณ" : ""}
       </p>
     </div>
   );
 }
 
 /** แผงอธิบาย "แต่ละสิทธิ์เข้าถึงอะไรได้บ้าง" (พับเก็บได้) */
-function RoleAccessPanel() {
+function RoleAccessPanel({ roleOptions }: { roleOptions: AppRole[] }) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -158,7 +183,7 @@ function RoleAccessPanel() {
                 </tr>
               </thead>
               <tbody>
-                {ALL_ROLES.map((r) => {
+                {roleOptions.map((r) => {
                   const a = ROLE_ACCESS[r];
                   return (
                     <tr key={r} className="border-b align-top last:border-0">
@@ -196,7 +221,7 @@ function RoleAccessPanel() {
 
           {/* มือถือ = การ์ดเรียงลง */}
           <div className="space-y-3 md:hidden">
-            {ALL_ROLES.map((r) => {
+            {roleOptions.map((r) => {
               const a = ROLE_ACCESS[r];
               return (
                 <div key={r} className="rounded-lg border p-3">
@@ -243,13 +268,22 @@ function RoleAccessPanel() {
 export function UsersAdmin({
   users,
   currentProfileId,
+  scope,
 }: {
   users: AdminUser[];
   currentProfileId: string;
+  scope: UserAdminScope;
 }) {
   const [showCreate, setShowCreate] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
   const [filter, setFilter] = useState<RoleFilter>("all");
+
+  /** สิทธิ์ที่ขอบเขตนี้เห็น/แจกได้ — หัวหน้าแผนก = role พื้นของฝ่ายตัวเองเท่านั้น */
+  const roleOptions = useMemo(
+    () =>
+      scope.kind === "manager" ? ALL_ROLES : assignableRolesForHead(scope.depts),
+    [scope],
+  );
 
   const shown =
     filter === "all"
@@ -261,8 +295,14 @@ export function UsersAdmin({
   return (
     <div className="space-y-5">
       {/* ---------- สรุปจำนวนบัญชีต่อฝ่าย + คำอธิบายสิทธิ์ ---------- */}
-      <RoleCountBar users={users} filter={filter} onFilter={setFilter} />
-      <RoleAccessPanel />
+      <RoleCountBar
+        users={users}
+        filter={filter}
+        onFilter={setFilter}
+        roleOptions={roleOptions}
+        scope={scope}
+      />
+      <RoleAccessPanel roleOptions={roleOptions} />
 
       {/* ---------- สร้างบัญชีใหม่ ---------- */}
       <div className="rounded-xl border bg-card">
@@ -278,7 +318,7 @@ export function UsersAdmin({
         </button>
         {showCreate && (
           <div className="border-t p-5">
-            <CreateForm onDone={() => setShowCreate(false)} />
+            <CreateForm scope={scope} roleOptions={roleOptions} />
           </div>
         )}
       </div>
@@ -317,6 +357,15 @@ export function UsersAdmin({
             isSelf={u.id === currentProfileId}
             open={openId === u.id}
             onToggle={() => setOpenId((id) => (id === u.id ? null : u.id))}
+            roleOptions={roleOptions}
+            /* หัวหน้าแผนกแตะได้เฉพาะลูกน้องในฝ่ายตัวเอง — ด่านจริงอยู่ที่ head_may_manage() ใน DB */
+            canManage={
+              scope.kind === "manager" ||
+              headMayManage(scope.depts, {
+                roles: u.roles,
+                isSelf: u.id === currentProfileId,
+              })
+            }
           />
         ))}
       </div>
@@ -324,11 +373,24 @@ export function UsersAdmin({
   );
 }
 
-function CreateForm({ onDone }: { onDone: () => void }) {
+function CreateForm({
+  scope,
+  roleOptions,
+}: {
+  scope: UserAdminScope;
+  roleOptions: AppRole[];
+}) {
+  // หัวหน้าแผนก: แผนกถูกล็อกเป็นฝ่ายของตัวเอง (ค่ามาตรฐาน ไม่ใช่ช่องพิมพ์อิสระ)
+  // ⚠️ server เขียนทับค่านี้ด้วยฝ่ายของหัวหน้าเสมอ — ช่องนี้เป็นแค่การแสดงผล
+  const lockedDept =
+    scope.kind === "head"
+      ? scope.depts.map((d) => DEPT_LABEL[d]).join(" / ")
+      : null;
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
-  const [department, setDepartment] = useState("");
+  const [department, setDepartment] = useState(lockedDept ?? "");
   const [roles, setRolesState] = useState<AppRole[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [okMsg, setOkMsg] = useState<string | null>(null);
@@ -346,13 +408,14 @@ function CreateForm({ onDone }: { onDone: () => void }) {
         roles,
       });
       if (res.ok) {
-        setOkMsg(`สร้างบัญชี ${email} แล้ว`);
+        // แสดงผลสำเร็จค้างไว้ในฟอร์ม — เดิมเรียก onDone() ทันทีทำให้ accordion ปิด
+        // ก่อนที่ผู้ใช้จะทันเห็นข้อความว่าสร้างบัญชีให้ใครไปแล้ว
+        setOkMsg(`สร้างบัญชี ${email} แล้ว — ผู้ใช้ต้องตั้งรหัสผ่านใหม่เองตอนล็อกอินครั้งแรก`);
         setEmail("");
         setPassword("");
         setFullName("");
-        setDepartment("");
+        setDepartment(lockedDept ?? "");
         setRolesState([]);
-        onDone();
         return;
       }
       setError(res.error ?? "สร้างบัญชีไม่สำเร็จ");
@@ -392,18 +455,31 @@ function CreateForm({ onDone }: { onDone: () => void }) {
           />
         </div>
         <div>
-          <label className={labelClass}>แผนก</label>
+          <label className={labelClass}>
+            แผนก{lockedDept ? " (ล็อกตามฝ่ายของคุณ)" : ""}
+          </label>
           <input
             value={department}
             onChange={(e) => setDepartment(e.target.value)}
             placeholder="เช่น ฝ่ายผลิต"
-            className={inputClass}
+            readOnly={lockedDept !== null}
+            className={[
+              inputClass,
+              lockedDept !== null ? "bg-muted text-muted-foreground" : "",
+            ].join(" ")}
           />
         </div>
       </div>
       <div>
-        <label className={labelClass}>สิทธิ์ (เลือกได้หลายอย่าง)</label>
-        <RoleChecks value={roles} onChange={setRolesState} />
+        <label className={labelClass}>
+          สิทธิ์ (เลือกได้หลายอย่าง)
+          {scope.kind === "head" ? " — เฉพาะสิทธิ์ของพนักงานในฝ่ายคุณ" : ""}
+        </label>
+        <RoleChecks
+          value={roles}
+          onChange={setRolesState}
+          options={roleOptions}
+        />
       </div>
 
       {error && (
@@ -427,7 +503,8 @@ function CreateForm({ onDone }: { onDone: () => void }) {
       </button>
       <p className="text-xs text-muted-foreground">
         บัญชีถูกยืนยันอีเมลให้อัตโนมัติ — ผู้ใช้ล็อกอินด้วยอีเมล + รหัสผ่านนี้ได้ทันที
-        (แนะนำให้ผู้ใช้เปลี่ยนรหัสเองภายหลัง)
+        และ <span className="font-medium">ระบบจะบังคับให้ตั้งรหัสผ่านใหม่เองก่อนใช้งาน</span>{" "}
+        (คนสร้างบัญชีรู้รหัสเริ่มต้น จึงต้องไม่ใช้รหัสนั้นทำงานแทนกัน)
       </p>
     </div>
   );
@@ -438,11 +515,15 @@ function UserRow({
   isSelf,
   open,
   onToggle,
+  roleOptions,
+  canManage,
 }: {
   user: AdminUser;
   isSelf: boolean;
   open: boolean;
   onToggle: () => void;
+  roleOptions: AppRole[];
+  canManage: boolean;
 }) {
   return (
     <div className="rounded-xl border bg-card">
@@ -467,6 +548,11 @@ function UserRow({
             {!user.auth_user_id && (
               <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] text-amber-700 dark:text-amber-400">
                 ยังไม่มีบัญชีล็อกอิน
+              </span>
+            )}
+            {user.must_change_password && user.auth_user_id && (
+              <span className="rounded bg-sky-500/15 px-1.5 py-0.5 text-[10px] text-sky-700 dark:text-sky-400">
+                รอผู้ใช้ตั้งรหัสผ่านเอง
               </span>
             )}
           </div>
@@ -494,14 +580,29 @@ function UserRow({
       </button>
       {open && (
         <div className="border-t p-5">
-          <UserEditPanel user={user} isSelf={isSelf} />
+          <UserEditPanel
+            user={user}
+            isSelf={isSelf}
+            roleOptions={roleOptions}
+            canManage={canManage}
+          />
         </div>
       )}
     </div>
   );
 }
 
-function UserEditPanel({ user, isSelf }: { user: AdminUser; isSelf: boolean }) {
+function UserEditPanel({
+  user,
+  isSelf,
+  roleOptions,
+  canManage,
+}: {
+  user: AdminUser;
+  isSelf: boolean;
+  roleOptions: AppRole[];
+  canManage: boolean;
+}) {
   const [fullName, setFullName] = useState(user.full_name);
   const [department, setDepartment] = useState(user.department ?? "");
   const [roles, setRolesState] = useState<AppRole[]>(user.roles);
@@ -515,6 +616,16 @@ function UserEditPanel({ user, isSelf }: { user: AdminUser; isSelf: boolean }) {
       const res = await fn();
       setMsg(res.ok ? { ok: true, text: okText } : { text: res.error ?? "ไม่สำเร็จ" });
     });
+  }
+
+  // หัวหน้าแผนกเปิดดูบัญชีที่อยู่นอกขอบเขตได้ แต่แก้ไม่ได้ — บอกเหตุผลแทนการซ่อนเงียบ ๆ
+  if (!canManage) {
+    return (
+      <p className="rounded-md bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+        🔒 บัญชีนี้อยู่นอกขอบเขตของคุณ — หัวหน้าแผนกดูแลได้เฉพาะพนักงานในฝ่ายตัวเอง
+        (บัญชีผู้บริหาร ผู้ดูแลระบบ และหัวหน้าฝ่ายอื่น ต้องให้ผู้บริหารจัดการ)
+      </p>
+    );
   }
 
   return (
@@ -558,7 +669,11 @@ function UserEditPanel({ user, isSelf }: { user: AdminUser; isSelf: boolean }) {
       {/* สิทธิ์ */}
       <div className="space-y-3 border-t pt-4">
         <p className="text-sm font-semibold">สิทธิ์ (role)</p>
-        <RoleChecks value={roles} onChange={setRolesState} />
+        <RoleChecks
+          value={roles}
+          onChange={setRolesState}
+          options={roleOptions}
+        />
         {isSelf && (
           <p className="text-xs text-amber-700 dark:text-amber-400">
             ⚠️ ต้องคงสิทธิ์ผู้บริหารหรือผู้ดูแลระบบของบัญชีตัวเองไว้ (กันล็อกตัวเองออกจากระบบ)
@@ -592,7 +707,11 @@ function UserEditPanel({ user, isSelf }: { user: AdminUser; isSelf: boolean }) {
                 disabled={pending}
                 onClick={() =>
                   run(async () => {
-                    const res = await resetPassword(user.auth_user_id!, newPw);
+                    const res = await resetPassword(
+                      user.id,
+                      user.auth_user_id!,
+                      newPw,
+                    );
                     if (res.ok) setNewPw("");
                     return res;
                   }, "ตั้งรหัสผ่านใหม่แล้ว")
@@ -603,7 +722,8 @@ function UserEditPanel({ user, isSelf }: { user: AdminUser; isSelf: boolean }) {
               </button>
             </div>
             <p className="text-xs text-muted-foreground">
-              ระบบเก็บรหัสแบบเข้ารหัส — ตั้งใหม่ได้ แต่ดูรหัสเดิมไม่ได้
+              ระบบเก็บรหัสแบบเข้ารหัส — ตั้งใหม่ได้ แต่ดูรหัสเดิมไม่ได้ ·
+              ผู้ใช้จะถูกบังคับให้ตั้งรหัสของตัวเองอีกครั้งตอนล็อกอินถัดไป
             </p>
           </>
         ) : (

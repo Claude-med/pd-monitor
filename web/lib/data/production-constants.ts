@@ -47,6 +47,22 @@ export const QC_STATUS_META: Record<
   fail: { label: "ไม่ผ่าน", color: "#dc2626" },
 };
 
+/**
+ * สถานะอนุมัติของแถวบันทึกผลผลิต — ตรงกับ enum production_record_status ใน DB (0080)
+ * ⚠️ ต่างจาก RecordQcStatus ด้านบน: อันนี้ "เก็บเป็นคอลัมน์จริง" เพราะเป็นลายเซ็นของหัวหน้า
+ *    ส่วนสถานะ QC คำนวณสดจาก inprocess_checks
+ */
+export type ProductionApprovalStatus = "pending" | "approved" | "rejected";
+
+export const APPROVAL_STATUS_META: Record<
+  ProductionApprovalStatus,
+  { label: string; color: string }
+> = {
+  pending: { label: "รอหัวหน้าอนุมัติ", color: "#f59e0b" },
+  approved: { label: "อนุมัติแล้ว", color: "#16a34a" },
+  rejected: { label: "ไม่อนุมัติ", color: "#dc2626" },
+};
+
 export type ProductionRecordRow = {
   id: string;
   job_route_id: string | null;
@@ -69,6 +85,14 @@ export type ProductionRecordRow = {
   machine_label: string | null;
   headcount: number | null;
   created_at: string;
+  /** การอนุมัติของหัวหน้าฝ่ายผลิต (0080) */
+  status: ProductionApprovalStatus;
+  approved_at: string | null;
+  approve_note: string | null;
+  approver_name: string | null;
+  /** ผู้บันทึก — ใช้ตัดสินว่า "ผู้อนุมัติต้องคนละคน" ฝั่งหน้าจอ (DB เป็นด่านจริง) */
+  created_by_id: string | null;
+  operator_id: string | null;
 };
 
 /** ค่าดิบจากฟอร์ม (ทุกช่องเป็น string) */

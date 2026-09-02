@@ -101,7 +101,14 @@ export function AppShell({
             ))
           )}
         </div>
-        <form action={logout} className="mt-3">
+        {/* Part E: เปลี่ยนรหัสผ่านเองได้ตลอด (บัญชีที่เพิ่งถูกสร้าง/รีเซ็ตจะถูกบังคับมาหน้านี้เอง) */}
+        <Link
+          href="/change-password"
+          className="mt-3 block rounded-md border px-3 py-2 text-center text-sm hover:bg-accent"
+        >
+          เปลี่ยนรหัสผ่าน
+        </Link>
+        <form action={logout} className="mt-2">
           <button
             type="submit"
             className="w-full rounded-md border px-3 py-2 text-sm hover:bg-accent"

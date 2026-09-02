@@ -64,7 +64,13 @@ function RequestCard({
       return;
     }
     start(async () => {
-      const res = await reviewEditRequest(req.id, decision, note);
+      // ส่ง target_type ไปด้วย — server ใช้ canReviewEdit() ตัดสินตามชนิดคำขอ (ตรงกับ RPC)
+      const res = await reviewEditRequest(
+        req.id,
+        decision,
+        note,
+        req.target_type,
+      );
       if (res.ok) {
         router.refresh();
         return;

@@ -1,5 +1,6 @@
 import type { AppRole } from "@/lib/auth/dal";
 import { hasAnyRole } from "@/lib/auth/roles";
+import { EDIT_REVIEWER_ROLES } from "@/lib/data/edit-request-constants";
 
 export type NavItem = {
   href: string;
@@ -7,6 +8,18 @@ export type NavItem = {
   roles: AppRole[] | "all";
   ready: boolean; // false = ยังไม่ทำ (เริ่ม D4+) แสดงป้าย "เร็วๆ นี้"
 };
+
+/** role ที่เข้าหน้า "จัดการผู้ใช้" ได้ — ผู้บริหาร + หัวหน้าแผนกทุกฝ่าย (Part E)
+ *  ⚠️ hasAnyRole ให้ admin ผ่านเสมออยู่แล้ว จึงไม่ต้องใส่ admin ที่นี่ */
+export const USER_ADMIN_ROLES: AppRole[] = [
+  "manager",
+  "planner_lead",
+  "production_lead",
+  "qc_lead",
+  "qa_lead",
+  "warehouse_lead",
+  "engineering_lead",
+];
 
 /** เมนูหลัก — กรองตาม role ของผู้ใช้ก่อนแสดง */
 export const NAV_ITEMS: NavItem[] = [
@@ -51,8 +64,9 @@ export const NAV_ITEMS: NavItem[] = [
   {
     href: "/edit-requests",
     label: "คำขอแก้ไข (Amendment)",
-    // Part D: หัวหน้า QC อนุมัติคำขอแก้ผลตรวจ in-process ได้แล้ว → ต้องเห็นเมนูนี้ด้วย
-    roles: ["manager", "qa", "qc_lead"],
+    // ⚠️ ใช้ค่ากลางจาก edit-request-constants — ห้ามก็อปรายชื่อ role มาไว้ที่นี่ซ้ำ
+    //    (เดิม hardcode ["manager","qa","qc_lead"] ไว้ พอ reviewer เปลี่ยนแล้วเมนูไม่ตาม)
+    roles: EDIT_REVIEWER_ROLES,
     ready: true,
   },
   {
@@ -62,9 +76,10 @@ export const NAV_ITEMS: NavItem[] = [
     ready: true,
   },
   {
+    // ผู้บริหารเห็นทุกคน · หัวหน้าแผนกเห็นเฉพาะลูกน้องในฝ่ายตัวเอง (Part E)
     href: "/admin/users",
     label: "จัดการผู้ใช้",
-    roles: ["manager"],
+    roles: USER_ADMIN_ROLES,
     ready: true,
   },
   {
@@ -75,16 +90,22 @@ export const NAV_ITEMS: NavItem[] = [
   },
 ];
 
-/** ลำดับ role ทั้งหมด (ใช้ในหน้า admin จัดการผู้ใช้) — ตรงกับ enum app_role ใน DB */
+/** ลำดับ role ทั้งหมด (ใช้ในหน้า admin จัดการผู้ใช้) — ตรงกับ enum app_role ใน DB (15 ค่า)
+ *  ⚠️ นี่คือ "รายชื่อ role เดียวของทั้งระบบ" ฝั่งแอป — เพิ่ม role ใหม่ต้องเติมที่นี่ที่เดียว
+ *     ห้ามก็อปรายชื่อไปไว้ที่อื่น (บทเรียนบั๊ก VALID_ROLES จาก Part A) */
 export const ALL_ROLES: AppRole[] = [
   "planner",
+  "planner_lead",
   "production",
   "production_lead",
   "qc",
   "qc_lead",
   "qa",
+  "qa_lead",
   "warehouse",
+  "warehouse_lead",
   "engineering",
+  "engineering_lead",
   "cost",
   "manager",
   "admin",
@@ -92,13 +113,17 @@ export const ALL_ROLES: AppRole[] = [
 
 export const ROLE_LABELS: Record<AppRole, string> = {
   planner: "ฝ่ายวางแผน (PLN)",
+  planner_lead: "หัวหน้าฝ่ายวางแผน",
   production: "ฝ่ายผลิต",
   production_lead: "หัวหน้าฝ่ายผลิต",
   qc: "QC",
   qc_lead: "หัวหน้า QC",
   qa: "QA",
+  qa_lead: "หัวหน้า QA",
   warehouse: "คลังสินค้า",
+  warehouse_lead: "หัวหน้าคลังสินค้า",
   engineering: "วิศวกรรม (ENG)",
+  engineering_lead: "หัวหน้าฝ่ายวิศวกรรม",
   cost: "บัญชีต้นทุน (COST)",
   manager: "ผู้บริหาร",
   admin: "ผู้ดูแลระบบ (Admin)",

@@ -148,17 +148,19 @@ export const DEPT_LABEL: Record<string, string> = Object.fromEntries(
  * ⚠️ ห้ามใช้ hasAnyRole()/isAdmin() ที่นี่ — ฟังก์ชันใน DB ใช้ has_exact_role()
  *    ที่ "admin ไม่ผ่านอัตโนมัติ" โดยตั้งใจ ถ้าฝั่งแอปให้ admin ผ่านทุกฝ่าย
  *    ปุ่ม "ส่งกลับให้ QA" จะโผล่ทั้งที่ DB จะปฏิเสธ
- * ⚠️ ลำดับต้องตรงกับ DB เป๊ะ (lead มาก่อนฝ่ายฐานของตัวเอง)
+ * ⚠️ ลำดับต้องตรงกับ DB เป๊ะ (lead มาก่อนฝ่ายฐานของตัวเอง) — ดู 0078 (2)
+ * ⚠️ ที่นี่ "ไม่มี" การสืบทอด lead→base แบบ hasRole() — ตั้งใจ เพราะคำถามคือ
+ *    "คนนี้อยู่ฝ่ายไหน" ไม่ใช่ "ทำอะไรได้บ้าง"
  */
 export function roleGroupOf(roles: AppRole[]): string {
   if (roles.length === 0) return "other";
   const has = (r: AppRole) => roles.includes(r);
-  if (has("qa")) return "qa";
+  if (has("qa_lead") || has("qa")) return "qa";
   if (has("qc_lead") || has("qc")) return "qc";
   if (has("production_lead") || has("production")) return "production";
-  if (has("engineering")) return "engineering";
-  if (has("warehouse")) return "warehouse";
-  if (has("planner")) return "planner";
+  if (has("engineering_lead") || has("engineering")) return "engineering";
+  if (has("warehouse_lead") || has("warehouse")) return "warehouse";
+  if (has("planner_lead") || has("planner")) return "planner";
   if (has("cost")) return "cost";
   if (has("manager") || has("admin")) return "manager";
   return "other";

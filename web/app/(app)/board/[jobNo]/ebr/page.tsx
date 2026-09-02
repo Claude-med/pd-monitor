@@ -295,6 +295,8 @@ export default async function EbrPage({
                   <th className={`${th} text-right`}>นาที</th>
                   <th className={`${th} text-right`}>คน</th>
                   <th className={th}>ผู้บันทึก</th>
+                  {/* eBR เป็นเอกสารแบตช์ตามแนว GMP — ต้องเห็นลายเซ็นที่สองด้วย (Part E) */}
+                  <th className={th}>ผู้อนุมัติ</th>
                 </tr>
               </thead>
               <tbody>
@@ -310,6 +312,13 @@ export default async function EbrPage({
                     <td className={`${td} text-right tabular-nums`}>{rec.minutes ?? "—"}</td>
                     <td className={`${td} text-right tabular-nums`}>{rec.headcount ?? "—"}</td>
                     <td className={td}>{rec.operator_name ?? "—"}</td>
+                    <td className={td}>
+                      {rec.status === "approved"
+                        ? (rec.approver_name ?? "อนุมัติแล้ว")
+                        : rec.status === "rejected"
+                          ? `ไม่อนุมัติ${rec.approve_note ? ` — ${rec.approve_note}` : ""}`
+                          : "รออนุมัติ"}
+                    </td>
                   </tr>
                 ))}
               </tbody>

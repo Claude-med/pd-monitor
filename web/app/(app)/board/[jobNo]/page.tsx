@@ -50,6 +50,7 @@ import {
   canCheckLineClearance,
   canRecordInprocess,
   canApproveInprocess,
+  canApproveProductionRecord,
 } from "@/lib/data/role-access";
 import { canRecordQaSample } from "@/lib/data/qa-sample-constants";
 import { listJobSubStatuses } from "@/lib/data/job-sub-statuses";
@@ -70,6 +71,12 @@ import { MissingRouteBanner } from "./missing-route";
 import { RouteTabs } from "./route-tabs";
 import { RouteMachinesCard } from "./route-machines-card";
 import { RecordQcCell } from "./record-qc-cell";
+import {
+  ApprovalSelectionProvider,
+  BulkApprovalBar,
+  RecordApprovalCell,
+  RecordPickCheckbox,
+} from "./record-approval";
 import type { ProductionRecordRow } from "@/lib/data/production-constants";
 
 /** ยอด + หน่วยต่อท้าย (หน่วยแยกช่องตั้งแต่ Part C.3 ก้อน 5) */
@@ -166,6 +173,8 @@ export default async function JobDetailPage({
   const canApproveQc = canApproveInprocess(roles);
   // Part C.4: บันทึก/แก้/ลบ จุดเก็บตัวอย่าง (ตรวจ Finished product) — ตรงกับ can_record_qa_sample()
   const canSample = canRecordQaSample(roles);
+  // Part E: หัวหน้าฝ่ายผลิตอนุมัติบันทึกผลผลิต (ลายเซ็นที่สอง · คนละคนกับผู้บันทึก)
+  const canApproveRecord = canApproveProductionRecord(roles);
   // ── Part C.3 ก้อน 3: แท็บตามขั้นตอนการผลิต ──────────────────────────
   // steps มาจาก job_routes (snapshot ตอนสร้างงาน) พร้อมเครื่องจักรที่ผูกไว้ + ตัวนับ
   const steps = await getJobRouteSteps(job.id);
@@ -195,6 +204,19 @@ export default async function JobDetailPage({
   }
   const qcStatusOf = (id: string): RecordQcStatus =>
     qcByRecord.get(id) ?? "waiting";
+
+  // Part E: แถวที่ผู้ใช้คนนี้ "กดอนุมัติได้จริง" — ยัง pending และไม่ใช่บันทึกของตัวเอง
+  // (ตรงกับกติกาใน review_production_record · DB ยังตรวจซ้ำเป็นด่านจริง)
+  const approvableIds = canApproveRecord
+    ? viewRecords
+        .filter(
+          (r) =>
+            r.status === "pending" &&
+            r.created_by_id !== profile?.id &&
+            r.operator_id !== profile?.id,
+        )
+        .map((r) => r.id)
+    : [];
 
   // ตัวเลือกให้ QC เลือกว่าจะตรวจแถวไหน — ใช้ข้อมูลที่โหลดมาแล้ว ไม่ query เพิ่ม
   const recordOptions = viewRecords.map((r) => ({
@@ -420,13 +442,15 @@ export default async function JobDetailPage({
         </div>
 
         {viewRecords.length > 0 ? (
-          <>
+          <ApprovalSelectionProvider pendingIds={approvableIds}>
+            <BulkApprovalBar jobNo={job.job_no} />
             {/* มือถือ: การ์ด (เห็นครบทุกช่องในใบเดียว ไม่ต้องเลื่อนแนวนอน) */}
             <div className="space-y-3 md:hidden">
               {viewRecords.map((r) => (
                 <div key={r.id} className="rounded-lg border bg-muted/20 p-3">
                   <div className="mb-2 flex items-center justify-between gap-2">
-                    <span className="text-sm font-medium">
+                    <span className="flex items-center gap-2 text-sm font-medium">
+                      <RecordPickCheckbox id={r.id} />
                       {r.station_name ?? "—"}
                     </span>
                     <span className="text-xs text-muted-foreground">{r.record_date}</span>
@@ -450,6 +474,14 @@ export default async function JobDetailPage({
                       canCheck={canInprocess}
                     />
                   </div>
+                  <div className="mt-2">
+                    <RecordApprovalCell
+                      record={r}
+                      jobNo={job.job_no}
+                      canApprove={canApproveRecord}
+                      currentProfileId={profile?.id ?? ""}
+                    />
+                  </div>
                   {canAmend && (
                     <div className="mt-2">
                       <EditRequestButton
@@ -470,6 +502,7 @@ export default async function JobDetailPage({
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b text-left text-xs text-muted-foreground">
+                    {canApproveRecord && <th className="px-2 py-2 font-medium" />}
                     <th className="px-2 py-2 font-medium">วันที่</th>
                     <th className="px-2 py-2 font-medium">กะ / ช่วงเวลา</th>
                     <th className="px-2 py-2 font-medium">เครื่องจักร</th>
@@ -481,12 +514,18 @@ export default async function JobDetailPage({
                     <th className="px-2 py-2 font-medium">ผู้บันทึก</th>
                     {canAmend && <th className="px-2 py-2 font-medium">แก้ไข</th>}
                     <th className="px-2 py-2 font-medium">สถานะ QC</th>
+                    <th className="px-2 py-2 font-medium">การอนุมัติ</th>
                   </tr>
                 </thead>
                 <tbody>
                   {viewRecords.map((r) => (
                     <Fragment key={r.id}>
                       <tr className={`align-top ${r.note ? "" : "border-b last:border-0"}`}>
+                        {canApproveRecord && (
+                          <td className="px-2 py-2">
+                            <RecordPickCheckbox id={r.id} />
+                          </td>
+                        )}
                         <td className="whitespace-nowrap px-2 py-2">{r.record_date}</td>
                         <td className="whitespace-nowrap px-2 py-2 text-muted-foreground">
                           {r.shift ? WORK_SHIFT_LABEL[r.shift] : "—"}
@@ -523,12 +562,25 @@ export default async function JobDetailPage({
                             canCheck={canInprocess}
                           />
                         </td>
+                        <td className="px-2 py-2">
+                          <RecordApprovalCell
+                            record={r}
+                            jobNo={job.job_no}
+                            canApprove={canApproveRecord}
+                            currentProfileId={profile?.id ?? ""}
+                          />
+                        </td>
                       </tr>
                       {r.note && (
                         <tr className="border-b last:border-0">
                           <td />
                           <td
-                            colSpan={canAmend ? 10 : 9}
+                            colSpan={
+                              // วันที่·กะ·เครื่อง·ต้องการ·ผลิตได้·ของเสีย·นาที·คน·ผู้บันทึก = 9
+                              // + สถานะ QC + การอนุมัติ = 11 · (+1 ถ้ามีคอลัมน์แก้ไข)
+                              // แถวนี้เริ่มด้วย <td /> ว่างแทนคอลัมน์แรกอยู่แล้ว จึงหักออก 1
+                              (canApproveRecord ? 11 : 10) + (canAmend ? 1 : 0)
+                            }
                             className="px-2 pb-2 text-xs text-muted-foreground"
                           >
                             📝 {r.note}
@@ -540,7 +592,7 @@ export default async function JobDetailPage({
                 </tbody>
               </table>
             </div>
-          </>
+          </ApprovalSelectionProvider>
         ) : (
           <p className="text-sm text-muted-foreground">ยังไม่มีการบันทึกผลผลิต</p>
         )}
