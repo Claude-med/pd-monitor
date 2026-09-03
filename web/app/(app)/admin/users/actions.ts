@@ -1,9 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getProfile, type AppRole } from "@/lib/auth/dal";
+import { getProfile, getUser, type AppRole } from "@/lib/auth/dal";
 import { hasRole } from "@/lib/auth/roles";
 import { ALL_ROLES } from "@/lib/nav";
 import {
@@ -288,4 +289,76 @@ export async function setActive(
 
   revalidatePath("/admin/users");
   return { ok: true };
+}
+
+/**
+ * ลบบัญชีผู้ใช้ (ทีละบัญชี) — ผู้บริหาร/admin ลบได้ทุกบัญชี · หัวหน้าแผนกเฉพาะลูกน้องในฝ่ายตัวเอง
+ *
+ * ต้องยืนยันรหัสผ่านของผู้กดซ้ำก่อนเสมอ (แบบเดียวกับปุ่ม "ลบงาน" — board/actions.ts:41)
+ * = พิสูจน์ว่า "คนหน้าจอ = เจ้าของบัญชีจริง" ตอนทำสิ่งที่ย้อนกลับไม่ได้
+ *
+ * ⚠️ ลำดับสำคัญ: เรียก RPC ก่อน แล้วค่อยลบบัญชีล็อกอิน
+ *    RPC ตั้ง is_active = false ให้แล้ว ⇒ ด่านใน (app)/layout.tsx บล็อกการใช้งานทันที
+ *    ถ้าลบ auth ก่อนแล้ว RPC พัง จะได้บัญชีที่ล็อกอินไม่ได้แต่ยังอยู่ในรายชื่อ (แย่กว่า)
+ */
+export async function deleteUser(
+  profileId: string,
+  authUserId: string | null,
+  password: string,
+): Promise<ActionResult & { action?: "deleted" | "archived" }> {
+  const actor = await requireUserAdmin();
+  if (!actor) return { error: "ไม่มีสิทธิ์ (เฉพาะผู้บริหาร/หัวหน้าแผนก)" };
+  if (profileId === actor.profileId) return { error: "ลบบัญชีตัวเองไม่ได้" };
+  const scopeErr = await denyIfOutOfScope(actor, profileId);
+  if (scopeErr) return { error: scopeErr };
+  if (!password.trim()) return { error: "กรุณากรอกรหัสผ่านเพื่อยืนยันการลบ" };
+
+  const user = await getUser();
+  if (!user?.email) return { error: "ยังไม่ได้เข้าสู่ระบบ" };
+
+  // ยืนยันรหัสผ่านด้วย client แยก (publishable key, ไม่เก็บ session) → ไม่กระทบ session ปัจจุบัน
+  const verifier = createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+  const { error: authError } = await verifier.auth.signInWithPassword({
+    email: user.email,
+    password,
+  });
+  if (authError) return { error: "รหัสผ่านไม่ถูกต้อง — ลบบัญชีไม่สำเร็จ" };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("admin_delete_user", {
+    p_profile_id: profileId,
+  });
+  if (error) return { error: error.message || "ลบบัญชีไม่สำเร็จ" };
+
+  const action =
+    (data as { action?: string } | null)?.action === "deleted"
+      ? "deleted"
+      : "archived";
+
+  // ลบบัญชีล็อกอินจริงที่ชั้น auth — ถ้าลบไม่ได้ ให้แบนถาวรไว้ก่อน แล้วบอกผู้ใช้ตรง ๆ
+  if (authUserId) {
+    const admin = createAdminClient();
+    const { error: delErr } = await admin.auth.admin.deleteUser(authUserId);
+    if (delErr) {
+      const { error: banErr } = await admin.auth.admin.updateUserById(
+        authUserId,
+        { ban_duration: "876000h" },
+      );
+      revalidatePath("/admin/users");
+      return {
+        ok: true,
+        action,
+        error: banErr
+          ? "ลบบัญชีในระบบแล้ว แต่ลบบัญชีล็อกอินไม่สำเร็จ — บัญชีนี้ถูกระงับไว้ กรุณาแจ้งผู้ดูแลระบบ"
+          : "ลบบัญชีในระบบแล้ว (บัญชีล็อกอินถูกระงับถาวรแทนการลบ)",
+      };
+    }
+  }
+
+  revalidatePath("/admin/users");
+  return { ok: true, action };
 }

@@ -59,15 +59,32 @@ export function fieldLabel(key: string): string {
 
 /**
  * ผู้ใช้อนุมัติ/ปฏิเสธคำขอแก้ไขชนิดนี้ได้ไหม — สะท้อนกติกา server RPC review_edit_request
- * (manager/admin อนุมัติได้ทุกชนิด · qa + qc_lead อนุมัติได้เฉพาะผลตรวจ QC ระหว่างผลิต)
+ * (manager/admin อนุมัติได้ทุกชนิด · qa + qc_lead เฉพาะผลตรวจ QC ระหว่างผลิต
+ *  · production_lead เฉพาะบันทึกผลผลิต)
  *
  * Part D (0073): เพิ่ม qc_lead — เดิมคนที่ "กดขอแก้" ผลตรวจ in-process ได้คือ qc/qc_lead/manager
  * แต่คนที่ "อนุมัติ" ได้มีแค่ manager/qa → หัวหน้า QC ยื่นเองแล้วไม่มีใครในสายงานกดอนุมัติได้
+ * 0083: เพิ่ม production_lead ด้วยเหตุผลเดียวกัน — 0080 ตั้งให้หัวหน้าฝ่ายผลิตเป็นผู้อนุมัติ
+ * บันทึกผลผลิตตัวจริง (can_approve_production_record) แต่กลับอนุมัติ "คำขอแก้" ของมันไม่ได้
+ *
+ * ⚠️ ค่ากลาง 2 ตัวนี้คุมทั้งเมนู (lib/nav.ts) · guard หน้า (edit-requests/page.tsx)
+ *    · badge (app/(app)/layout.tsx) · ปุ่มในหน้ารีวิว · guard ของ server action
+ *    แก้ที่นี่ที่เดียว ห้ามก็อปรายชื่อ role ไปไว้ที่อื่น
  */
 export const EDIT_REVIEWER_ROLES: AppRole[] = [
   "manager",
   "qa",
   "qc_lead",
+  "production_lead",
+];
+
+/** ชนิดคำขอที่ role นี้อนุมัติได้จริง — ใช้กรอง badge ให้ตรงกับปุ่มที่กดได้ */
+export const EDIT_REVIEWER_TARGETS: {
+  targetType: EditTargetType;
+  roles: AppRole[];
+}[] = [
+  { targetType: "inprocess_check", roles: ["qa", "qc_lead"] },
+  { targetType: "production_record", roles: ["production_lead"] },
 ];
 
 export function canReviewEdit(
@@ -75,5 +92,7 @@ export function canReviewEdit(
   targetType: EditTargetType,
 ): boolean {
   if (hasAnyRole(roles, ["manager", "admin"])) return true;
-  return targetType === "inprocess_check" && hasAnyRole(roles, ["qa", "qc_lead"]);
+  return EDIT_REVIEWER_TARGETS.some(
+    (t) => t.targetType === targetType && hasAnyRole(roles, t.roles),
+  );
 }

@@ -38,6 +38,9 @@ export async function listUsers(scope: UserAdminScope): Promise<AdminUser[]> {
     .select(
       "id, auth_user_id, full_name, department, email, is_active, must_change_password",
     )
+    // บัญชีที่ถูกลบแล้ว (0082) — แถวยังอยู่เพื่อให้ประวัติเก่าอ่านชื่อได้ตาม GMP
+    // แต่ต้องไม่โผล่ในรายชื่อผู้ใช้อีก
+    .is("deleted_at", null)
     .order("full_name", { ascending: true });
   if (error || !profiles) return [];
 

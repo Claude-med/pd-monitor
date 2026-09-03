@@ -25,7 +25,10 @@ export async function reviewEditRequest(
 ): Promise<ActionResult> {
   const profile = await getProfile();
   if (!profile || !canReviewEdit(profile.roles, targetType))
-    return { error: "คำขอนี้ต้องให้ผู้จัดการอนุมัติ — บัญชีของคุณไม่มีสิทธิ์" };
+    return {
+      error:
+        "บัญชีของคุณอนุมัติคำขอชนิดนี้ไม่ได้ — ต้องให้ผู้บริหาร หรือหัวหน้าสายงานของข้อมูลชนิดนี้เป็นผู้อนุมัติ",
+    };
 
   const supabase = await createClient();
   const { error } = await supabase.rpc("review_edit_request", {

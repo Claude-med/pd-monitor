@@ -1,9 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
 import type { AppRole } from "@/lib/auth/dal";
 import { hasAnyRole } from "@/lib/auth/roles";
-import type {
-  EditTargetType,
-  EditRequestStatus,
+import {
+  EDIT_REVIEWER_TARGETS,
+  type EditTargetType,
+  type EditRequestStatus,
 } from "@/lib/data/edit-request-constants";
 
 export type EditRequest = {
@@ -116,16 +117,28 @@ export async function getTargetSnapshot(
   return out;
 }
 
-/** จำนวนคำขอรออนุมัติ — สำหรับ badge เมนู (นับเฉพาะที่ผู้ดูอนุมัติได้จริง) */
+/**
+ * จำนวนคำขอรออนุมัติ — สำหรับ badge เมนู (นับเฉพาะที่ผู้ดูอนุมัติได้จริง)
+ *
+ * ⚠️ ต้องเดินตาม EDIT_REVIEWER_TARGETS เสมอ ห้าม hardcode ชนิดคำขอไว้ที่นี่ —
+ *    ของเดิมล็อกไว้ว่า "ไม่ใช่ manager → นับเฉพาะ inprocess_check" พอ 0083 เพิ่ม
+ *    หัวหน้าฝ่ายผลิตเป็นผู้อนุมัติ badge ของเขาจะขึ้น 0 ตลอดทั้งที่มีคำขอค้างอยู่
+ */
 export async function getPendingEditCount(roles: AppRole[]): Promise<number> {
   const supabase = await createClient();
   let query = supabase
     .from("edit_requests")
     .select("id", { count: "exact", head: true })
     .eq("status", "pending");
-  // qa (ที่ไม่ใช่ manager/admin) อนุมัติได้เฉพาะผลตรวจ QC → นับเฉพาะชนิดนั้น badge จะไม่หลอก
-  if (!hasAnyRole(roles, ["manager", "admin"]))
-    query = query.eq("target_type", "inprocess_check");
+
+  if (!hasAnyRole(roles, ["manager", "admin"])) {
+    const types = EDIT_REVIEWER_TARGETS.filter((t) =>
+      hasAnyRole(roles, t.roles),
+    ).map((t) => t.targetType);
+    if (types.length === 0) return 0;
+    query = query.in("target_type", types);
+  }
+
   const { count } = await query;
   return count ?? 0;
 }

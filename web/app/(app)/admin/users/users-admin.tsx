@@ -18,6 +18,7 @@ import {
   resetPassword,
   setActive,
 } from "./actions";
+import { DeleteUserButton } from "./delete-user-button";
 
 const inputClass =
   "w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring";
@@ -757,6 +758,20 @@ function UserEditPanel({
         </button>
         {isSelf && (
           <p className="text-xs text-muted-foreground">ระงับบัญชีตัวเองไม่ได้</p>
+        )}
+      </div>
+
+      {/* ลบบัญชีถาวร (0082) — ทีละบัญชีเท่านั้น · ด่านจริงคือ admin_delete_user() ใน DB */}
+      <div className="space-y-2 border-t pt-4">
+        <p className="text-sm font-semibold">ลบบัญชี</p>
+        {isSelf ? (
+          <p className="text-xs text-muted-foreground">ลบบัญชีตัวเองไม่ได้</p>
+        ) : (
+          <DeleteUserButton
+            profileId={user.id}
+            authUserId={user.auth_user_id}
+            fullName={user.full_name}
+          />
         )}
       </div>
 

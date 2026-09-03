@@ -169,7 +169,7 @@ function RequestCard({
         </div>
       ) : (
         <p className="mt-3 rounded-md border border-dashed bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
-          🔒 คำขอนี้ต้องให้ผู้จัดการอนุมัติ
+          🔒 คำขอชนิดนี้อยู่นอกสิทธิ์ของคุณ — ต้องให้ผู้บริหาร หรือหัวหน้าสายงานของข้อมูลชนิดนี้เป็นผู้อนุมัติ
         </p>
       )}
     </div>
