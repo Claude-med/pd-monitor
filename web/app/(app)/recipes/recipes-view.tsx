@@ -258,7 +258,17 @@ function StationRow({
       <tr className="border-b last:border-0">
         <td className="px-2 py-2 tabular-nums text-muted-foreground">{station.seq}</td>
         <td className="px-2 py-2 font-medium">{station.code}</td>
-        <td className="px-2 py-2">{station.name}</td>
+        <td className="px-2 py-2">
+          {station.name}
+          {station.is_packing && (
+            <span
+              title="งานที่บันทึกผลผลิตล่าสุดอยู่สถานีนี้ จะนับเป็นช่อง &ldquo;แพ็ค&rdquo; บนแดชบอร์ด"
+              className="ml-1.5 rounded bg-orange-100 px-1.5 py-0.5 align-middle text-[10px] font-medium text-orange-700 dark:bg-orange-950 dark:text-orange-300"
+            >
+              แพ็ค
+            </span>
+          )}
+        </td>
         <td className="px-2 py-2">
           {station.is_active ? (
             <span className="text-emerald-600 dark:text-emerald-400">ใช้งาน</span>
@@ -334,12 +344,14 @@ function StationForm({
     name: string;
     seq: string;
     is_active: boolean;
+    is_packing: boolean;
   }>({
     id: station?.id ?? null,
     code: station?.code ?? "",
     name: station?.name ?? "",
     seq: String(station?.seq ?? nextSeq ?? 100),
     is_active: station?.is_active ?? true,
+    is_packing: station?.is_packing ?? false,
   });
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -401,6 +413,22 @@ function StationForm({
           </label>
         </div>
       </div>
+      {/* 0081 — งานที่บันทึกผลผลิตล่าสุดอยู่สถานีที่ติ๊กนี้ จะไปอยู่ช่อง "แพ็ค" บนแดชบอร์ด
+          (ไม่ใช่สถานะงานจริง ไม่กระทบด่าน GMP ใด ๆ) */}
+      <label className="flex items-start gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={v.is_packing}
+          onChange={(e) => setV((c) => ({ ...c, is_packing: e.target.checked }))}
+          className="mt-0.5 h-4 w-4"
+        />
+        <span>
+          สถานีบรรจุ (แพ็ค)
+          <span className="block text-xs text-muted-foreground">
+            งานที่บันทึกผลผลิตล่าสุดอยู่สถานีนี้ จะนับเป็นช่อง &ldquo;แพ็ค&rdquo; บนแดชบอร์ด
+          </span>
+        </span>
+      </label>
       {error && (
         <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {error}

@@ -1,28 +1,103 @@
+import Link from "next/link";
 import { getProfile } from "@/lib/auth/dal";
 import { canSeeCost } from "@/lib/data/role-access";
 import {
   getDashboardData,
   DEFAULT_LABOR_RATE,
+  type PendingOrderCounts,
 } from "@/lib/data/dashboard";
+import { STATUS_COLOR } from "@/lib/data/job-constants";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
 
-const STATUS_LABELS: Record<string, string> = {
-  pending_announce: "รอแจ้งผลิต",
-  planned: "มีแผนแล้ว",
-  in_production: "กำลังผลิต",
-  qc: "รอ/อยู่ QC",
-  qa: "รอ/อยู่ QA",
-  finished_goods: "เสร็จ (FG)",
+/**
+ * การ์ดทั้งหมดของบล็อก Pending Order
+ * label/สี อยู่ที่นี่ที่เดียว · ตัวเลขมาจาก dashboard_job_counts() (0081) ห้ามคำนวณซ้ำ
+ *
+ * href = ลิงก์ไปหน้าที่เห็น "งานชุดนั้นจริง ๆ" — บอร์ดงานรับ ?status= จาก URL (board/page.tsx)
+ * ⓘ บอร์ดกรองได้แค่ระดับ status (enum) → การ์ดที่แตกย่อยกว่านั้น (Unplan/แพ็ค/รอเข้าคลัง)
+ *   จะพาไปที่กลุ่มใหญ่ของมัน แล้วผู้ใช้ค่อยไล่ดูต่อ
+ */
+type Card = {
+  key: keyof PendingOrderCounts;
+  label: string;
+  color: string;
+  href: string;
+  hint?: string;
 };
 
-const STATUS_ORDER = [
-  "pending_announce",
-  "planned",
-  "in_production",
-  "qc",
-  "qa",
-  "finished_goods",
+const PLAN_CARDS: Card[] = [
+  {
+    key: "unplan",
+    label: "ยังไม่ลงแผน",
+    color: "#94a3b8",
+    href: "/board?status=pending_announce",
+    hint: "ยังไม่ลงเดือนแผนผลิต (Unplan)",
+  },
+  {
+    key: "pendingAnnounce",
+    label: "รอแจ้งผลิต",
+    color: STATUS_COLOR.pending_announce,
+    href: "/board?status=pending_announce",
+    hint: "ลงเดือนแผนไว้แล้ว รอยืนยันแจ้งผลิต",
+  },
+  {
+    key: "planned",
+    label: "มีแผนแล้ว",
+    color: STATUS_COLOR.planned,
+    href: "/board?status=planned",
+  },
 ];
+
+const WIP_CARDS: Card[] = [
+  {
+    key: "producing",
+    label: "ผลิต",
+    color: STATUS_COLOR.in_production,
+    href: "/board?status=in_production",
+  },
+  {
+    key: "packing",
+    // ไม่ใช่ค่าใน enum job_status — คำนวณจาก "บันทึกผลผลิตล่าสุดอยู่สถานีที่ติดธงบรรจุ"
+    // (ตั้งธงได้ที่หน้า สูตรการผลิต → สถานี)
+    label: "แพ็ค",
+    color: "#fb923c",
+    href: "/board?status=in_production",
+    hint: "บันทึกผลผลิตล่าสุดอยู่สถานีบรรจุ",
+  },
+  {
+    key: "qc",
+    label: "QC",
+    color: STATUS_COLOR.qc,
+    href: "/board?status=qc",
+  },
+  {
+    key: "qa",
+    label: "QA",
+    color: STATUS_COLOR.qa,
+    href: "/board?status=qa",
+  },
+  {
+    key: "awaitingFg",
+    label: "รอเข้าคลัง",
+    color: "#4ade80",
+    href: "/board?status=finished_goods",
+    hint: "QA ปล่อยผ่านแล้ว คลังยังไม่รับเข้า",
+  },
+];
+
+function StatCard({ card, value }: { card: Card; value: number }) {
+  return (
+    <Link
+      href={card.href}
+      title={card.hint}
+      className="block rounded-lg border border-l-4 bg-card p-3 transition-colors hover:bg-accent/50"
+      style={{ borderLeftColor: card.color }}
+    >
+      <p className="text-2xl font-bold tabular-nums">{value}</p>
+      <p className="mt-0.5 text-xs text-muted-foreground">{card.label}</p>
+    </Link>
+  );
+}
 
 function fmt(n: number): string {
   // ตัดทศนิยมที่ลงท้ายด้วยศูนย์ออก แต่คงสูงสุด 2 ตำแหน่ง
@@ -66,48 +141,105 @@ export default async function DashboardPage({
       : DEFAULT_LABOR_RATE;
 
   const d = await getDashboardData(from, to);
+  const c = d.counts;
   const dlCost = d.totalPersonHours * rate;
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
-      <RealtimeRefresh tables={["jobs", "production_records"]} />
+      {/* กดรับเข้าคลังแล้วการ์ด "รอเข้าคลัง / เข้าคลังแล้ว" ต้องขยับเอง → ต้องฟัง fg_inventory ด้วย */}
+      <RealtimeRefresh
+        tables={["jobs", "production_records", "fg_inventory"]}
+      />
+
+      {d.loadError && (
+        <p className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          ⚠️ {d.loadError}
+        </p>
+      )}
+
       <div>
         <h1 className="text-2xl font-bold tracking-tight">
           สวัสดี {profile?.full_name ?? ""}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
           ภาพรวมงานผลิตทั้งหมด {d.totalJobs} งาน
-          {d.problemCount > 0 && (
-            <>
-              {" · "}
-              <span className="font-medium text-destructive">
-                ติดปัญหา {d.problemCount} งาน
-              </span>
-            </>
-          )}
         </p>
       </div>
 
-      {/* งานตามสถานะ (ภาพรวมปัจจุบัน) */}
-      <div>
-        <h2 className="mb-2 text-sm font-semibold text-muted-foreground">
-          งานตามสถานะ (ปัจจุบัน)
-        </h2>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          {STATUS_ORDER.map((s) => (
-            <div key={s} className="rounded-xl border bg-card p-4">
-              <p className="text-2xl font-bold tabular-nums">
-                {d.statusCounts[s] ?? 0}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {STATUS_LABELS[s]}
-              </p>
-            </div>
-          ))}
+      {/* ── Pending Order = Plan + WIP ── (คำสั่งผู้บริหาร · A-p03) */}
+      <section className="rounded-xl border bg-card p-4">
+        <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
+          <div>
+            <h2 className="text-sm font-semibold text-muted-foreground">
+              Pending Order
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              = Plan + WIP · งานที่ยังไม่เข้าคลัง
+            </p>
+          </div>
+          <p className="text-3xl font-bold tabular-nums">
+            {c.pending}
+            <span className="ml-1 text-sm font-normal text-muted-foreground">
+              งาน
+            </span>
+          </p>
         </div>
-      </div>
 
-      {/* ตัวกรองช่วงวันที่ (+ อัตราค่าแรง สำหรับผู้บริหาร/บัญชีต้นทุน) */}
+        <div className="mt-4 grid gap-4 lg:grid-cols-[3fr_5fr]">
+          {/* Plan */}
+          <div>
+            <p className="mb-1.5 text-xs font-semibold text-muted-foreground">
+              Plan · {c.plan}
+              <span className="ml-1 font-normal">(มีแผน ยังไม่เริ่มผลิต)</span>
+            </p>
+            <div className="grid grid-cols-3 gap-2">
+              {PLAN_CARDS.map((card) => (
+                <StatCard key={card.key} card={card} value={c[card.key]} />
+              ))}
+            </div>
+          </div>
+
+          {/* WIP */}
+          <div>
+            <p className="mb-1.5 text-xs font-semibold text-muted-foreground">
+              WIP · {c.wip}
+              <span className="ml-1 font-normal">
+                (เริ่มผลิตแล้ว ยังไม่เข้าคลัง)
+              </span>
+            </p>
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+              {WIP_CARDS.map((card) => (
+                <StatCard key={card.key} card={card} value={c[card.key]} />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* งานที่จบแล้ว + งานติดปัญหา — อยู่นอก Pending Order โดยตั้งใจ */}
+        <div className="mt-4 flex flex-wrap gap-2 border-t pt-3 text-sm">
+          <Link
+            href="/warehouse"
+            className="rounded-md border px-3 py-1.5 hover:bg-accent"
+          >
+            ✅ เข้าคลังแล้ว{" "}
+            <span className="font-semibold tabular-nums">{c.inStock}</span>
+          </Link>
+          {d.problemCount > 0 && (
+            <Link
+              href="/board"
+              className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-1.5 text-destructive hover:bg-destructive/20"
+            >
+              ⚠️ ติดปัญหา{" "}
+              <span className="font-semibold tabular-nums">
+                {d.problemCount}
+              </span>
+            </Link>
+          )}
+        </div>
+      </section>
+
+      {/* ตัวกรองช่วงวันที่ (+ อัตราค่าแรง สำหรับผู้บริหาร/บัญชีต้นทุน)
+          ⚠️ มีผลเฉพาะบล็อกด้านล่าง — Pending Order ด้านบนเป็นภาพ ณ ปัจจุบันเสมอ */}
       <form method="get" className="flex flex-wrap items-end gap-3">
         <div>
           <label className="mb-1 block text-xs font-medium text-muted-foreground">
@@ -187,6 +319,9 @@ export default async function DashboardPage({
             </p>
           </div>
         </div>
+        <p className="mt-2 text-xs text-muted-foreground">
+          * ไม่นับบันทึกผลผลิตที่หัวหน้าตีกลับ (ไม่อนุมัติ)
+        </p>
       </div>
 
       {/* ต้นทุนค่าแรง (DL cost) — ผู้บริหาร + บัญชีต้นทุน (COST) */}

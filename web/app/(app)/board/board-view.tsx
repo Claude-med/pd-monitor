@@ -69,13 +69,16 @@ export function BoardView({
   jobs,
   companies = [],
   canCreate = false,
+  initialStatus = "",
 }: {
   jobs: JobRow[];
   companies?: CompanyOption[];
   canCreate?: boolean;
+  /** สถานะตั้งต้นจาก ?status= (การ์ดบนแดชบอร์ดกดมา) — validate มาแล้วที่ page.tsx */
+  initialStatus?: string;
 }) {
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useState(initialStatus);
   const [company, setCompany] = useState("");
   const [problemOnly, setProblemOnly] = useState(false);
 

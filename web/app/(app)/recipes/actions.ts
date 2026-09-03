@@ -182,6 +182,7 @@ export async function upsertStation(v: {
   name: string;
   seq: string;
   is_active: boolean;
+  is_packing: boolean;
 }): Promise<ActionResult> {
   if (!(await requireManager()))
     return { error: "ไม่มีสิทธิ์ (เฉพาะผู้บริหาร)" };
@@ -201,9 +202,11 @@ export async function upsertStation(v: {
     p_name: v.name.trim(),
     p_seq: seq,
     p_is_active: v.is_active,
+    p_is_packing: v.is_packing,
   });
   if (error) return { error: error.message || "บันทึกสถานีไม่สำเร็จ" };
   revalidatePath("/recipes");
+  revalidatePath("/"); // ธง "สถานีบรรจุ" เปลี่ยน → ช่อง "ผลิต/แพ็ค" บนแดชบอร์ดต้องเปลี่ยนตาม
   return { ok: true, id: data as string };
 }
 

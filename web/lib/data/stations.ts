@@ -6,6 +6,8 @@ export type Station = {
   name: string;
   seq: number;
   is_active: boolean;
+  /** สถานีนี้คือขั้น "แพ็ค" (0081) — ใช้แยกช่อง "ผลิต" กับ "แพ็ค" บนแดชบอร์ด */
+  is_packing: boolean;
 };
 
 /** สถานีย่อยทั้งหมด (เรียงตาม seq) — ใช้ทั้งหน้าจัดการ master + ตัวเลือก route */
@@ -13,7 +15,7 @@ export async function listStations(): Promise<Station[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("stations")
-    .select("id, code, name, seq, is_active")
+    .select("id, code, name, seq, is_active, is_packing")
     .order("seq", { ascending: true });
   if (error || !data) return [];
   return data as Station[];
