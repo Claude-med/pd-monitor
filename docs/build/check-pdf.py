@@ -3,7 +3,9 @@
 import pathlib, pypdfium2 as pdfium
 from PIL import Image
 
-PDF = pathlib.Path(__file__).resolve().parent.parent / "pd-monitor-manual.pdf"
+import sys
+_a = [x for x in sys.argv[1:] if not x.startswith("-")]
+PDF = pathlib.Path(_a[0]) if _a else pathlib.Path(__file__).resolve().parent.parent / "pd-monitor-manual.pdf"
 doc = pdfium.PdfDocument(PDF)
 blank, sparse = [], []
 for i in range(len(doc)):

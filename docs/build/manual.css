@@ -1,114 +1,241 @@
-/* ธีมคู่มือ PD Monitor — ต่อยอดจาก docs/_build-user-guide.html (ธีมเขียว + Sarabun)
-   ฟอนต์ถูกฝังเป็น base64 ตอน build (ดู build-pdf.mjs) จึงไม่มี @font-face ในไฟล์นี้ */
+/* ═══════════════════════════════════════════════════════════════════════
+   ธีมคู่มือ PD Monitor — งานพิมพ์ A4
+   ฟอนต์ Sarabun (มีซับเซ็ตไทย) ถูกฝังเป็น base64 ตอน build — ดู build-pdf.mjs
+   ═══════════════════════════════════════════════════════════════════════ */
 
 :root{
-  --ink:#0f172a; --muted:#64748b; --line:#e2e8f0;
+  --ink:#0f172a; --ink-2:#334155; --muted:#64748b; --faint:#94a3b8;
+  --line:#e2e8f0; --line-soft:#eef2f6; --soft:#f8fafc;
   --brand:#16a34a; --brand-dark:#065f46; --teal:#0f766e;
-  --soft:#f1f5f9; --mint:#f0fdf4; --mint-ink:#14532d; --mint-line:#bbf7d0;
+
+  /* สีของกล่องข้อความ 4 ชนิด */
+  --warn:#d97706;  --warn-bg:#fffbeb;  --warn-ink:#7c2d12;  --warn-line:#fde68a;
+  --tip:#0284c7;   --tip-bg:#f0f9ff;   --tip-ink:#0c4a6e;   --tip-line:#bae6fd;
+  --gmp:#16a34a;   --gmp-bg:#f0fdf4;   --gmp-ink:#14532d;   --gmp-line:#bbf7d0;
+  --perm:#7c3aed;  --perm-bg:#faf5ff;  --perm-ink:#4c1d95;  --perm-line:#e9d5ff;
 }
 html{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
 body{
-  font-family:'Sarabun', 'Leelawadee UI', Tahoma, sans-serif;
-  font-size:11.5pt; line-height:1.6; color:var(--ink); margin:0;
+  font-family:'Sarabun','Leelawadee UI',Tahoma,sans-serif;
+  font-size:11pt; line-height:1.58; color:var(--ink); margin:0;
+  orphans:2; widows:2;
 }
 
-/* ---------- หน้ากระดาษ ---------- */
+/* ───────────────────────── หน้ากระดาษ ───────────────────────── */
 @page{
-  size:A4; margin:18mm 16mm 20mm 16mm;
-  @bottom-center{ content:counter(page); font-size:9pt; color:#94a3b8; font-family:'Sarabun',sans-serif; }
-  @top-right{ content:"PD Monitor — คู่มือการใช้งาน"; font-size:8.5pt; color:#cbd5e1; font-family:'Sarabun',sans-serif; }
+  size:A4; margin:17mm 16mm 18mm 16mm;
+  @bottom-center{
+    content:counter(page) " / " counter(pages);
+    font-family:'Sarabun',sans-serif; font-size:8.5pt; color:var(--faint);
+    padding-top:3mm;
+  }
 }
-@page cover{ margin:0; @bottom-center{content:none} @top-right{content:none} }
-@page front { @top-right{ content:none } }
-@page part1{ @top-right{ content:"ภาค 1 — ฝึกปฏิบัติ"; font-size:8.5pt; color:#cbd5e1; font-family:'Sarabun',sans-serif; } }
-@page part2{ @top-right{ content:"ภาค 2 — คู่มืออ้างอิง"; font-size:8.5pt; color:#cbd5e1; font-family:'Sarabun',sans-serif; } }
+/* ปก + ส่วนหน้า: ไม่มีหัว/ท้ายกระดาษ */
+@page cover{ margin:0; @bottom-center{ content:none } }
+@page front{ @top-left{ content:none } @top-right{ content:none } }
+
+/* เนื้อเล่ม: ซ้าย = ชื่อภาค · ขวา = ชื่อบทปัจจุบัน (ตามด้วย string-set ของ h1) */
+@page part1{
+  @top-left { content:"ภาค 1 · ฝึกปฏิบัติ"; font-family:'Sarabun',sans-serif; font-size:8pt; color:var(--faint); padding-bottom:3mm; }
+  @top-right{ content:string(chapter);       font-family:'Sarabun',sans-serif; font-size:8pt; color:var(--faint); padding-bottom:3mm; }
+}
+@page part2{
+  @top-left { content:"ภาค 2 · คู่มืออ้างอิง"; font-family:'Sarabun',sans-serif; font-size:8pt; color:var(--faint); padding-bottom:3mm; }
+  @top-right{ content:string(chapter);         font-family:'Sarabun',sans-serif; font-size:8pt; color:var(--faint); padding-bottom:3mm; }
+}
 
 .cover{ page:cover; break-after:page; }
 .front{ page:front; }
 #part1{ page:part1; }
 #part2{ page:part2; }
 
-/* ---------- ปก ---------- */
+/* ───────────────────────── ปก ───────────────────────── */
 .cover{
-  width:210mm; height:297mm; box-sizing:border-box; padding:38mm 24mm 22mm;
-  background:linear-gradient(160deg,#065f46 0%,#16a34a 55%,#22c55e 100%);
+  width:210mm; height:297mm; box-sizing:border-box; padding:40mm 24mm 20mm;
+  background:linear-gradient(160deg,#064e3b 0%,#065f46 32%,#16a34a 78%,#22c55e 100%);
   color:#fff; display:flex; flex-direction:column;
 }
-.cover .kicker{ font-size:12pt; letter-spacing:.08em; opacity:.85; margin-bottom:6mm; }
-.cover h1{ font-size:34pt; line-height:1.15; font-weight:800; margin:0 0 5mm; border:0; }
-.cover .sub{ font-size:14pt; opacity:.92; line-height:1.5; max-width:135mm; }
-.cover .badges{ margin-top:9mm; display:flex; flex-wrap:wrap; gap:3mm; }
+.cover .kicker{
+  font-size:11pt; letter-spacing:.22em; text-transform:uppercase;
+  opacity:.75; margin-bottom:7mm;
+}
+.cover .rule{ width:26mm; height:2.2pt; background:rgba(255,255,255,.75); margin-bottom:7mm; }
+.cover h1{ font-size:36pt; line-height:1.12; font-weight:800; margin:0 0 5mm; border:0; padding:0; }
+.cover .sub{ font-size:13.5pt; opacity:.9; line-height:1.55; max-width:130mm; font-weight:300; }
+.cover .badges{ margin-top:11mm; display:flex; flex-wrap:wrap; gap:3mm; }
 .cover .badge{
-  border:1px solid rgba(255,255,255,.4); border-radius:99px;
-  padding:1.6mm 5mm; font-size:10.5pt; background:rgba(255,255,255,.12);
+  border:1px solid rgba(255,255,255,.45); border-radius:99px;
+  padding:1.8mm 5.5mm; font-size:10pt; background:rgba(255,255,255,.12);
 }
 .cover .meta{
-  margin-top:auto; padding-top:6mm; border-top:1px solid rgba(255,255,255,.25);
-  font-size:10.5pt; opacity:.9; line-height:1.7;
+  margin-top:auto; padding-top:7mm; border-top:1px solid rgba(255,255,255,.28);
+  font-size:10pt; opacity:.88; line-height:1.75;
 }
+.cover .meta b{ font-weight:600; }
 
-/* ---------- สารบัญ ---------- */
-.toc{ page:front; break-after:page; }
-.toc h2{ font-size:20pt; color:var(--brand); margin:0 0 6mm; border:0; }
+/* ───────────────────────── สารบัญ ───────────────────────── */
+.toc{ page:front; }
+.toc h2{
+  font-size:22pt; color:var(--brand-dark); margin:0 0 2mm; border:0;
+  letter-spacing:-.01em;
+}
+.toc .toc-note{ font-size:9.5pt; color:var(--muted); margin:0 0 7mm; }
 .toc ol{ list-style:none; padding:0; margin:0; }
-.toc li{ margin:.9mm 0; }
-.toc li a{ display:flex; align-items:baseline; text-decoration:none; color:var(--ink); }
-.toc li a::before{ content:""; order:1; flex:1 1 auto; margin:0 2mm; border-bottom:1px dotted #cbd5e1; }
-.toc li a::after{ content:target-counter(attr(href), page); order:2; color:var(--muted); font-variant-numeric:tabular-nums; }
-.toc .lvl0{ font-weight:800; font-size:12.5pt; margin-top:6mm; color:var(--brand); }
-.toc .lvl1{ font-weight:700; margin-top:3.5mm; color:var(--brand-dark); }
-.toc .lvl2{ padding-left:7mm; font-size:10.5pt; }
-.toc .lvl3{ padding-left:14mm; font-size:10pt; color:var(--muted); }
+.toc li{ margin:.7mm 0; break-inside:avoid; }
+.toc li a{ display:flex; align-items:baseline; text-decoration:none; color:var(--ink-2); }
+.toc li a::before{
+  content:""; order:1; flex:1 1 auto; margin:0 2.5mm 0 2mm;
+  border-bottom:1px dotted #cbd5e1; transform:translateY(-1mm);
+}
+.toc li a::after{
+  content:target-counter(attr(href), page);
+  order:2; color:var(--muted); font-variant-numeric:tabular-nums; font-size:9.5pt;
+}
+.toc .lvl0{
+  font-weight:800; font-size:12.5pt; color:var(--brand-dark);
+  margin-top:6mm; padding-top:2.5mm; border-top:1.5pt solid var(--brand);
+}
+.toc .lvl0 a{ color:var(--brand-dark); }
+.toc .lvl0 a::after{ color:var(--brand-dark); font-size:11pt; }
+.toc .lvl1{ font-weight:700; margin-top:3.5mm; color:var(--ink); }
+.toc .lvl1 a{ color:var(--ink); }
+.toc .lvl2{ padding-left:6mm; font-size:10pt; }
+.toc .lvl3{ padding-left:12mm; font-size:9.5pt; color:var(--muted); }
 
-/* ---------- หน้าคั่นภาค ---------- */
+/* ───────────────────────── หน้าคั่นภาค ───────────────────────── */
 .part-divider{
-  break-before:page; break-after:page; height:245mm;
+  break-before:page; break-after:page; height:250mm;
   display:flex; flex-direction:column; justify-content:center;
-  border-top:6px solid var(--brand); border-bottom:6px solid var(--brand);
 }
-.part-divider .n{ font-size:13pt; letter-spacing:.14em; color:var(--brand); font-weight:700; }
-.part-divider h1{ font-size:30pt; border:0; margin:3mm 0 5mm; padding:0; break-before:avoid; }
-.part-divider p{ font-size:13pt; color:var(--muted); max-width:130mm; line-height:1.7; }
+.part-divider .n{
+  font-size:11pt; letter-spacing:.24em; text-transform:uppercase;
+  color:var(--brand); font-weight:700;
+}
+.part-divider h1{
+  font-size:32pt; border:0; margin:3mm 0 6mm; padding:0;
+  break-before:avoid; string-set:none;
+}
+.part-divider .lead{ font-size:12.5pt; color:var(--muted); max-width:128mm; line-height:1.7; }
+.part-divider .in-this-part{
+  margin-top:12mm; padding-top:5mm; border-top:1px solid var(--line);
+  max-width:135mm;
+}
+.part-divider .in-this-part h3{
+  font-size:9.5pt; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--faint); margin:0 0 3mm; font-weight:700;
+}
+.part-divider .in-this-part ol{ list-style:none; margin:0; padding:0; }
+.part-divider .in-this-part li{ font-size:11pt; color:var(--ink-2); margin:1.4mm 0; }
 
-/* ---------- เนื้อหา ---------- */
-h1{ font-size:21pt; margin:0 0 5mm; padding-bottom:2.5mm; border-bottom:3px solid var(--brand); break-before:page; break-after:avoid; }
+/* ───────────────────────── หัวข้อ ───────────────────────── */
+h1{
+  font-size:20pt; font-weight:800; letter-spacing:-.01em;
+  margin:0 0 6mm; padding-bottom:2.5mm;
+  border-bottom:2.5pt solid var(--brand);
+  break-before:page; break-after:avoid;
+  string-set:chapter content(text);
+}
 h1:first-of-type{ break-before:avoid; }
-h2{ font-size:15.5pt; color:var(--teal); margin:8mm 0 3mm; break-after:avoid; }
-h3{ font-size:12.5pt; margin:6mm 0 2mm; break-after:avoid; }
-h4{ font-size:11.5pt; margin:5mm 0 2mm; color:var(--muted); break-after:avoid; }
-p,ul,ol{ margin:0 0 3mm; }
-li{ margin:.8mm 0; }
-hr{ border:0; border-top:1px solid var(--line); margin:6mm 0; }
-a{ color:var(--teal); }
-strong{ font-weight:700; }
-code{ background:var(--soft); border-radius:4px; padding:.4mm 1.4mm; font-size:10pt;
-      font-family:'Consolas','Courier New',monospace; }
-pre{ background:var(--soft); border-radius:6px; padding:3mm 4mm; overflow:hidden; break-inside:avoid; }
-pre code{ background:none; padding:0; font-size:9.5pt; line-height:1.45; }
-
-blockquote{
-  margin:3mm 0; padding:2.5mm 4mm; background:var(--mint);
-  border-left:4px solid var(--brand); border-radius:0 6px 6px 0;
-  color:var(--mint-ink); break-inside:avoid;
+h2{
+  font-size:15pt; font-weight:700; color:var(--teal);
+  margin:6.5mm 0 2.5mm; break-after:avoid;
 }
-blockquote p{ margin:0 0 1.5mm; }
-blockquote p:last-child{ margin:0; }
+h3{ font-size:12pt; font-weight:700; margin:4.5mm 0 1.8mm; break-after:avoid; }
+h4{ font-size:11pt; font-weight:600; color:var(--muted); margin:4mm 0 1.5mm; break-after:avoid; }
 
-table{ width:100%; border-collapse:collapse; font-size:10pt; margin:3mm 0 4mm; }
-th,td{ border:1px solid var(--line); padding:1.6mm 2.4mm; text-align:left; vertical-align:top; }
-th{ background:var(--mint); font-weight:600; }
+p,ul,ol{ margin:0 0 2.6mm; }
+li{ margin:.7mm 0; }
+ul,ol{ padding-left:6mm; }
+hr{ border:0; border-top:1px solid var(--line); margin:5mm 0; }
+a{ color:var(--teal); text-decoration:none; }
+strong{ font-weight:700; }
+em{ color:var(--muted); font-style:italic; }
+
+code{
+  background:var(--soft); border:1px solid var(--line-soft); border-radius:3px;
+  padding:.3mm 1.3mm; font-size:9.5pt;
+  font-family:'Consolas','Courier New',monospace;
+}
+pre{
+  background:var(--soft); border:1px solid var(--line); border-left:3px solid var(--brand);
+  border-radius:4px; padding:3mm 4mm; overflow:hidden; break-inside:avoid; margin:3mm 0;
+}
+pre code{ background:none; border:0; padding:0; font-size:9pt; line-height:1.5; }
+
+/* ───────────────────────── กล่องข้อความ 4 ชนิด ───────────────────────── */
+blockquote{
+  margin:3mm 0; padding:2.6mm 4mm 2.6mm 4.5mm;
+  border-left:3pt solid var(--gmp); border-radius:0 4px 4px 0;
+  background:var(--gmp-bg); color:var(--gmp-ink);
+  break-inside:avoid; font-size:10.5pt;
+}
+blockquote p{ margin:0 0 1.4mm; }
+blockquote p:last-child{ margin:0; }
+blockquote code{ background:rgba(255,255,255,.65); border-color:rgba(0,0,0,.06); }
+
+blockquote.cal-warn{ border-left-color:var(--warn); background:var(--warn-bg); color:var(--warn-ink); }
+blockquote.cal-tip { border-left-color:var(--tip);  background:var(--tip-bg);  color:var(--tip-ink); }
+blockquote.cal-gmp { border-left-color:var(--gmp);  background:var(--gmp-bg);  color:var(--gmp-ink); }
+blockquote.cal-perm{ border-left-color:var(--perm); background:var(--perm-bg); color:var(--perm-ink); }
+blockquote.cal-note{ border-left-color:var(--faint);background:var(--soft);    color:var(--ink-2); }
+
+/* ───────────────────────── ตาราง ───────────────────────── */
+table{
+  width:100%; border-collapse:collapse; font-size:9.5pt;
+  margin:3mm 0 4mm; break-inside:auto;
+}
+th,td{
+  border:1px solid var(--line); padding:1.5mm 2.3mm;
+  text-align:left; vertical-align:top;
+}
+th{
+  background:#ecfdf5; font-weight:700; color:var(--brand-dark);
+  border-bottom:1.5pt solid var(--brand);
+}
+tbody tr:nth-child(even){ background:var(--soft); }
 tr{ break-inside:avoid; }
 thead{ display:table-header-group; break-after:avoid; }
 tbody tr:first-child{ break-before:avoid; }
 
-/* รูป — จำกัดความสูงไม่ให้ดันเกิดหน้าว่าง (บทเรียนจากเล่มเดิม) */
-figure{ margin:3mm 0 4mm; break-inside:avoid; }
+/* ───────────────────────── รูปภาพ (มีเลขที่รูป) ───────────────────────── */
+body{ counter-reset:figure; }
+figure{ margin:3.5mm 0 4.5mm; break-inside:avoid; counter-increment:figure; }
 figure img{
-  display:block; max-width:100%; max-height:185mm; margin:0 auto;
-  border:1px solid var(--line); border-radius:8px; box-shadow:0 1px 3px rgba(15,23,42,.08);
+  display:block; max-width:100%; max-height:172mm; margin:0 auto;
+  border:1px solid var(--line); border-radius:5px;
 }
-figure figcaption{ margin-top:1.5mm; font-size:9pt; color:var(--muted); text-align:center; }
+figure figcaption{
+  margin-top:1.8mm; font-size:8.5pt; color:var(--muted);
+  text-align:center; line-height:1.4;
+}
+figure figcaption::before{
+  content:"รูปที่ " counter(figure) " · ";
+  color:var(--brand); font-weight:700;
+}
 img{ max-width:100%; }
 
-/* ตารางสรุปรายฝ่าย — ฉีกไปแปะได้ */
-.tearsheet{ break-before:page; break-inside:avoid; }
+/* ───────────────────────── บังคับขึ้นหน้าใหม่ ───────────────────────── */
+/* ใส่ <!--pagebreak--> ในไฟล์ .md ตรงจุดที่อยากให้ขึ้นหน้าใหม่
+   ใช้กับหน้าสรุปรายฝ่าย (§4) ที่ต้อง "ฉีกไปแปะ" ได้จริง = 1 ฝ่าย 1 หน้า */
+.page-break{ break-after:page; height:0; }
+
+/* หัวของ "แผ่นอ้างอิงรายฝ่าย" — ทำให้หน้าที่เนื้อหาสั้นดูเป็นการ์ดที่ตั้งใจออกแบบ
+   ไม่ใช่หน้าที่เนื้อหาไม่พอ · ที่ว่างที่เหลือมีไว้ให้เขียนโน้ตด้วยมือ */
+h2.sheet{
+  margin:0 0 4.5mm; padding:3mm 4mm 3mm 4.5mm;
+  background:#ecfdf5; border-left:4pt solid var(--brand);
+  border-radius:0 5px 5px 0; color:var(--brand-dark);
+  font-size:16pt; break-after:avoid;
+}
+
+/* ช่องเขียนโน้ตท้ายแผ่นอ้างอิงรายฝ่าย — ที่ว่างบนแผ่นที่ฉีกไปแปะควรใช้งานได้ */
+.sheet-notes{
+  margin-top:7mm; padding:3mm 4mm 2mm;
+  border:1px dashed #cbd5e1; border-radius:5px; break-inside:avoid;
+}
+.sheet-notes .t{
+  font-size:8pt; letter-spacing:.16em; text-transform:uppercase;
+  color:var(--faint); font-weight:700; margin-bottom:3mm;
+}
+.sheet-notes .l{ border-bottom:1px solid var(--line-soft); height:7.5mm; }
+.sheet-notes .l:last-child{ border-bottom:0; }

@@ -2,7 +2,7 @@
 ใช้:  python inspect-pdf.py [หน้าที่อยากเรนเดอร์ เช่น 1,2,3,10]"""
 import sys, pathlib, pypdfium2 as pdfium
 
-PDF = pathlib.Path(__file__).resolve().parent.parent / "pd-monitor-manual.pdf"
+PDF = pathlib.Path(sys.argv[2]) if len(sys.argv) > 2 else pathlib.Path(__file__).resolve().parent.parent / "pd-monitor-manual.pdf"
 OUT = pathlib.Path(__file__).resolve().parent / ".cache" / "pages"
 OUT.mkdir(parents=True, exist_ok=True)
 

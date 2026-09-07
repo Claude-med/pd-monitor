@@ -328,6 +328,17 @@
   "note": "ปุ่มยืนยันแผนผลิตของฝ่ายวางแผน"
  },
  {
+  "id": "29-job-mobile",
+  "role": "production",
+  "url": "/board/690005",
+  "waitFor": "main",
+  "viewport": {
+   "width": 420,
+   "height": 900
+  },
+  "note": "หน้ารายละเอียดงานบนมือถือ"
+ },
+ {
   "id": "30-materials-card",
   "role": "production",
   "url": "/board/690005",
@@ -415,11 +426,19 @@
     "clickText": {
      "text": "+ บันทึกผลผลิต"
     },
-    "pause": 800
+    "pause": 900
+   },
+   {
+    "eval": "[...document.querySelectorAll('main h2')].find(h=>h.textContent.includes('บันทึกผลผลิตรายวัน'))?.scrollIntoView({block:'start'})",
+    "pause": 600
    }
   ],
-  "card": "บันทึกผลผลิตรายวัน",
-  "note": "ฟอร์มบันทึกผลผลิตรายวัน"
+  "note": "ฟอร์มบันทึกผลผลิตรายวัน",
+  "viewport": {
+   "width": 1180,
+   "height": 1150
+  },
+  "target": "page"
  },
  {
   "id": "39-lc-form",
@@ -808,6 +827,17 @@
    "height": 860
   },
   "note": "คิวตรวจ QC / QA"
+ },
+ {
+  "id": "81b-quality-qa",
+  "role": "qa",
+  "url": "/quality",
+  "waitFor": "main",
+  "viewport": {
+   "width": 1280,
+   "height": 900
+  },
+  "note": "คิวตรวจในมุมของ QA"
  },
  {
   "id": "82-warehouse",

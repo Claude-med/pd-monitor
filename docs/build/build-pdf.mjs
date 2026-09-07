@@ -1,10 +1,10 @@
 /**
  * รวมคู่มือ 3 ไฟล์ markdown → HTML เล่มเดียว → PDF
- *   docs/manual-intro.md        = ส่วนหน้า (วิธีใช้คู่มือ + ฉันเป็นฝ่ายไหน)
+ *   docs/manual-intro.md         = ส่วนหน้า (วิธีใช้คู่มือ + ฉันเป็นฝ่ายไหน)
  *   docs/tutorial-walkthrough.md = ภาค 1 ฝึกปฏิบัติ
  *   docs/user-guide.md           = ภาค 2 คู่มืออ้างอิง
  *
- * ฝังฟอนต์ Sarabun (ซับเซ็ตไทย U+0E01-0E5B ด้วย) + รูป base64 + paged.js ไว้ในไฟล์
+ * ฝังฟอนต์ Sarabun (ซับเซ็ตไทย U+0E01-0E5B ด้วย) + รูป base64 + paged.js ไว้ในไฟล์เดียว
  * → เปิดใน Chrome ที่ติดตั้งในเครื่อง → รอ paged.js จัดหน้าเสร็จ → page.pdf()
  *
  * ใช้:  node build-pdf.mjs [--html-only]
@@ -47,6 +47,15 @@ const SOURCES = [
   },
 ];
 
+/** กล่องข้อความ 4 ชนิด — แยกสีตาม emoji ตัวแรกของ blockquote */
+const CALLOUTS = [
+  { cls: "cal-warn", marks: ["⚠️", "🚨", "🔴"] },
+  { cls: "cal-tip", marks: ["💡", "🎁"] },
+  { cls: "cal-gmp", marks: ["🔒", "✅"] },
+  { cls: "cal-perm", marks: ["🔑", "👔"] },
+  { cls: "cal-note", marks: ["📌", "📎", "ℹ️"] },
+];
+
 // ---------- ฟอนต์ ----------
 function fontFaces() {
   const manifest = JSON.parse(fs.readFileSync(path.join(HERE, "fonts/manifest.json"), "utf8"));
@@ -61,6 +70,7 @@ function fontFaces() {
 // ---------- markdown → HTML + เก็บหัวข้อไว้ทำสารบัญ ----------
 const toc = [];
 const escapeAttr = (s) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+const stripTags = (s) => s.replace(/<[^>]+>/g, "").trim();
 
 function renderSource(src) {
   const md = fs.readFileSync(path.join(DOCS, src.file), "utf8");
@@ -72,15 +82,44 @@ function renderSource(src) {
   html = html.replace(/<hr\s*\/?>\s*$/, "");
 
   // ใส่ id ให้ h1/h2/h3 (prefix แยกตามภาค กัน id ชนกัน → target-counter ของสารบัญพัง)
+  const chapters = [];
   let n = 0;
   html = html.replace(/<h([123])>([\s\S]*?)<\/h\1>/g, (_m, lvl, inner) => {
     const id = `${src.prefix}-${++n}`;
-    const text = inner.replace(/<[^>]+>/g, "").trim();
+    const text = stripTags(inner);
     toc.push({ id, lvl: Number(lvl), text });
+    if (lvl === "1") chapters.push({ id, text });
     return `<h${lvl} id="${id}">${inner}</h${lvl}>`;
   });
 
-  // <img> เดี่ยวใน <p> → <figure> + caption จาก alt
+  // มาร์กเกอร์ในไฟล์ .md:
+  //   <!--pagebreak-->  = ขึ้นหน้าใหม่ตรงนี้
+  //   <!--sheet-->      = ขึ้นหน้าใหม่ + หัวข้อถัดไปเป็น "แผ่นอ้างอิงที่ฉีกไปแปะได้"
+  //   <!--sheet-here--> = หัวข้อถัดไปเป็นแผ่นอ้างอิง แต่ไม่ต้องขึ้นหน้าใหม่
+  html = html.replace(/<!--\s*sheet\s*-->/g, '<div class="page-break" data-sheet></div>');
+  html = html.replace(/<!--\s*sheet-here\s*-->/g, '<div data-sheet></div>');
+  html = html.replace(/<!--\s*pagebreak\s*-->/g, '<div class="page-break"></div>');
+  // <!--sheet-notes:N--> = ช่องเขียนโน้ตด้วยมือท้ายแผ่นอ้างอิง N บรรทัด
+  // (จำนวนบรรทัดปรับอัตโนมัติด้วย tune-sheets.py ให้เต็มพื้นที่ที่เหลือของแต่ละแผ่น)
+  html = html.replace(/<!--\s*sheet-notes(?::(\d+))?\s*-->/g, (_m, num) => {
+    const lines = Math.max(2, Math.min(24, Number(num) || 5));
+    return (
+      '<div class="sheet-notes"><div class="t">บันทึกของแผนก</div>' +
+      '<div class="l"></div>'.repeat(lines) +
+      "</div>"
+    );
+  });
+
+  // หัวข้อที่ตามหลังมาร์กเกอร์ = หัวแผ่นอ้างอิง
+  html = html.replace(/(<div[^>]*data-sheet[^>]*><\/div>\s*)<h2 /g, '$1<h2 class="sheet" ');
+
+  // กล่องข้อความ — ให้ class ตาม emoji ตัวแรก เพื่อแยกสี
+  html = html.replace(/<blockquote>\s*<p>([\s\S]{0,12})/g, (m, head) => {
+    const hit = CALLOUTS.find((c) => c.marks.some((k) => head.includes(k)));
+    return hit ? m.replace("<blockquote>", `<blockquote class="${hit.cls}">`) : m;
+  });
+
+  // <img> เดี่ยวใน <p> → <figure> + caption จาก alt (เลขที่รูปมาจาก CSS counter)
   html = html.replace(
     /<p>\s*<img src="([^"]+)" alt="([^"]*)"\s*\/?>\s*<\/p>/g,
     (_m, src2, alt) =>
@@ -92,9 +131,15 @@ function renderSource(src) {
   let out = "";
   if (src.divider) {
     const did = `${src.prefix}-part`;
-    toc.unshift({ id: did, lvl: 0, text: `${src.divider.n} — ${src.divider.h}`, at: src.prefix });
-    out += `<section class="part-divider" id="${did}"><div class="n">${src.divider.n}</div>` +
-      `<h1>${src.divider.h}</h1><p>${src.divider.p}</p></section>`;
+    toc.push({ id: did, lvl: 0, text: `${src.divider.n} — ${src.divider.h}`, order: -1 });
+    const list = chapters.map((c) => `<li>${c.text}</li>`).join("");
+    out +=
+      `<section class="part-divider" id="${did}">` +
+      `<div class="n">${src.divider.n}</div>` +
+      `<h1>${src.divider.h}</h1>` +
+      `<p class="lead">${src.divider.p}</p>` +
+      `<div class="in-this-part"><h3>ในภาคนี้มีอะไรบ้าง</h3><ol>${list}</ol></div>` +
+      `</section>`;
   }
   out += `<section${src.id ? ` id="${src.id}"` : ""}${src.cls ? ` class="${src.cls}"` : ""}>${html}</section>`;
   return out;
@@ -103,7 +148,7 @@ function renderSource(src) {
 // ---------- ฝังรูปเป็น base64 ----------
 const MIME = { ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".svg": "image/svg+xml" };
 let embedded = 0;
-let missing = [];
+const missing = [];
 function inlineImages(html) {
   return html.replace(/<img([^>]*?)src="((?!data:)[^"]+)"/g, (m, pre, rel) => {
     const file = path.join(DOCS, rel);
@@ -120,6 +165,7 @@ function inlineImages(html) {
 // ---------- ประกอบเล่ม ----------
 const body = SOURCES.map(renderSource).join("\n");
 
+// เรียงสารบัญตามลำดับที่ปรากฏจริงในเล่ม (หน้าคั่นภาคต้องมาก่อนหัวข้อของภาคนั้น)
 const ORDER = SOURCES.map((s) => s.prefix);
 toc.sort((a, b) => {
   const pa = ORDER.indexOf(a.id.split("-")[0]);
@@ -143,22 +189,31 @@ ${fs.readFileSync(path.join(HERE, "manual.css"), "utf8")}
 </style></head><body>
 <section class="cover">
   <div class="kicker">คู่มือฉบับสมบูรณ์</div>
+  <div class="rule"></div>
   <h1>${TITLE}</h1>
   <div class="sub">${SUBTITLE}</div>
   <div class="badges">
     <span class="badge">ภาค 1 · ฝึกปฏิบัติ</span>
     <span class="badge">ภาค 2 · คู่มืออ้างอิง</span>
-    <span class="badge">อัปเดตตามระบบจริง</span>
+    <span class="badge">${embedded || "65"} ภาพจากระบบจริง</span>
   </div>
-  <div class="meta">ปรับปรุง: ${today}<br>สำหรับทุกฝ่าย — วางแผน · ผลิต · QC · QA · คลัง · วิศวกรรม · บัญชีต้นทุน · ผู้บริหาร</div>
+  <div class="meta">
+    <b>ฉบับปรับปรุง:</b> ${today}<br>
+    <b>สำหรับ:</b> ฝ่ายวางแผน · ผลิต · QC · QA · คลังสินค้า · วิศวกรรม · บัญชีต้นทุน · ผู้บริหาร
+  </div>
 </section>
-<section class="toc"><h2>สารบัญ</h2><ol>${tocHtml}</ol></section>
+<section class="toc">
+  <h2>สารบัญ</h2>
+  <p class="toc-note">เลขหน้าอยู่ขวามือ · ภาค 1 สอนทีละขั้น · ภาค 2 เปิดหาเฉพาะเรื่อง</p>
+  <ol>${tocHtml}</ol>
+</section>
 ${body}
 <script>window.PagedConfig = { auto: false };</script>
 <script src="./paged.polyfill.js"></script>
 </body></html>`;
 
 doc = inlineImages(doc);
+doc = doc.replace(">65 ภาพจากระบบจริง<", `>${embedded} ภาพจากระบบจริง<`);
 
 fs.mkdirSync(CACHE, { recursive: true });
 fs.copyFileSync(path.join(HERE, "vendor/paged.polyfill.js"), path.join(CACHE, "paged.polyfill.js"));
@@ -173,18 +228,48 @@ if (process.argv.includes("--html-only")) process.exit(0);
 const browser = await launch();
 try {
   const page = await browser.newPage();
-  page.on("console", (m) => { if (m.type() === "error") console.log("  [หน้าเว็บ]", m.text().slice(0, 160)); });
-  await page.goto(pathToFileURL(htmlPath).href, { waitUntil: "load", timeout: 180000 });
-  await page.evaluate(async () => { await window.PagedPolyfill.preview(); });
-  const pages = await page.$$eval(".pagedjs_page", (els) => els.length);
-  await page.pdf({
-    path: OUT_PDF,
-    printBackground: true,
-    preferCSSPageSize: true,
-    timeout: 300000,
+  page.on("console", (m) => {
+    if (m.type() === "error") console.log("  [หน้าเว็บ]", m.text().slice(0, 160));
   });
-  const mb = (fs.statSync(OUT_PDF).size / 1048576).toFixed(1);
-  console.log(`✅ ${path.relative(process.cwd(), OUT_PDF)} — ${pages} หน้า · ${mb} MB`);
+  await page.goto(pathToFileURL(htmlPath).href, { waitUntil: "load", timeout: 180000 });
+  await page.evaluate(async () => {
+    await window.PagedPolyfill.preview();
+  });
+  const pages = await page.$$eval(".pagedjs_page", (els) => els.length);
+
+  // เขียนลงไฟล์ชั่วคราวก่อน แล้วค่อยย้ายทับ — กันกรณีไฟล์ปลายทางถูกเปิดค้างในโปรแกรมอ่าน PDF
+  const tmpPdf = path.join(CACHE, "manual-out.pdf");
+  const opts = { path: tmpPdf, printBackground: true, preferCSSPageSize: true, timeout: 300000 };
+  try {
+    // tagged + outline = มีสารบัญ (bookmarks) ในตัว PDF · รองรับเฉพาะ Chrome รุ่นใหม่
+    await page.pdf({ ...opts, tagged: true, outline: true });
+    console.log("  (สร้าง bookmark ในไฟล์ PDF ด้วย)");
+  } catch {
+    await page.pdf(opts);
+    console.log("  (Chrome รุ่นนี้ไม่รองรับ outline — ข้าม bookmark)");
+  }
+
+  const mb = (fs.statSync(tmpPdf).size / 1048576).toFixed(1);
+  try {
+    try {
+      fs.copyFileSync(tmpPdf, OUT_PDF);
+    } catch (e1) {
+      // ไฟล์ปลายทางถูกเปิดค้าง (Acrobat / ตัวสร้างภาพตัวอย่างของ Explorer)
+      // เขียนทับตรง ๆ ไม่ได้ แต่ "ย้ายไฟล์เก่าออกก่อนแล้วเขียนใหม่" มักผ่าน
+      if (e1.code !== "EBUSY" && e1.code !== "EPERM") throw e1;
+      const bak = OUT_PDF.replace(/\.pdf$/, ".old.pdf");
+      fs.renameSync(OUT_PDF, bak);
+      fs.copyFileSync(tmpPdf, OUT_PDF);
+      try { fs.unlinkSync(bak); } catch { /* ลบทีหลังก็ได้ */ }
+      console.log("  (ไฟล์เดิมถูกเปิดค้างอยู่ — ย้ายออกแล้วเขียนไฟล์ใหม่แทน)");
+    }
+    console.log(`✅ ${path.relative(process.cwd(), OUT_PDF)} — ${pages} หน้า · ${mb} MB`);
+  } catch (e) {
+    console.log(`⚠️  เขียนทับ ${path.basename(OUT_PDF)} ไม่ได้ (${e.code}) — ไฟล์น่าจะถูกเปิดค้างอยู่`);
+    console.log(`   ไฟล์ใหม่อยู่ที่ ${path.relative(process.cwd(), tmpPdf)} (${pages} หน้า · ${mb} MB)`);
+    console.log(`   ปิดโปรแกรมที่เปิดไฟล์อยู่ แล้วรันซ้ำ หรือก็อปเองจาก .cache`);
+    process.exitCode = 1;
+  }
 } finally {
   await browser.close();
 }

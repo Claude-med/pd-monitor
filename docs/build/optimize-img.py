@@ -26,6 +26,29 @@ CROP = {
     "04-sidebar-user.png": (0.0, 0.60, 1.0, 1.0),   # เอาเฉพาะท้ายแถบเมนู: ชื่อผู้ใช้ + ชิปสิทธิ์
 }
 
+# ภาพที่ต้อง "หั่นครึ่งแล้ววางคู่กัน" — แถบเมนูสูง 1:3.5 พิมพ์ลงหน้ากระดาษแล้วเล็กจนอ่านไม่ออก
+# หั่นเป็น 2 ท่อนวางเรียงกันได้อัตราส่วนประมาณ 1:1.75 อ่านออกสบาย
+SPLIT_2UP = {"03-sidebar.png"}
+
+def split_2up(im, gap=26):
+    """หั่นภาพสูงเป็น 2 ท่อนวางคู่กัน — เลือกจุดหั่นที่เป็นช่องว่างระหว่างแถว
+    ไม่งั้นจะไปหั่นกลางตัวหนังสือ (เคยเจอมาแล้ว: เมนู 'ตรวจ QC / QA' ขาดครึ่ง)"""
+    import numpy as np
+    g = np.asarray(im.convert("L"))
+    mid, span = im.height // 2, int(im.height * 0.12)
+    lo, hi = max(1, mid - span), min(im.height - 1, mid + span)
+    ink = (g[lo:hi] < 235).sum(axis=1)          # จำนวนพิกเซลที่มีหมึกในแต่ละแถว
+    cut = lo + int(ink.argmin())                 # แถวที่ว่างที่สุดใกล้ ๆ กึ่งกลาง
+    a, b = im.crop((0, 0, im.width, cut)), im.crop((0, cut, im.width, im.height))
+    h = max(a.height, b.height)
+    out = Image.new("RGB", (a.width + gap + b.width, h), "white")
+    out.paste(a.convert("RGB"), (0, 0))
+    out.paste(b.convert("RGB"), (a.width + gap, 0))
+    for y in range(h):                           # เส้นคั่นบาง ๆ ให้รู้ว่าเป็นภาพเดียวกันต่อกัน
+        out.putpixel((a.width + gap // 2, y), (226, 232, 240))
+    return out
+
+
 def trim(im):
     """ตัดแถบสีพื้นเรียบที่ขอบล่าง/ขวา (พื้นที่ว่างของหน้าจอที่เนื้อหาไม่เต็ม)"""
     rgb = im.convert("RGB")
@@ -39,6 +62,7 @@ def trim(im):
         return im
     return im.crop((0, 0, right, bottom))
 
+
 before = after = 0
 tall = []
 for f in sorted(IMG.glob("*.png")):
@@ -50,6 +74,8 @@ for f in sorted(IMG.glob("*.png")):
     if f.name in CROP:
         l, t, r, b = CROP[f.name]
         im = im.crop((int(l * im.width), int(t * im.height), int(r * im.width), int(b * im.height)))
+    if f.name in SPLIT_2UP:
+        im = split_2up(im)
     im = trim(im)
     if im.width > MAXW:
         im = im.resize((MAXW, round(im.height * MAXW / im.width)), Image.LANCZOS)

@@ -103,6 +103,11 @@ async function shootOne(page, shot) {
     if (!el) throw new Error(`ไม่เจอ element "${target}"`);
     await el.screenshot({ path: file });
   }
+  // ถ่ายใหม่ = ต้องทิ้งต้นฉบับเก่าใน .cache/raw ทิ้ง ไม่งั้น optimize-img.py
+  // จะหยิบของเก่ามาใช้ แล้วภาพที่เพิ่งถ่ายจะหายไปเงียบ ๆ
+  const raw = path.join(HERE, ".cache", "raw", `${shot.id}.png`);
+  if (fs.existsSync(raw)) fs.unlinkSync(raw);
+
   const kb = (fs.statSync(file).size / 1024).toFixed(0);
   return `${shot.id}.png (${kb} KB)`;
 }
