@@ -128,6 +128,20 @@ function renderSource(src) {
       `</figure>`,
   );
 
+  // 🔗 มัด "หัวข้อ + บรรทัดนำ + ของก้อนแรก" ไว้ด้วยกัน
+  // ไม่งั้นหัวข้อกับข้อความ 1 บรรทัดจะค้างอยู่ท้ายหน้า แล้วรูป/ตารางกระโดดไปหน้าถัดไป
+  // (วัดแล้วเกิด 35 จุดในเล่ม — หนักสุดคือหัวข้ออยู่ห่างขอบล่างแค่ 10 มม.)
+  // ตารางมัดเฉพาะตารางสั้น (≤ MAX_KEEP_ROWS แถว) ตารางยาวปล่อยให้ตัดข้ามหน้าตามปกติ
+  const MAX_KEEP_ROWS = 16;
+  html = html.replace(
+    /(<h[234] id="[^"]*">[\s\S]*?<\/h[234]>)((?:\s*<p>(?:(?!<\/p>)[\s\S])*?<\/p>){0,2})(\s*(?:<figure>[\s\S]*?<\/figure>|<table>[\s\S]*?<\/table>|<pre>[\s\S]*?<\/pre>))/g,
+    (m, head, mid, blk) => {
+      const rows = (blk.match(/<tr>/g) || []).length;
+      if (blk.includes("<table>") && rows > MAX_KEEP_ROWS) return m;
+      return `<div class="keep">${head}${mid}${blk}</div>`;
+    },
+  );
+
   let out = "";
   if (src.divider) {
     const did = `${src.prefix}-part`;

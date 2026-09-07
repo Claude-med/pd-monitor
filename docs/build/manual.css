@@ -74,7 +74,7 @@ body{
 .cover .meta b{ font-weight:600; }
 
 /* ───────────────────────── สารบัญ ───────────────────────── */
-.toc{ page:front; }
+.toc{ page:front; break-after:page; }
 .toc h2{
   font-size:22pt; color:var(--brand-dark); margin:0 0 2mm; border:0;
   letter-spacing:-.01em;
@@ -201,7 +201,7 @@ tbody tr:first-child{ break-before:avoid; }
 body{ counter-reset:figure; }
 figure{ margin:3.5mm 0 4.5mm; break-inside:avoid; counter-increment:figure; }
 figure img{
-  display:block; max-width:100%; max-height:172mm; margin:0 auto;
+  display:block; max-width:100%; max-height:150mm; margin:0 auto;
   border:1px solid var(--line); border-radius:5px;
 }
 figure figcaption{
@@ -213,6 +213,13 @@ figure figcaption::before{
   color:var(--brand); font-weight:700;
 }
 img{ max-width:100%; }
+
+/* มัดหัวข้อ + บรรทัดนำ + รูปแรก ไว้ในหน้าเดียวกัน (build-pdf.mjs ครอบ .keep ให้อัตโนมัติ) */
+.keep{ break-inside:avoid; }
+/* รูปที่ถูกมัดรวมกับหัวข้อ ย่อลงเล็กน้อยเพื่อให้ทั้งก้อนลงหน้าเดียวได้บ่อยขึ้น
+   (หัวข้อ ~10มม. + บรรทัดนำ ~6มม. + รูป ต้องรวมแล้วไม่เกินพื้นที่ที่เหลือ) */
+.keep figure img{ max-height:138mm; }
+.keep > :first-child{ margin-top:0; }
 
 /* ───────────────────────── บังคับขึ้นหน้าใหม่ ───────────────────────── */
 /* ใส่ <!--pagebreak--> ในไฟล์ .md ตรงจุดที่อยากให้ขึ้นหน้าใหม่
