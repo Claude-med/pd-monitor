@@ -5,10 +5,16 @@ import type { Profile } from "@/lib/auth/dal";
 import { STUCK_DAYS, type InboxItem } from "@/lib/data/notification-constants";
 import { fmtDate, displayJobNo, stripJobNo } from "@/lib/format";
 
-// B4 — Notification (in-app inbox)
-//   stored  = แจ้งเตือนถาวรจาก event (reject / deviation) เก็บใน notifications + อ่าน/ยังไม่อ่าน
-//   derived = คำนวณสด (งานเกินกำหนด / ค้างสถานะนาน) — ไม่เก็บตาราง
+// B4 + Part Notification — Notification (in-app inbox)
+//   stored  = แจ้งเตือนถาวรจาก event ใน DB — อ่านผ่าน RPC get_inbox() (0087)
+//   derived = คำนวณสด (งานเกินกำหนด / ค้างสถานะนาน) — ไม่เก็บตาราง ไม่นับใน badge
 export type { InboxItem };
+
+/** จำนวนรายการ stored ที่ดึงมาแสดงต่อหนึ่งหน้า */
+export const INBOX_PAGE_SIZE = 30;
+
+/** จำนวนรายการ stored สูงสุดที่ดึงได้ — ต้องไม่เกินเพดานใน get_inbox() (0087) */
+export const INBOX_MAX = 200;
 
 /** จำนวนแจ้งเตือน (stored) ที่ยังไม่อ่านของผู้ใช้ปัจจุบัน — สำหรับกระดิ่ง */
 export async function getUnreadCount(): Promise<number> {
@@ -70,56 +76,54 @@ async function getDerivedAlerts(profile: Profile): Promise<InboxItem[]> {
   return out;
 }
 
-/** กล่องแจ้งเตือนรวม (stored + derived) เรียงใหม่สุดก่อน */
-export async function getInbox(profile: Profile): Promise<InboxItem[]> {
+export type Inbox = {
+  items: InboxItem[];
+  /** ยังมี stored เก่ากว่านี้ให้โหลดต่อไหม (ใช้โชว์ปุ่ม "โหลดเพิ่ม") */
+  hasMore: boolean;
+};
+
+/**
+ * กล่องแจ้งเตือนรวม (stored + derived) เรียงใหม่สุดก่อน
+ *
+ * 🔑 การกรอง "ใครเห็นใบไหน" และ "ใบไหนหมดหน้าที่แล้ว" ทำที่ SQL ทั้งหมด (RPC get_inbox · 0087)
+ *    ของเดิมดึง 50 แถวแล้วค่อยกรองในหน่วยความจำ ⇒ เห็นน้อยกว่าเลขบนกระดิ่งเสมอ
+ *    และตรรกะ stale ถูกเขียนซ้ำ 2 ภาษา · ตอนนี้เหลือแหล่งเดียวคือ SQL
+ *
+ * derived (overdue/stuck) ไม่มีการแบ่งหน้า — คำนวณจากงานที่ยังไม่เข้าคลังทั้งหมดในครั้งเดียว
+ */
+export async function getInbox(
+  profile: Profile,
+  limit: number = INBOX_PAGE_SIZE,
+): Promise<Inbox> {
   const supabase = await createClient();
+  const capped = Math.min(Math.max(limit, 1), INBOX_MAX);
 
-  const [{ data: notifs }, { data: reads }, { data: fgRows }, derived] =
-    await Promise.all([
-      supabase
-        .from("notifications")
-        .select(
-          "id, kind, title, body, job_no, created_at, job_id, relevant_status, job:jobs(status)",
-        )
-        .order("created_at", { ascending: false })
-        .limit(50),
-      supabase.from("notification_reads").select("notification_id"),
-      supabase.from("fg_inventory").select("job_id"),
-      getDerivedAlerts(profile),
-    ]);
+  const [{ data: rows }, derived] = await Promise.all([
+    // ขอเกินมา 1 แถวเพื่อรู้ว่ายังมีของเก่ากว่านี้อีกไหม โดยไม่ต้องยิง count แยก
+    supabase.rpc("get_inbox", { p_limit: capped + 1, p_before: null }),
+    getDerivedAlerts(profile),
+  ]);
 
-  const readSet = new Set(
-    ((reads ?? []) as any[]).map((r) => r.notification_id),
-  );
-  const fgSet = new Set(((fgRows ?? []) as any[]).map((r) => r.job_id));
+  const all = (rows ?? []) as any[];
+  const hasMore = all.length > capped && capped < INBOX_MAX;
 
-  // ซ่อนแจ้งเตือนที่ "หมดหน้าที่" — งานเลื่อนพ้นสถานะที่เกี่ยวข้อง หรือ (FG) รับเข้าคลังแล้ว
-  //   ต้องตรงกับเงื่อนไขใน unread_notification_count() (0029)
-  function isStale(n: any): boolean {
-    if (n.relevant_status == null) return false;
-    const job = Array.isArray(n.job) ? n.job[0] : n.job;
-    if (job?.status !== n.relevant_status) return true;
-    if (n.relevant_status === "finished_goods" && fgSet.has(n.job_id)) return true;
-    return false;
-  }
+  const stored: InboxItem[] = all.slice(0, capped).map((n) => ({
+    id: n.id,
+    kind: n.kind,
+    // หัวข้อจาก SQL ฝังเลขงานจริงไว้ในข้อความ (เช่น "งาน P690001 ถูกตีกลับ")
+    // แทนที่ตอนอ่านให้เหลือเลขเปล่า — ถูกกว่าไปแก้ฟังก์ชันแจ้งเตือนทุกตัวใน migration เก่า
+    title: stripJobNo(n.title, n.job_no),
+    body: stripJobNo(n.body, n.job_no),
+    job_no: n.job_no,
+    created_at: n.created_at,
+    read: n.read === true,
+    source: "stored",
+  }));
 
-  const stored: InboxItem[] = ((notifs ?? []) as any[])
-    .filter((n) => !isStale(n))
-    .map((n) => ({
-      id: n.id,
-      kind: n.kind,
-      // หัวข้อจาก SQL ฝังเลขงานจริงไว้ในข้อความ (เช่น "งาน P690001 ถูกตีกลับ")
-      // แทนที่ตอนอ่านให้เหลือเลขเปล่า — ถูกกว่าไปแก้ฟังก์ชันแจ้งเตือนทุกตัวใน migration เก่า
-      title: stripJobNo(n.title, n.job_no),
-      body: stripJobNo(n.body, n.job_no),
-      job_no: n.job_no,
-      created_at: n.created_at,
-      read: readSet.has(n.id),
-      source: "stored",
-    }));
-
-  return [...stored, ...derived].sort((a, b) =>
+  const items = [...stored, ...derived].sort((a, b) =>
     (b.created_at ?? "").localeCompare(a.created_at ?? ""),
   );
+
+  return { items, hasMore };
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
