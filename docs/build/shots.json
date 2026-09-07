@@ -1,0 +1,882 @@
+[
+ {
+  "id": "01-login",
+  "role": "-",
+  "url": "/login",
+  "waitFor": "#email",
+  "viewport": {
+   "width": 1100,
+   "height": 760
+  },
+  "note": "หน้าเข้าสู่ระบบ"
+ },
+ {
+  "id": "02-app-shell",
+  "role": "production",
+  "url": "/",
+  "waitFor": "aside",
+  "viewport": {
+   "width": 1280,
+   "height": 860
+  },
+  "note": "หน้าจอหลัก + เมนูซ้าย (ฝ่ายผลิต)"
+ },
+ {
+  "id": "03-sidebar",
+  "role": "manager",
+  "url": "/",
+  "waitFor": "aside",
+  "target": "aside",
+  "note": "เมนูทั้งหมดที่ผู้บริหารเห็น"
+ },
+ {
+  "id": "04-sidebar-user",
+  "role": "qc",
+  "url": "/",
+  "waitFor": "aside",
+  "target": "aside",
+  "note": "เมนูที่ QC เห็น + ชิปสิทธิ์ท้ายแถบ"
+ },
+ {
+  "id": "05-change-password",
+  "role": "production",
+  "url": "/change-password",
+  "waitFor": "main",
+  "viewport": {
+   "width": 1100,
+   "height": 700
+  },
+  "note": "หน้าเปลี่ยนรหัสผ่าน"
+ },
+ {
+  "id": "06-mobile-menu",
+  "role": "production",
+  "url": "/",
+  "waitFor": "header",
+  "viewport": {
+   "width": 420,
+   "height": 880
+  },
+  "actions": [
+   {
+    "click": "button[aria-label=\"เปิดเมนู\"]",
+    "pause": 700
+   }
+  ],
+  "note": "เมนูบนมือถือ"
+ },
+ {
+  "id": "10-admin-users",
+  "role": "admin",
+  "url": "/admin/users",
+  "waitFor": "main",
+  "viewport": {
+   "width": 1280,
+   "height": 900
+  },
+  "note": "หน้าจัดการผู้ใช้"
+ },
+ {
+  "id": "11-companies",
+  "role": "manager",
+  "url": "/admin/companies",
+  "waitFor": "main",
+  "viewport": {
+   "width": 1280,
+   "height": 860
+  },
+  "note": "ตั้งเลขงานของแต่ละบริษัท"
+ },
+ {
+  "id": "12-recipes",
+  "role": "manager",
+  "url": "/recipes",
+  "waitFor": "main",
+  "viewport": {
+   "width": 1280,
+   "height": 900
+  },
+  "note": "ทะเบียนผลิตภัณฑ์ + ขั้นตอนการผลิต"
+ },
+ {
+  "id": "13-machines",
+  "role": "manager",
+  "url": "/machines",
+  "waitFor": "main",
+  "viewport": {
+   "width": 1280,
+   "height": 900
+  },
+  "note": "ทะเบียนเครื่องจักร"
+ },
+ {
+  "id": "14-materials",
+  "role": "warehouse",
+  "url": "/materials",
+  "waitFor": "main",
+  "viewport": {
+   "width": 1280,
+   "height": 860
+  },
+  "note": "ผลิตภัณฑ์คลัง / ล็อต"
+ },
+ {
+  "id": "15-users-create",
+  "role": "admin",
+  "url": "/admin/users",
+  "waitFor": "main",
+  "viewport": {
+   "width": 1280,
+   "height": 900
+  },
+  "actions": [
+   {
+    "clickText": {
+     "text": "สร้างบัญชีผู้ใช้ใหม่"
+    },
+    "pause": 600
+   }
+  ],
+  "note": "ฟอร์มสร้างบัญชีใหม่"
+ },
+ {
+  "id": "16-users-roles",
+  "role": "admin",
+  "url": "/admin/users",
+  "waitFor": "main",
+  "viewport": {
+   "width": 1280,
+   "height": 1500
+  },
+  "actions": [
+   {
+    "clickText": {
+     "sel": "button",
+     "text": "เข้าถึงอะไรได้บ้าง"
+    },
+    "pause": 800
+   }
+  ],
+  "target": "page",
+  "note": "ตารางสิทธิ์ในหน้าจัดการผู้ใช้"
+ },
+ {
+  "id": "17-machine-form",
+  "role": "manager",
+  "url": "/machines",
+  "waitFor": "main",
+  "viewport": {
+   "width": 1280,
+   "height": 900
+  },
+  "actions": [
+   {
+    "clickText": {
+     "text": "เพิ่มเครื่องจักร"
+    },
+    "pause": 600
+   }
+  ],
+  "note": "ฟอร์มเพิ่มเครื่องจักร"
+ },
+ {
+  "id": "18-product-form",
+  "role": "manager",
+  "url": "/recipes",
+  "waitFor": "main",
+  "viewport": {
+   "width": 1280,
+   "height": 900
+  },
+  "actions": [
+   {
+    "clickText": {
+     "text": "เพิ่มผลิตภัณฑ์"
+    },
+    "pause": 600
+   }
+  ],
+  "note": "ฟอร์มเพิ่มผลิตภัณฑ์"
+ },
+ {
+  "id": "19-route-editor",
+  "role": "manager",
+  "url": "/recipes",
+  "waitFor": "main",
+  "viewport": {
+   "width": 1280,
+   "height": 900
+  },
+  "actions": [
+   {
+    "clickText": {
+     "text": "แก้ขั้นตอน"
+    },
+    "pause": 700
+   }
+  ],
+  "note": "แก้ขั้นตอนการผลิต (Route)"
+ },
+ {
+  "id": "19b-stations",
+  "role": "manager",
+  "url": "/recipes",
+  "waitFor": "main",
+  "viewport": {
+   "width": 1280,
+   "height": 900
+  },
+  "actions": [
+   {
+    "clickText": {
+     "text": "ตั้งค่าสถานีการผลิต"
+    },
+    "pause": 700
+   }
+  ],
+  "note": "ตั้งค่าสถานีการผลิต (master)"
+ },
+ {
+  "id": "20-board",
+  "role": "manager",
+  "url": "/board",
+  "waitFor": "main",
+  "viewport": {
+   "width": 1440,
+   "height": 900
+  },
+  "note": "บอร์ดงาน"
+ },
+ {
+  "id": "21-new-job",
+  "role": "manager",
+  "url": "/board/new",
+  "waitFor": "main",
+  "viewport": {
+   "width": 1280,
+   "height": 900
+  },
+  "note": "หน้าสร้างงานผลิตใหม่"
+ },
+ {
+  "id": "22-job-detail",
+  "role": "production",
+  "url": "/board/690005",
+  "waitFor": "main",
+  "viewport": {
+   "width": 1100,
+   "height": 900
+  },
+  "target": "full",
+  "note": "หน้ารายละเอียดงานทั้งหน้า"
+ },
+ {
+  "id": "23-job-info",
+  "role": "production",
+  "url": "/board/690005",
+  "waitFor": "main",
+  "card": "ข้อมูลงาน",
+  "note": "การ์ดข้อมูลงาน"
+ },
+ {
+  "id": "24-stepper",
+  "role": "production",
+  "url": "/board/690005",
+  "waitFor": "main",
+  "card": "รอแจ้งผลิต",
+  "note": "แถบสถานะ 6 ขั้น"
+ },
+ {
+  "id": "25-new-job-filled",
+  "role": "manager",
+  "url": "/board/new",
+  "waitFor": "main",
+  "viewport": {
+   "width": 1280,
+   "height": 940
+  },
+  "actions": [
+   {
+    "scrollTo": "form"
+   }
+  ],
+  "target": "full",
+  "note": "หน้าสร้างงานผลิตใหม่ (เต็มหน้า)"
+ },
+ {
+  "id": "27-job-edit",
+  "role": "manager",
+  "url": "/board/690006",
+  "waitFor": "main",
+  "actions": [
+   {
+    "clickText": {
+     "text": "แก้ไขข้อมูล"
+    },
+    "pause": 800
+   }
+  ],
+  "card": "ข้อมูลงาน",
+  "note": "โหมดแก้ไขการ์ดข้อมูลงาน"
+ },
+ {
+  "id": "28-job-pending",
+  "role": "manager",
+  "url": "/board/690006",
+  "waitFor": "main",
+  "card": "ดำเนินการ",
+  "note": "ปุ่มยืนยันแผนผลิตของฝ่ายวางแผน"
+ },
+ {
+  "id": "30-materials-card",
+  "role": "production",
+  "url": "/board/690005",
+  "waitFor": "main",
+  "card": "เบิกวัตถุดิบ/บรรจุภัณฑ์",
+  "note": "การ์ดเบิกวัตถุดิบ"
+ },
+ {
+  "id": "31-route-tabs",
+  "role": "production",
+  "url": "/board/690005",
+  "waitFor": "main",
+  "card": "ขั้นตอนการผลิตของงานนี้",
+  "note": "แท็บขั้นตอนการผลิต"
+ },
+ {
+  "id": "32-route-machines",
+  "role": "production",
+  "url": "/board/690005",
+  "waitFor": "main",
+  "card": "เครื่องจักรของขั้นตอนนี้",
+  "note": "เครื่องจักรของขั้นตอน"
+ },
+ {
+  "id": "33-line-clearance",
+  "role": "production",
+  "url": "/board/690005",
+  "waitFor": "main",
+  "card": "Line Clearance",
+  "note": "Line Clearance ที่ผ่านแล้ว"
+ },
+ {
+  "id": "34-records",
+  "role": "production",
+  "url": "/board/690005",
+  "waitFor": "main",
+  "card": "บันทึกผลผลิตรายวัน",
+  "note": "ตารางบันทึกผลผลิต"
+ },
+ {
+  "id": "35-inprocess",
+  "role": "qc",
+  "url": "/board/690005",
+  "waitFor": "main",
+  "card": "ตรวจระหว่างผลิต",
+  "note": "In-process QC"
+ },
+ {
+  "id": "36-qa-sample",
+  "role": "qa",
+  "url": "/board/690011",
+  "waitFor": "main",
+  "card": "จุดเก็บตัวอย่าง",
+  "note": "จุดเก็บตัวอย่าง / Finished product"
+ },
+ {
+  "id": "37-incident",
+  "role": "production",
+  "url": "/board/690005",
+  "waitFor": "main",
+  "note": "Incident Case ในมุมมองฝ่ายผลิต",
+  "viewport": {
+   "width": 1100,
+   "height": 1400
+  },
+  "actions": [
+   {
+    "scrollTo": "h2",
+    "pause": 300
+   },
+   {
+    "eval": "[...document.querySelectorAll('main h2')].find(h=>h.textContent.includes('Incident Case'))?.scrollIntoView({block:'start'})",
+    "pause": 800
+   }
+  ],
+  "target": "page"
+ },
+ {
+  "id": "38-record-form",
+  "role": "production",
+  "url": "/board/690005",
+  "waitFor": "main",
+  "actions": [
+   {
+    "clickText": {
+     "text": "+ บันทึกผลผลิต"
+    },
+    "pause": 800
+   }
+  ],
+  "card": "บันทึกผลผลิตรายวัน",
+  "note": "ฟอร์มบันทึกผลผลิตรายวัน"
+ },
+ {
+  "id": "39-lc-form",
+  "role": "production",
+  "url": "/board/690005",
+  "waitFor": "main",
+  "actions": [
+   {
+    "clickText": {
+     "text": "แก้ไข/บันทึกใหม่"
+    },
+    "pause": 800
+   }
+  ],
+  "card": "Line Clearance",
+  "note": "ฟอร์ม Line Clearance"
+ },
+ {
+  "id": "40-inprocess-form",
+  "role": "qc",
+  "url": "/board/690005",
+  "waitFor": "main",
+  "actions": [
+   {
+    "clickText": {
+     "text": "บันทึกผลตรวจ"
+    },
+    "pause": 800
+   }
+  ],
+  "card": "ตรวจระหว่างผลิต",
+  "note": "ฟอร์มบันทึกผลตรวจ in-process"
+ },
+ {
+  "id": "41-qa-sample-form",
+  "role": "qa",
+  "url": "/board/690011",
+  "waitFor": "main",
+  "actions": [
+   {
+    "clickText": {
+     "text": "บันทึกจุดเก็บตัวอย่าง"
+    },
+    "pause": 800
+   }
+  ],
+  "card": "จุดเก็บตัวอย่าง",
+  "note": "ฟอร์มจุดเก็บตัวอย่าง"
+ },
+ {
+  "id": "42-incident-form",
+  "role": "production",
+  "url": "/board/690005",
+  "waitFor": "main",
+  "actions": [
+   {
+    "clickText": {
+     "text": "เปิด Incident Case"
+    },
+    "pause": 800
+   }
+  ],
+  "card": "Incident Case",
+  "note": "ฟอร์มเปิด Incident Case"
+ },
+ {
+  "id": "43-incident-detail",
+  "role": "qa",
+  "url": "/board/690011",
+  "waitFor": "main",
+  "note": "Incident Case ที่เปิดอยู่",
+  "viewport": {
+   "width": 1100,
+   "height": 1400
+  },
+  "actions": [
+   {
+    "scrollTo": "h2",
+    "pause": 300
+   },
+   {
+    "eval": "[...document.querySelectorAll('main h2')].find(h=>h.textContent.includes('Incident Case'))?.scrollIntoView({block:'start'})",
+    "pause": 800
+   }
+  ],
+  "target": "page"
+ },
+ {
+  "id": "44-qc-decision",
+  "role": "qc",
+  "url": "/board/690504",
+  "waitFor": "main",
+  "card": "ดำเนินการ",
+  "note": "ปุ่มตัดสินของ QC"
+ },
+ {
+  "id": "45-esign",
+  "role": "qc",
+  "url": "/board/690504",
+  "waitFor": "main",
+  "actions": [
+   {
+    "clickText": {
+     "text": "QC ผ่าน"
+    },
+    "pause": 800
+   }
+  ],
+  "card": "ดำเนินการ",
+  "note": "แผงลงนามยืนยันรหัสผ่าน"
+ },
+ {
+  "id": "46-qa-decision",
+  "role": "qa",
+  "url": "/board/690011",
+  "waitFor": "main",
+  "card": "ดำเนินการ",
+  "note": "ปุ่มตัดสินของ QA"
+ },
+ {
+  "id": "47-materials-wh",
+  "role": "warehouse",
+  "url": "/board/690504",
+  "waitFor": "main",
+  "card": "เบิกวัตถุดิบ",
+  "note": "ฝ่ายคลังกดสถานะความพร้อม"
+ },
+ {
+  "id": "48-edit-request",
+  "role": "production",
+  "url": "/board/690005",
+  "waitFor": "main",
+  "actions": [
+   {
+    "clickText": {
+     "text": "ขอแก้ไข"
+    },
+    "pause": 900
+   }
+  ],
+  "target": "page",
+  "note": "กล่องขอแก้ไขย้อนหลัง"
+ },
+ {
+  "id": "50-fg-form",
+  "role": "warehouse",
+  "url": "/warehouse",
+  "waitFor": "main",
+  "viewport": {
+   "width": 1280,
+   "height": 900
+  },
+  "actions": [
+   {
+    "clickText": {
+     "text": "รับเข้าคลัง"
+    },
+    "pause": 800
+   }
+  ],
+  "target": "full",
+  "note": "ฟอร์มรับสินค้าเข้าคลัง"
+ },
+ {
+  "id": "60-ebr",
+  "role": "manager",
+  "url": "/board/690011/ebr",
+  "waitFor": "main",
+  "viewport": {
+   "width": 1100,
+   "height": 1450
+  },
+  "target": "page",
+  "note": "eBR แฟ้มบันทึกการผลิต"
+ },
+ {
+  "id": "60b-ebr-tail",
+  "role": "manager",
+  "url": "/board/690011/ebr",
+  "waitFor": "main",
+  "viewport": {
+   "width": 1100,
+   "height": 1450
+  },
+  "target": "page",
+  "actions": [
+   {
+    "eval": "window.scrollTo(0, document.body.scrollHeight)",
+    "pause": 700
+   }
+  ],
+  "note": "eBR ส่วนท้าย — ลายเซ็นคุณภาพและการรับเข้าคลัง"
+ },
+ {
+  "id": "61-print-notice",
+  "role": "manager",
+  "url": "/board/print-notice",
+  "waitFor": "main",
+  "viewport": {
+   "width": 1280,
+   "height": 900
+  },
+  "note": "หน้าปริ้นใบแจ้งผลิต"
+ },
+ {
+  "id": "62-print-table",
+  "role": "manager",
+  "url": "/board/print-table",
+  "waitFor": "main",
+  "viewport": {
+   "width": 1280,
+   "height": 900
+  },
+  "note": "หน้าปริ้นตารางบอร์ดงาน"
+ },
+ {
+  "id": "63-daily",
+  "role": "manager",
+  "url": "/daily",
+  "waitFor": "main",
+  "viewport": {
+   "width": 1280,
+   "height": 860
+  },
+  "note": "รายงานประจำวัน"
+ },
+ {
+  "id": "64-trace",
+  "role": "qa",
+  "url": "/trace",
+  "waitFor": "main",
+  "viewport": {
+   "width": 1280,
+   "height": 800
+  },
+  "note": "ไล่ย้อนล็อต"
+ },
+ {
+  "id": "65-audit",
+  "role": "manager",
+  "url": "/audit",
+  "waitFor": "main",
+  "viewport": {
+   "width": 1440,
+   "height": 900
+  },
+  "note": "ประวัติ / Audit"
+ },
+ {
+  "id": "66-notice-preview",
+  "role": "manager",
+  "url": "/board/print-notice",
+  "waitFor": "main",
+  "viewport": {
+   "width": 1280,
+   "height": 940
+  },
+  "actions": [
+   {
+    "eval": "[...document.querySelectorAll('input[type=checkbox]')].slice(1,3).forEach(c=>c.click())",
+    "pause": 600
+   },
+   {
+    "clickText": {
+     "text": "ดูตัวอย่าง"
+    },
+    "pause": 2000
+   }
+  ],
+  "target": ".pn-sheet",
+  "note": "ตัวอย่างใบแจ้งผลิตก่อนพิมพ์"
+ },
+ {
+  "id": "67-table-preview",
+  "role": "manager",
+  "url": "/board/print-table",
+  "waitFor": "main",
+  "viewport": {
+   "width": 1440,
+   "height": 940
+  },
+  "actions": [
+   {
+    "eval": "[...document.querySelectorAll('input[type=checkbox]')].slice(1,7).forEach(c=>c.click())",
+    "pause": 600
+   },
+   {
+    "clickText": {
+     "text": "ดูตัวอย่าง"
+    },
+    "pause": 2500
+   }
+  ],
+  "target": ".pt-sheet",
+  "note": "ตัวอย่างตารางบอร์ดงานก่อนพิมพ์"
+ },
+ {
+  "id": "68-daily-detail",
+  "role": "manager",
+  "url": "/daily",
+  "waitFor": "main",
+  "viewport": {
+   "width": 1280,
+   "height": 900
+  },
+  "target": "full",
+  "note": "รายงานประจำวันเต็มหน้า"
+ },
+ {
+  "id": "69-machine-usage",
+  "role": "manager",
+  "url": "/machines",
+  "waitFor": "main",
+  "viewport": {
+   "width": 1280,
+   "height": 1500
+  },
+  "target": "page",
+  "note": "หน้าเครื่องจักรเต็มหน้า + รายงานการใช้"
+ },
+ {
+  "id": "70-inbox",
+  "role": "manager",
+  "url": "/inbox",
+  "waitFor": "main",
+  "viewport": {
+   "width": 1280,
+   "height": 900
+  },
+  "note": "กล่องแจ้งเตือน"
+ },
+ {
+  "id": "71-edit-requests",
+  "role": "manager",
+  "url": "/edit-requests",
+  "waitFor": "main",
+  "viewport": {
+   "width": 1280,
+   "height": 860
+  },
+  "note": "คำขอแก้ไขย้อนหลัง"
+ },
+ {
+  "id": "72-inbox-full",
+  "role": "production",
+  "url": "/inbox",
+  "waitFor": "main",
+  "viewport": {
+   "width": 1280,
+   "height": 1500
+  },
+  "target": "page",
+  "note": "กล่องแจ้งเตือนของฝ่ายผลิต"
+ },
+ {
+  "id": "73-edit-review",
+  "role": "manager",
+  "url": "/edit-requests",
+  "waitFor": "main",
+  "viewport": {
+   "width": 1280,
+   "height": 900
+  },
+  "target": "full",
+  "note": "หน้าอนุมัติคำขอแก้ไข + เทียบค่าเดิม/ค่าใหม่"
+ },
+ {
+  "id": "80-dashboard",
+  "role": "manager",
+  "url": "/",
+  "waitFor": "main",
+  "viewport": {
+   "width": 1280,
+   "height": 900
+  },
+  "target": "full",
+  "note": "แดชบอร์ด Pending Order"
+ },
+ {
+  "id": "81-quality",
+  "role": "qc",
+  "url": "/quality",
+  "waitFor": "main",
+  "viewport": {
+   "width": 1280,
+   "height": 860
+  },
+  "note": "คิวตรวจ QC / QA"
+ },
+ {
+  "id": "82-warehouse",
+  "role": "warehouse",
+  "url": "/warehouse",
+  "waitFor": "main",
+  "viewport": {
+   "width": 1280,
+   "height": 860
+  },
+  "note": "คลัง / FG"
+ },
+ {
+  "id": "83-job-materials",
+  "role": "warehouse",
+  "url": "/job-materials",
+  "waitFor": "main",
+  "viewport": {
+   "width": 1280,
+   "height": 860
+  },
+  "note": "หน้ารวมเบิกวัตถุดิบข้ามงาน"
+ },
+ {
+  "id": "84-audit-full",
+  "role": "manager",
+  "url": "/audit",
+  "waitFor": "main",
+  "viewport": {
+   "width": 1440,
+   "height": 940
+  },
+  "target": "full",
+  "note": "ประวัติ / Audit เต็มหน้า"
+ },
+ {
+  "id": "85-materials-full",
+  "role": "warehouse",
+  "url": "/materials",
+  "waitFor": "main",
+  "viewport": {
+   "width": 1280,
+   "height": 900
+  },
+  "target": "full",
+  "note": "ผลิตภัณฑ์คลังเต็มหน้า"
+ },
+ {
+  "id": "86-recipes-full",
+  "role": "manager",
+  "url": "/recipes",
+  "waitFor": "main",
+  "viewport": {
+   "width": 1280,
+   "height": 900
+  },
+  "target": "full",
+  "note": "ทะเบียนผลิตภัณฑ์เต็มหน้า"
+ },
+ {
+  "id": "87-live-badge",
+  "role": "production",
+  "url": "/board/690005",
+  "waitFor": "main",
+  "keepLiveBadge": true,
+  "viewport": {
+   "width": 900,
+   "height": 700
+  },
+  "note": "ป้ายอัปเดตสด"
+ }
+]

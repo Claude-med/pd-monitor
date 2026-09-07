@@ -34,3 +34,8 @@ Thumbs.db
 
 # Local Netlify folder
 .netlify
+
+# คู่มือ: บัญชี/รหัสผ่านที่ใช้ถ่ายภาพ + ของที่ build เอง
+docs/build/.accounts.json
+docs/build/node_modules/
+docs/build/.cache/

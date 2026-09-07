@@ -1,0 +1,14 @@
+{
+  "name": "pd-monitor-manual-build",
+  "private": true,
+  "type": "module",
+  "description": "สร้างคู่มือ PD Monitor เป็น PDF ไฟล์เดียว (ถ่ายสกรีนช็อต + รวม markdown 2 เล่ม)",
+  "scripts": {
+    "shoot": "node shoot.mjs",
+    "pdf": "node build-pdf.mjs"
+  },
+  "dependencies": {
+    "marked": "^15.0.7",
+    "puppeteer-core": "^24.10.2"
+  }
+}
