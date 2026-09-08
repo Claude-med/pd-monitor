@@ -20,6 +20,12 @@ const DOCS = path.resolve(HERE, "..");
 const CACHE = path.join(HERE, ".cache");
 const OUT_PDF = path.join(DOCS, "pd-monitor-manual.pdf");
 
+/* ── เกณฑ์ "ลงหน้าเดียวได้ไหม" (พื้นที่เนื้อหาจริงของ A4 = 297 − 17 − 18 = 262 มม.) ──
+   ตารางที่วัดแล้วไม่เกิน TABLE_FIT_MM จะถูกห้ามตัดข้ามหน้า (ค่าเริ่มต้นอยู่ใน manual.css)
+   ที่เกินกว่านี้คือสูงเกินหน้ากระดาษจริง ๆ จึงต้องปล่อยให้ตัด ไม่งั้น paged.js จะดันจนล้นกรอบ */
+const TABLE_FIT_MM = 235;
+const KEEP_FIT_MM = 250;
+
 const TITLE = "คู่มือการใช้งาน PD Monitor";
 const SUBTITLE = "ระบบติดตามการผลิตยา — Pending Order &amp; PD Monitoring System";
 
@@ -69,6 +75,7 @@ function fontFaces() {
 
 // ---------- markdown → HTML + เก็บหัวข้อไว้ทำสารบัญ ----------
 const toc = [];
+let keepNo = 0;
 const escapeAttr = (s) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
 const stripTags = (s) => s.replace(/<[^>]+>/g, "").trim();
 
@@ -138,8 +145,22 @@ function renderSource(src) {
     (m, head, mid, blk) => {
       const rows = (blk.match(/<tr>/g) || []).length;
       if (blk.includes("<table>") && rows > MAX_KEEP_ROWS) return m;
-      return `<div class="keep">${head}${mid}${blk}</div>`;
+      // data-k = เลขประจำก้อน ไว้ให้รอบวัดถอดการมัดออกถ้าก้อนใหญ่เกินหนึ่งหน้า
+      return `<div class="keep" data-k="${++keepNo}">${head}${mid}${blk}</div>`;
     },
+  );
+
+  // 🔗 รอบสอง: "ย่อหน้าป้ายกำกับสั้น ๆ + ตาราง/รูป/โค้ด" ก็ต้องมัดไว้ด้วยกัน
+  // ในเล่มนี้ป้ายกำกับหลายอันไม่ใช่หัวข้อ แต่เป็นย่อหน้าสั้น เช่น "✍️ ช่องที่ต้องกรอก" ·
+  // "🖱️ กด \"เพิ่มสถานี\" แล้วกรอก" — ถ้าไม่มัด ป้ายจะค้างท้ายหน้าแล้วตารางกระโดดไปหน้าถัดไป
+  // (วัดครั้งแรกเจอ 14 จุด) · ก้อนที่ใหญ่เกินหน้าจะถูกรอบวัดถอดออกให้เอง
+  const MAX_LABEL_CHARS = 110;
+  html = html.replace(
+    /(<p>(?:(?!<\/p>)[\s\S])*?<\/p>)(\s*(?:<figure>[\s\S]*?<\/figure>|<table>[\s\S]*?<\/table>|<pre>[\s\S]*?<\/pre>))/g,
+    (m, para, blk) =>
+      stripTags(para).length > MAX_LABEL_CHARS
+        ? m
+        : `<div class="keep" data-k="${++keepNo}">${para}${blk}</div>`,
   );
 
   let out = "";
@@ -162,6 +183,7 @@ function renderSource(src) {
 // ---------- ฝังรูปเป็น base64 ----------
 const MIME = { ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".svg": "image/svg+xml" };
 let embedded = 0;
+const uniqueImages = new Set();
 const missing = [];
 function inlineImages(html) {
   return html.replace(/<img([^>]*?)src="((?!data:)[^"]+)"/g, (m, pre, rel) => {
@@ -172,12 +194,16 @@ function inlineImages(html) {
     }
     const mime = MIME[path.extname(file).toLowerCase()] ?? "application/octet-stream";
     embedded++;
+    uniqueImages.add(rel);
     return `<img${pre}src="data:${mime};base64,${fs.readFileSync(file).toString("base64")}"`;
   });
 }
 
 // ---------- ประกอบเล่ม ----------
-const body = SOURCES.map(renderSource).join("\n");
+// data-t = เลขประจำตาราง ไว้ให้รอบวัดชี้เฉพาะตารางที่สูงเกินหนึ่งหน้า
+let tableNo = 0;
+const body = SOURCES.map(renderSource).join("\n")
+  .replace(/<table>/g, () => `<table data-t="${++tableNo}">`);
 
 // เรียงสารบัญตามลำดับที่ปรากฏจริงในเล่ม (หน้าคั่นภาคต้องมาก่อนหัวข้อของภาคนั้น)
 const ORDER = SOURCES.map((s) => s.prefix);
@@ -200,7 +226,8 @@ let doc = `<!doctype html><html lang="th"><head><meta charset="utf-8"><title>${T
 <style>
 ${fontFaces()}
 ${fs.readFileSync(path.join(HERE, "manual.css"), "utf8")}
-</style></head><body>
+</style>
+<style id="tall-tables">/*TALL-TABLES*/</style></head><body>
 <section class="cover">
   <div class="kicker">คู่มือฉบับสมบูรณ์</div>
   <div class="rule"></div>
@@ -227,18 +254,18 @@ ${body}
 </body></html>`;
 
 doc = inlineImages(doc);
-doc = doc.replace(">65 ภาพจากระบบจริง<", `>${embedded} ภาพจากระบบจริง<`);
+doc = doc.replace(">65 ภาพจากระบบจริง<", `>${uniqueImages.size} ภาพจากระบบจริง<`);
 
 fs.mkdirSync(CACHE, { recursive: true });
 fs.copyFileSync(path.join(HERE, "vendor/paged.polyfill.js"), path.join(CACHE, "paged.polyfill.js"));
 const htmlPath = path.join(CACHE, "manual.html");
 fs.writeFileSync(htmlPath, doc, "utf8");
 
-console.log(`หัวข้อในสารบัญ ${toc.length} · ฝังรูป ${embedded} · HTML ${(Buffer.byteLength(doc) / 1048576).toFixed(1)} MB`);
+console.log(`หัวข้อในสารบัญ ${toc.length} · ฝังรูป ${embedded} ครั้ง (${uniqueImages.size} ภาพ) · HTML ${(Buffer.byteLength(doc) / 1048576).toFixed(1)} MB`);
 if (missing.length) console.log(`⚠️  ไม่พบรูป ${missing.length} ไฟล์: ${[...new Set(missing)].slice(0, 12).join(", ")}`);
-if (process.argv.includes("--html-only")) process.exit(0);
+const HTML_ONLY = process.argv.includes("--html-only");
 
-// ---------- HTML → PDF ----------
+// ---------- เปิดใน Chrome → วัดความสูงตาราง → จัดหน้า → PDF ----------
 const browser = await launch();
 try {
   const page = await browser.newPage();
@@ -246,6 +273,64 @@ try {
     if (m.type() === "error") console.log("  [หน้าเว็บ]", m.text().slice(0, 160));
   });
   await page.goto(pathToFileURL(htmlPath).href, { waitUntil: "load", timeout: 180000 });
+
+  // ── รอบวัด: ตอนนี้เอกสารยังเป็น normal flow (PagedConfig.auto = false)
+  //    บีบ body ให้กว้างเท่าพื้นที่เนื้อหาจริง (A4 210 − ขอบ 16 × 2 = 178mm) แล้ววัดของจริง
+  //    ทวนสอบแล้วตรงกับที่จัดหน้าจริง: ตาราง 15 แถว วัด 137mm / จัดหน้าได้ 138mm
+  const fit = await page.evaluate(
+    ({ tableMm, keepMm }) => {
+      const MM = 96 / 25.4;
+      const saved = document.body.style.cssText;
+      document.body.style.width = "178mm";
+      document.body.style.margin = "0";
+      void document.body.offsetHeight;
+      const tall = [];
+      const unkeep = [];
+      document.querySelectorAll("table[data-t]").forEach((t) => {
+        const mm = Math.round(t.getBoundingClientRect().height / MM);
+        if (mm > tableMm) tall.push({ id: t.dataset.t, mm });
+      });
+      document.querySelectorAll("div.keep[data-k]").forEach((d) => {
+        const mm = Math.round(d.getBoundingClientRect().height / MM);
+        if (mm > keepMm) unkeep.push({ id: d.dataset.k, mm });
+      });
+      document.body.style.cssText = saved;
+      void document.body.offsetHeight;
+      return { tall, unkeep };
+    },
+    { tableMm: TABLE_FIT_MM, keepMm: KEEP_FIT_MM },
+  );
+
+  const tallCss = fit.tall.map((x) => `table[data-t="${x.id}"]{break-inside:auto}`).join("\n");
+  console.log(
+    fit.tall.length
+      ? `  ตารางที่สูงเกิน ${TABLE_FIT_MM}มม. ${fit.tall.length} ตาราง — ปล่อยให้ตัดข้ามหน้าได้ (${fit.tall.map((x) => x.mm + "มม.").join(", ")})`
+      : `  ทุกตารางสูงไม่เกิน ${TABLE_FIT_MM}มม. — ไม่มีตารางไหนถูกตัดข้ามหน้า`,
+  );
+  if (fit.unkeep.length) console.log(`  ถอดการมัด .keep ${fit.unkeep.length} ก้อนที่ใหญ่เกิน ${KEEP_FIT_MM}มม.`);
+
+  // เขียนผลกลับลงไฟล์ด้วย เพื่อให้ check-layout.mjs / audit-layout.mjs ที่อ่านจาก .cache/manual.html
+  // เห็นเลย์เอาต์เดียวกับ PDF จริง (ไม่งั้นสคริปต์ตรวจจะวัดคนละเล่ม)
+  let doc2 = doc.replace("/*TALL-TABLES*/", tallCss);
+  for (const u of fit.unkeep) doc2 = doc2.replace(`<div class="keep" data-k="${u.id}">`, `<div data-k="${u.id}">`);
+  if (doc2 !== doc) fs.writeFileSync(htmlPath, doc2, "utf8");
+
+  // ใส่ผลเดียวกันลง DOM ที่เปิดอยู่ ไม่ต้องโหลดไฟล์ใหม่
+  await page.evaluate(
+    ({ css, ids }) => {
+      const st = document.getElementById("tall-tables");
+      if (st) st.textContent = css;
+      ids.forEach((id) => document.querySelector(`div.keep[data-k="${id}"]`)?.classList.remove("keep"));
+    },
+    { css: tallCss, ids: fit.unkeep.map((x) => x.id) },
+  );
+
+  if (HTML_ONLY) {
+    console.log(`หยุดที่ HTML — ${path.relative(process.cwd(), htmlPath)}`);
+    await browser.close();
+    process.exit(0);
+  }
+
   await page.evaluate(async () => {
     await window.PagedPolyfill.preview();
   });

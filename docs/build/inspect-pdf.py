@@ -1,5 +1,9 @@
 """ตรวจ PDF ที่ build ออกมา: เรนเดอร์เป็นภาพ + ดูฟอนต์ที่ฝังจริง
 ใช้:  python inspect-pdf.py [หน้าที่อยากเรนเดอร์ เช่น 1,2,3,10]"""
+import sys
+# คอนโซล Windows เป็น cp874 พิมพ์ "·" ไม่ได้ — บังคับ UTF-8 ไม่งั้นสคริปต์ตายกลางทาง
+try: sys.stdout.reconfigure(encoding="utf-8")
+except Exception: pass
 import sys, pathlib, pypdfium2 as pdfium
 
 PDF = pathlib.Path(sys.argv[2]) if len(sys.argv) > 2 else pathlib.Path(__file__).resolve().parent.parent / "pd-monitor-manual.pdf"

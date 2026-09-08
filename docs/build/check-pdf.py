@@ -1,5 +1,9 @@
 """ตรวจ PDF อัตโนมัติ: หน้าว่าง · หน้าที่เนื้อหาน้อยผิดปกติ · จำนวนหน้า
 ใช้:  python check-pdf.py"""
+import sys
+# คอนโซล Windows เป็น cp874 พิมพ์ "·" ไม่ได้ — บังคับ UTF-8 ไม่งั้นสคริปต์ตายกลางทาง
+try: sys.stdout.reconfigure(encoding="utf-8")
+except Exception: pass
 import pathlib, pypdfium2 as pdfium
 from PIL import Image
 

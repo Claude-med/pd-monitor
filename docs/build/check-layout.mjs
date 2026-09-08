@@ -8,6 +8,9 @@
  *   3. หัวกระดาษซ้าย-ขวา ที่ยาวจนชนกันหรือล้นขอบ
  *   4. ตารางที่หัวตารางอยู่คนละหน้ากับแถวแรก
  *   5. รูปที่คำบรรยายหลุดไปคนละหน้ากับรูป
+ *   6. ตารางที่ต่อหน้าโดยไม่มีหัวตาราง (paged.js 0.4.3 ไม่ก็อปหัวตารางให้ — ห้ามมีเด็ดขาด)
+ *   7. ตารางที่ถูกตัดข้ามหน้าทั้งที่รวมแล้วสูงไม่ถึงหนึ่งหน้า (ตัดโดยไม่จำเป็น)
+ *   8. ย่อหน้าป้ายกำกับสั้น ๆ ที่ค้างท้ายหน้า แล้วตาราง/รูปของมันกระโดดไปหน้าถัดไป
  *
  * ใช้:  node check-layout.mjs
  */
@@ -35,7 +38,11 @@ try {
   const report = await page.evaluate(() => {
     const HEAD = new Set(["H1", "H2", "H3", "H4"]);
     const txt = (e) => e.textContent.replace(/\s+/g, " ").trim();
-    const out = { orphanHeads: [], overflow: [], headerClash: [], tableSplit: [], figureSplit: [], pages: 0 };
+    const out = { orphanHeads: [], overflow: [], headerClash: [], tableSplit: [], figureSplit: [],
+                  tableNoHead: [], tableCutNeedlessly: [], labelSplit: [], pages: 0 };
+    const PX2MM = 25.4 / 96;
+    const parts = new Map();      // data-ref ของ paged.js → ชิ้นส่วนของตารางเดียวกันที่กระจายอยู่หลายหน้า
+    const contentHeights = [];
 
     const pages = [...document.querySelectorAll(".pagedjs_page")];
     out.pages = pages.length;
@@ -45,6 +52,7 @@ try {
       const area = pg.querySelector(".pagedjs_page_content");
       if (!area) return;
       const box = area.getBoundingClientRect();
+      contentHeights.push(Math.round(box.height));
 
       // ── 1) หัวข้อท้ายหน้า: หัวข้อที่ไม่มีเนื้อหา "จริง" ตามหลังในหน้าเดียวกัน
       const blocks = [...area.querySelectorAll("h1,h2,h3,h4,p,ul,ol,table,figure,blockquote,pre,div.sheet-notes")]
@@ -90,10 +98,15 @@ try {
       }
 
       // ── 4) ตารางที่หัวตารางอยู่คนละหน้ากับแถวแรก
+      //    6) ตารางที่ต่อหน้าโดยไม่มีหัวตาราง — คนอ่านไม่รู้ว่าคอลัมน์ไหนคืออะไร
       area.querySelectorAll("table").forEach((t) => {
         const head = t.querySelector("thead");
         const firstRow = t.querySelector("tbody tr");
         if (head && !firstRow) out.tableSplit.push({ page: n, text: txt(head).slice(0, 60) });
+        if (!head && firstRow) out.tableNoHead.push({ page: n, text: txt(firstRow).slice(0, 60) });
+        const ref = t.getAttribute("data-ref") || t.getAttribute("data-t") || `p${n}`;
+        if (!parts.has(ref)) parts.set(ref, []);
+        parts.get(ref).push({ page: n, h: t.getBoundingClientRect().height, head: !!head, t });
       });
 
       // ── 5) รูปที่คำบรรยายหลุดจากรูป
@@ -104,11 +117,46 @@ try {
         }
       });
     });
-    return report0(out);
+    // ── 7) ตารางที่ถูกตัดข้ามหน้าทั้งที่รวมแล้วสูงไม่ถึงหนึ่งหน้า
+    //    ความสูงหนึ่งหน้า = ค่าที่พบบ่อยที่สุด (ปกเป็นหน้าไร้ขอบ ใช้เป็นตัวแทนไม่ได้)
+    const freq = new Map();
+    contentHeights.forEach((h) => freq.set(h, (freq.get(h) || 0) + 1));
+    const pageH = [...freq.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 0;
+    parts.forEach((list) => {
+      const pagesOf = [...new Set(list.map((x) => x.page))];
+      if (pagesOf.length < 2) return;
+      const total = list.reduce((sum, x) => sum + x.h, 0);
+      const withHead = list.find((x) => x.head) || list[0];
+      const label = txt(withHead.t.querySelector("thead") || withHead.t).slice(0, 50);
+      if (total <= pageH) {
+        out.tableCutNeedlessly.push({
+          pages: pagesOf.join("+"),
+          mm: Math.round(total * PX2MM),
+          pageMm: Math.round(pageH * PX2MM),
+          text: label,
+        });
+      }
+    });
 
-    function report0(o) {
-      return o;
+    // ── 8) ป้ายกำกับสั้นค้างท้ายหน้า แล้วของที่มันกำกับกระโดดไปหน้าถัดไป
+    //    (ต้องเทียบข้ามหน้า เพราะ paged.js แยก DOM ของแต่ละหน้าออกจากกัน)
+    const SEL8 = "h1,h2,h3,h4,p,ul,ol,table,figure,blockquote,pre,div.sheet-notes";
+    const own = (e) => !e.parentElement || !e.parentElement.closest("blockquote,figure,table,li,thead,tbody");
+    const blocksOf = (pg) => {
+      const a = pg.querySelector(".pagedjs_page_content");
+      return a ? [...a.querySelectorAll(SEL8)].filter((e) => e.getBoundingClientRect().height > 0 && own(e)) : [];
+    };
+    for (let i = 0; i + 1 < pages.length; i++) {
+      const cur = blocksOf(pages[i]);
+      const last = cur[cur.length - 1];
+      if (!last || last.tagName !== "P") continue;
+      const t = txt(last);
+      if (t.length > 110) continue;
+      const first = blocksOf(pages[i + 1])[0];
+      if (!first || !["TABLE", "FIGURE", "PRE"].includes(first.tagName)) continue;
+      out.labelSplit.push({ page: i + 1, next: first.tagName, text: t.slice(0, 56) });
     }
+    return out;
   });
 
   const say = (title, arr, fmt) => {
@@ -127,6 +175,12 @@ try {
     (x) => `หน้า ${String(x.page).padStart(3)}  ${x.text}`);
   say("5) รูปที่คำบรรยายหลุดจากรูป", report.figureSplit,
     (x) => `หน้า ${String(x.page).padStart(3)}  ${x.text}`);
+  say("6) ตารางที่ต่อหน้าโดยไม่มีหัวตาราง", report.tableNoHead,
+    (x) => `หน้า ${String(x.page).padStart(3)}  ${x.text}`);
+  say("7) ตารางที่ถูกตัดข้ามหน้าทั้งที่ลงหน้าเดียวได้", report.tableCutNeedlessly,
+    (x) => `หน้า ${x.pages}  สูง ${x.mm}มม. (พื้นที่หน้า ${x.pageMm}มม.)  ${x.text}`);
+  say("8) ป้ายกำกับค้างท้ายหน้า แล้วตาราง/รูปไปอยู่หน้าถัดไป", report.labelSplit,
+    (x) => `หน้า ${String(x.page).padStart(3)} → ${x.next}  ${x.text}`);
 } finally {
   await browser.close();
 }

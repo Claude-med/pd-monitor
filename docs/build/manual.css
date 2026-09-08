@@ -81,7 +81,8 @@ body{
 }
 .toc .toc-note{ font-size:9.5pt; color:var(--muted); margin:0 0 7mm; }
 .toc ol{ list-style:none; padding:0; margin:0; }
-.toc li{ margin:.7mm 0; break-inside:avoid; }
+/* ระยะบรรทัดสารบัญ — บีบไว้พอให้ทั้งสารบัญจบใน 3 หน้า อย่าเพิ่มโดยไม่วัดซ้ำ */
+.toc li{ margin:.55mm 0; break-inside:avoid; }
 .toc li a{ display:flex; align-items:baseline; text-decoration:none; color:var(--ink-2); }
 .toc li a::before{
   content:""; order:1; flex:1 1 auto; margin:0 2.5mm 0 2mm;
@@ -93,11 +94,11 @@ body{
 }
 .toc .lvl0{
   font-weight:800; font-size:12.5pt; color:var(--brand-dark);
-  margin-top:6mm; padding-top:2.5mm; border-top:1.5pt solid var(--brand);
+  margin-top:5mm; padding-top:2mm; border-top:1.5pt solid var(--brand);
 }
 .toc .lvl0 a{ color:var(--brand-dark); }
 .toc .lvl0 a::after{ color:var(--brand-dark); font-size:11pt; }
-.toc .lvl1{ font-weight:700; margin-top:3.5mm; color:var(--ink); }
+.toc .lvl1{ font-weight:700; margin-top:3mm; color:var(--ink); }
 .toc .lvl1 a{ color:var(--ink); }
 .toc .lvl2{ padding-left:6mm; font-size:10pt; }
 .toc .lvl3{ padding-left:12mm; font-size:9.5pt; color:var(--muted); }
@@ -180,9 +181,13 @@ blockquote.cal-perm{ border-left-color:var(--perm); background:var(--perm-bg); c
 blockquote.cal-note{ border-left-color:var(--faint);background:var(--soft);    color:var(--ink-2); }
 
 /* ───────────────────────── ตาราง ───────────────────────── */
+/* 🚨 ค่าเริ่มต้นคือ "ห้ามตัดข้ามหน้า" — paged.js 0.4.3 ไม่ทำหัวตารางซ้ำให้
+   ตารางที่ถูกตัดจึงขึ้นหน้าใหม่ด้วยแถวเปล่า ๆ ไม่มีหัวคอลัมน์ (คนอ่านไม่รู้ว่าคอลัมน์ไหนคืออะไร)
+   ตารางที่สูงเกินหนึ่งหน้าจริง ๆ จะถูก build-pdf.mjs ปลดล็อกให้ตัดได้เป็นราย ๆ ไป
+   ผ่าน <style id="tall-tables"> ที่ท้าย <head> — ดูค่า TABLE_FIT_MM ในไฟล์นั้น */
 table{
   width:100%; border-collapse:collapse; font-size:9.5pt;
-  margin:3mm 0 4mm; break-inside:auto;
+  margin:3mm 0 4mm; break-inside:avoid;
 }
 th,td{
   border:1px solid var(--line); padding:1.5mm 2.3mm;
@@ -194,6 +199,7 @@ th{
 }
 tbody tr:nth-child(even){ background:var(--soft); }
 tr{ break-inside:avoid; }
+/* table-header-group ไม่ได้ทำให้หัวตารางซ้ำใน paged.js — เก็บไว้เพื่อตอนเปิด HTML ในเบราว์เซอร์ */
 thead{ display:table-header-group; break-after:avoid; }
 tbody tr:first-child{ break-before:avoid; }
 
