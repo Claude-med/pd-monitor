@@ -20,7 +20,11 @@ import { getApprovalsForJob } from "@/lib/data/approvals";
 import { listMachines } from "@/lib/data/machines";
 import { getJobMaterials } from "@/lib/data/job-materials";
 import { getLineClearances } from "@/lib/data/line-clearance";
-import { getInprocessChecks, getQaSamples } from "@/lib/data/quality-checks";
+import {
+  getInprocessChecks,
+  getQaSamples,
+  getQcGateIssues,
+} from "@/lib/data/quality-checks";
 import { getJobRoute, listStations } from "@/lib/data/stations";
 import { getJobRouteSteps } from "@/lib/data/job-routes";
 import { getDeviationsByJob } from "@/lib/data/deviations";
@@ -179,6 +183,10 @@ export default async function JobDetailPage({
   const canCheckLc = canCheckLineClearance(roles);
   const inprocessChecks = await getInprocessChecks(job.id);
   const qaSamples = await getQaSamples(job.id);
+  // Part F (0093) — เช็กลิสต์ "ก่อนส่ง QC ต้องมีอะไรครบบ้าง"
+  //   ถามเฉพาะตอนงานอยู่ขั้นกำลังผลิต (ขั้นอื่นไม่เกี่ยว ไม่ต้องยิง RPC ทิ้ง)
+  const qcGateIssues =
+    job.status === "in_production" ? await getQcGateIssues(job.id) : [];
   const canInprocess = canRecordInprocess(roles);
   // Part C.3 ก้อน 6: หัวหน้า QC เป็นคนอนุมัติผลตรวจ (คนละคนกับผู้ลงผล)
   const canApproveQc = canApproveInprocess(roles);
@@ -370,6 +378,31 @@ export default async function JobDetailPage({
       {/* การดำเนินการตามสถานะ + สิทธิ์ */}
       <div className="rounded-xl border bg-card p-5">
         <h2 className="mb-3 font-semibold">ดำเนินการ</h2>
+
+        {/* ด่านส่งเข้า QC (0093) — บอกล่วงหน้าว่ายังขาดอะไร ก่อนกดแล้วโดนปฏิเสธ */}
+        {job.status === "in_production" && (
+          <div
+            className={`mb-3 rounded-lg border p-3 text-sm ${
+              qcGateIssues.length === 0
+                ? "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                : "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300"
+            }`}
+          >
+            {qcGateIssues.length === 0 ? (
+              <p>✅ ครบแล้ว — ส่งงานเข้า QC ได้</p>
+            ) : (
+              <>
+                <p className="font-medium">🚦 ก่อนส่งเข้า QC ต้องมีให้ครบก่อน</p>
+                <ul className="mt-1 list-disc space-y-0.5 pl-5">
+                  {qcGateIssues.map((m) => (
+                    <li key={m}>{m}</li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
+        )}
+
         <JobActions
           jobId={job.id}
           jobNo={job.job_no}

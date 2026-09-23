@@ -453,6 +453,12 @@ function InprocessForm({
 
   function submit() {
     setError(null);
+    // Part F (0093) — ด่าน "ส่งเข้า QC" นับผลตรวจจาก production_record_id
+    //   ถ้าปล่อยว่างได้ ด่านจะไม่มีวันผ่าน · DB ก็ปฏิเสธเหมือนกัน แต่บอกตรงนี้ก่อนจะไวกว่า
+    if (!v.production_record_id) {
+      setError('กรุณาเลือก "บันทึกผลผลิตรายวัน" ที่ผลตรวจนี้อ้างถึง');
+      return;
+    }
     start(async () => {
       const res = await addInprocessCheck(jobNo, {
         job_id: jobId,
@@ -485,14 +491,14 @@ function InprocessForm({
     <div className="space-y-3 rounded-md border bg-muted/30 p-3">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
-          <label className={labelClass}>บันทึกผลผลิตที่ตรวจ</label>
+          <label className={labelClass}>บันทึกผลผลิตที่ตรวจ *</label>
           {recordOptions.length > 0 ? (
             <select
               value={v.production_record_id}
               onChange={(e) => set("production_record_id", e.target.value)}
               className={inputClass}
             >
-              <option value="">— ไม่ผูกกับแถวใด —</option>
+              <option value="">— เลือกบันทึกผลผลิต —</option>
               {recordOptions.map((r) => (
                 <option key={r.id} value={r.id}>
                   {r.label}
@@ -501,7 +507,7 @@ function InprocessForm({
             </select>
           ) : (
             <p className="rounded-md border border-dashed px-3 py-2 text-xs text-muted-foreground">
-              ยังไม่มีบันทึกผลผลิตในขั้นตอนนี้ให้ตรวจ
+              ยังไม่มีบันทึกผลผลิตในขั้นตอนนี้ให้ตรวจ — ต้องให้ฝ่ายผลิตบันทึกก่อน
             </p>
           )}
           {locked && (

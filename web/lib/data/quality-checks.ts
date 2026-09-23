@@ -109,3 +109,20 @@ export async function getQaSamples(jobId: string): Promise<QaSample[]> {
   }));
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
+
+/**
+ * สิ่งที่ยังขาดก่อนส่งงานจาก "กำลังผลิต" ไป "QC" (Part F · migration 0093)
+ *
+ * 🔑 เรียก RPC qc_gate_issues() ตัวเดียวกับที่ advance_job_status ใช้เป็นด่าน
+ *    ⇒ เช็กลิสต์บนหน้าจอกับเหตุผลที่ DB ปฏิเสธ ตรงกันเสมอ ไม่ต้องเขียนกติกาซ้ำ 2 ภาษา
+ *    array ว่าง = ผ่านครบ
+ */
+export async function getQcGateIssues(jobId: string): Promise<string[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("qc_gate_issues", {
+    p_job_id: jobId,
+  });
+  if (error || !Array.isArray(data)) return [];
+  return data as string[];
+}
+
