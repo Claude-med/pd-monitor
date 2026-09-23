@@ -2586,8 +2586,8 @@ vercel --prod       # ตอบ Y / N / ชื่อ project / Enter ตาม�
 
 ## 📌 สถานะปัจจุบัน
 
-**🆕 (23 ก.ย. 69) Part F — แจ้งเตือน · สิทธิ์ · ด่านความพร้อม ✅ เขียนโค้ดครบ · push แล้ว (`ae0a031`)
-  · 🔴 ยังไม่ได้ paste `0089`–`0094` ลงฐานข้อมูลสักไฟล์** —
+**🆕 (23 ก.ย. 69) Part F — แจ้งเตือน · สิทธิ์ · ด่านความพร้อม ✅ paste `0089`–`0094` ครบ + ตรวจ DB ผ่านหมด
+  · ⏳ เหลือทดสอบ UI บนเว็บจริงอย่างเดียว** —
   ① **role ที่ 16 `cost_lead`** (สิทธิ์เท่า cost + ดูแลบัญชีฝ่ายตัวเอง — ได้มาฟรีจาก `has_role` + `head_may_manage`
   แก้แค่ให้ cost เป็น "ฝ่ายจริง" · ปิดช่องโหว่แถมที่หัวหน้าทุกฝ่ายเคยแตะบัญชีบัญชีต้นทุนได้) ·
   ② **แยกยามสถานี ↔ Route** → สถานี: วิศวกรรม + หัวหน้าฝ่ายผลิต · Route: วางแผน + หัวหน้าฝ่ายผลิต ·
@@ -3224,8 +3224,8 @@ build/lint/type-check ผ่าน · ปุ่มบนบอร์ด · ส�
 
 ## 📅 บันทึกวันที่ 23 กันยายน 2569 — Part F: แจ้งเตือน · สิทธิ์ · ด่านความพร้อม
 
-**เขียนโค้ดครบทั้ง 5 ก้อน ✅ · migration `0089`–`0094` · push แล้ว (`ae0a031`) · Vercel deploy ให้เอง**
-**🔴 ยังไม่ได้ paste SQL ลงฐานข้อมูลสักไฟล์ — ของใหม่ทั้งหมดยังไม่ทำงานบนเว็บจริง**
+**เสร็จครบทั้ง 5 ก้อน ✅ · migration `0089`–`0094` paste ครบ + ตรวจฐานข้อมูลผ่านหมด · push แล้ว · Vercel deploy Ready**
+**⏳ เหลืออย่างเดียว: ทดสอบ UI บนเว็บจริง** — เช็กลิสต์อยู่ท้ายบันทึกนี้ และบนหน้า Notion
 
 ### 🎯 โจทย์
 ผู้ใช้ส่ง requirement รอบใหม่มา 3 หมวด (แจ้งเตือน · จัดการผู้ใช้ · เบิกวัตถุดิบ)
@@ -3333,14 +3333,34 @@ build/lint/type-check ผ่าน · ปุ่มบนบอร์ด · ส�
 
 ### ▶️ พรุ่งนี้เริ่มตรงนี้ (next steps)
 
-**1. 🚨 ก่อน paste — รันคำสั่งสำรวจก่อน (สำคัญที่สุด)**
-ด่านใหม่ 2 ด่านมีผลกับงานที่กำลังผลิตอยู่ **ทันที** ต้องรู้ก่อนว่ากระทบกี่ใบ แล้วแจ้งฝ่ายผลิต/QC ล่วงหน้า
-คำสั่งเต็มอยู่ท้ายไฟล์ `0092` (ด่านวัตถุดิบ) และท้ายไฟล์ `0093` (ด่านเข้า QC)
+**1. ✅ paste ครบแล้ว + ตรวจจากภายนอกผ่านหมด (23 ก.ย. 69)**
+ยิง REST ด้วย publishable key (สิทธิ์ anon ล้วน) ตรวจได้ 5 ข้อ:
+- ฟังก์ชันใหม่ 7 ตัว (`dismiss_notifications` · `purge_old_notifications` · `notify_machine_due` ·
+  `qc_gate_issues` · `ready_for_qc` · `can_edit_product_route` · `can_set_job_no`) **มีครบ**
+  และตอบ `42501 permission denied` ทุกตัว = ปิดสิทธิ์ anon ถูกต้อง
+- `get_inbox` เวอร์ชันใหม่ → `42501` ✅
+- คอลัมน์ `notification_reads.dismissed_at` มีจริง
+- enum `app_role` ค่า `cost_lead` มีจริง (query ด้วยค่านี้ไม่ error)
+- `inprocess_checks.production_record_id` มีจริง
 
-**2. paste migration ตามลำดับ `0089 → 0090 → 0091 → 0092 → 0093 → 0094` (ห้ามสลับ)**
-- `0089` ต้องรันจบก่อน `0090` เสมอ (Postgres ใช้ค่า enum ใหม่ใน transaction เดียวกันไม่ได้)
-- `0094` ถ้า `create extension pg_cron` ไม่ผ่าน → เปิดจาก Supabase Dashboard › Database › Extensions ก่อน
-- คำสั่งตรวจหลัง paste อยู่ **ท้ายไฟล์ migration ทุกไฟล์**
+⚠️ **ยังตรวจจากภายนอกไม่ได้ 2 เรื่อง — ต้องรันใน SQL Editor เอง**
+```sql
+-- เนื้อในฟังก์ชันเข้าจริงไหม (PostgREST อ่าน prosrc ไม่ได้)
+select proname, prosrc like '%engineering%'     as ok from pg_proc where proname = 'can_manage_stations';
+select proname, prosrc like '%qc_gate_issues%'  as ok from pg_proc where proname = 'advance_job_status';
+select proname, prosrc like '%dismissed_at%'    as ok from pg_proc
+ where proname in ('get_inbox','unread_notification_count','mark_all_notifications_read');
+
+-- cron เข้าจริงไหม
+select jobname, schedule, active from cron.job order by jobname;   -- ต้องเห็น 2 แถว
+```
+
+**2. 🚨 ดูว่าด่านใหม่กระทบงานที่กำลังผลิตอยู่กี่ใบ แล้วแจ้งฝ่ายผลิต/QC**
+คำสั่งเต็มอยู่ท้ายไฟล์ `0092` (ด่านวัตถุดิบ) และท้ายไฟล์ `0093` (ด่านเข้า QC)
+```sql
+select j.job_no, public.qc_gate_issues(j.id) as ยังขาด
+  from public.jobs j where j.status = 'in_production' order by j.job_no;
+```
 
 **3. ตั้ง role `cost_lead` ให้คนจริง** ที่หน้าจัดการผู้ใช้ (ไม่งั้นทดสอบข้อ 4 ไม่ได้)
 
@@ -3363,3 +3383,6 @@ build/lint/type-check ผ่าน · ปุ่มบนบอร์ด · ส�
 - **Ctrl+P ปริ้นจริง** ใบแจ้งผลิต + ตารางบอร์ดงาน · แก้ชื่อยา VETER-DMPA ที่มีอักษรซีริลลิกปน
 - **ก้อนใหญ่ที่ยังรออยู่** (feedback §3): สถานะย่อย 19 ขั้น · ตารางแยกตามเดือนแผน · รายงาน pivot F.PLN.10
 - คู่มือ: ภาค 1 + ถ่ายภาพใหม่ แล้ว build PDF (รายละเอียดใน `docs/build/NEXT-ROUND.md`)
+
+**📢 โพสต์สรุป + เช็กลิสต์ทดสอบขึ้น Notion แล้ว** → หน้า **"🚦 Part F — แจ้งเตือน · สิทธิ์ · ด่านความพร้อม claude"**
+(`3e492ef2-c18f-816a-b7f2-f67ff952aa3c`) ใต้หน้าโปรเจคหลัก
