@@ -19,6 +19,7 @@ export const USER_ADMIN_ROLES: AppRole[] = [
   "qa_lead",
   "warehouse_lead",
   "engineering_lead",
+  "cost_lead",
 ];
 
 /** เมนูหลัก — กรองตาม role ของผู้ใช้ก่อนแสดง */
@@ -83,9 +84,10 @@ export const NAV_ITEMS: NavItem[] = [
     ready: true,
   },
   {
+    // Part F — ฝ่ายวางแผนตั้งเลขงานเองได้ (planner_lead ผ่านเองด้วยกติกาสืบทอด)
     href: "/admin/companies",
     label: "บริษัท / เลขงาน",
-    roles: ["manager"],
+    roles: ["manager", "planner"],
     ready: true,
   },
 ];
@@ -107,6 +109,7 @@ export const ALL_ROLES: AppRole[] = [
   "engineering",
   "engineering_lead",
   "cost",
+  "cost_lead",
   "manager",
   "admin",
 ];
@@ -125,6 +128,7 @@ export const ROLE_LABELS: Record<AppRole, string> = {
   engineering: "วิศวกรรม (ENG)",
   engineering_lead: "หัวหน้าฝ่ายวิศวกรรม",
   cost: "บัญชีต้นทุน (COST)",
+  cost_lead: "หัวหน้าบัญชีต้นทุน",
   manager: "ผู้บริหาร",
   admin: "ผู้ดูแลระบบ (Admin)",
 };

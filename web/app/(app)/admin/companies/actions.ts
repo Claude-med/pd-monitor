@@ -3,14 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getProfile } from "@/lib/auth/dal";
-import { hasRole } from "@/lib/auth/roles";
+import { canSetJobNo } from "@/lib/data/role-access";
 
 export type ActionResult = { ok?: boolean; error?: string };
 
-/** กันสิทธิ์ฝั่งแอป — ด่านจริงอยู่ที่ admin_set_job_no_config() ใน DB (0071) */
-async function requireManager(): Promise<boolean> {
+/** กันสิทธิ์ฝั่งแอป — ด่านจริงอยู่ที่ admin_set_job_no_config() ใน DB (0071 · ยามแก้ที่ 0090) */
+async function requireJobNoEditor(): Promise<boolean> {
   const profile = await getProfile();
-  return !!profile && hasRole(profile.roles, "manager");
+  return !!profile && canSetJobNo(profile.roles);
 }
 
 /**
@@ -26,8 +26,8 @@ export async function setJobNoConfig(v: {
   nextSeq: string;
   yearStartSeq: string;
 }): Promise<ActionResult> {
-  if (!(await requireManager()))
-    return { error: "เฉพาะผู้บริหาร/ผู้ดูแลระบบตั้งเลขงานได้" };
+  if (!(await requireJobNoEditor()))
+    return { error: "ไม่มีสิทธิ์ตั้งเลขงาน (เฉพาะฝ่ายวางแผน/ผู้บริหาร)" };
   if (!v.companyId) return { error: "ไม่พบบริษัทที่เลือก" };
 
   const next = v.nextSeq.trim();

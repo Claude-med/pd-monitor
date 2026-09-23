@@ -1,5 +1,5 @@
 import { getProfile } from "@/lib/auth/dal";
-import { hasRole } from "@/lib/auth/roles";
+import { canSetJobNo } from "@/lib/data/role-access";
 import { listJobNoConfig } from "@/lib/data/companies";
 import { CompaniesAdmin } from "./companies-admin";
 
@@ -7,14 +7,15 @@ export const metadata = { title: "บริษัท / เลขงาน — PD
 
 export default async function AdminCompaniesPage() {
   const profile = await getProfile();
-  const isManager = hasRole(profile?.roles ?? [], "manager");
+  // Part F — ฝ่ายวางแผนตั้งเลขงานเองได้ (ตรงกับ can_set_job_no() ใน 0090)
+  const canEdit = canSetJobNo(profile?.roles ?? []);
 
-  if (!isManager) {
+  if (!canEdit) {
     return (
       <div className="mx-auto max-w-3xl">
         <h1 className="mb-2 text-2xl font-bold tracking-tight">บริษัท / เลขงาน</h1>
         <p className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
-          เฉพาะผู้บริหารเข้าหน้านี้ได้ — บัญชีของคุณไม่มีสิทธิ์
+          เฉพาะฝ่ายวางแผน/ผู้บริหารเข้าหน้านี้ได้ — บัญชีของคุณไม่มีสิทธิ์
         </p>
       </div>
     );

@@ -29,12 +29,16 @@ export function RecipesView({
   stations,
   canManageProducts,
   canManageStations,
+  canEditRoute,
   canForceDelete,
 }: {
   products: ProductWithRoute[];
   stations: Station[];
   canManageProducts: boolean;
+  /** ทะเบียนสถานี (master) — วิศวกรรม/หัวหน้าฝ่ายผลิต/ผู้บริหาร (0090) */
   canManageStations: boolean;
+  /** ขั้นตอนการผลิต (route) — วางแผน/หัวหน้าฝ่ายผลิต/ผู้บริหาร (0090) */
+  canEditRoute: boolean;
   canForceDelete: boolean;
 }) {
   const [showInactive, setShowInactive] = useState(false);
@@ -102,7 +106,7 @@ export function RecipesView({
               product={p}
               stations={stations}
               canManageProducts={canManageProducts}
-              canManageStations={canManageStations}
+              canEditRoute={canEditRoute}
               canForceDelete={canForceDelete}
             />
           ))}
@@ -459,13 +463,13 @@ function ProductCard({
   product,
   stations,
   canManageProducts,
-  canManageStations,
+  canEditRoute,
   canForceDelete,
 }: {
   product: ProductWithRoute;
   stations: Station[];
   canManageProducts: boolean;
-  canManageStations: boolean;
+  canEditRoute: boolean;
   canForceDelete: boolean;
 }) {
   const [editing, setEditing] = useState(false);
@@ -676,7 +680,7 @@ function ProductCard({
       <RouteSection
         product={product}
         stations={stations}
-        canManage={canManageStations}
+        canManage={canEditRoute}
       />
     </div>
   );

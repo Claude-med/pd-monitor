@@ -5,7 +5,11 @@ import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { getProfile, getUser } from "@/lib/auth/dal";
 import { hasAnyRole } from "@/lib/auth/roles";
-import { canManageProducts } from "@/lib/data/role-access";
+import {
+  canManageProducts,
+  canManageStations,
+  canEditProductRoute,
+} from "@/lib/data/role-access";
 
 export type ActionResult = { ok?: boolean; id?: string; error?: string };
 
@@ -25,11 +29,25 @@ async function requireProductManager(): Promise<boolean> {
 
 const NO_PRODUCT_PERM = "ไม่มีสิทธิ์ (เฉพาะฝ่ายวางแผน/ฝ่ายคลัง/ผู้บริหาร)";
 
-/** จัดการสถานี/ขั้นตอนการผลิต = ผู้บริหาร (ตรงกับ can_manage_stations() ใน DB) */
-async function requireManager(): Promise<boolean> {
+/** ทะเบียนสถานีการผลิต (master) = วิศวกรรม/หัวหน้าฝ่ายผลิต/ผู้บริหาร
+ *  ตรงกับ can_manage_stations() ใน DB (0090) */
+async function requireStationManager(): Promise<boolean> {
   const profile = await getProfile();
-  return !!profile && hasAnyRole(profile.roles, ["manager"]);
+  return !!profile && canManageStations(profile.roles);
 }
+
+const NO_STATION_PERM =
+  "ไม่มีสิทธิ์จัดการสถานีการผลิต (เฉพาะฝ่ายวิศวกรรม/หัวหน้าฝ่ายผลิต/ผู้บริหาร)";
+
+/** แก้ขั้นตอนการผลิต (route) = วางแผน/หัวหน้าฝ่ายผลิต/ผู้บริหาร
+ *  ตรงกับ can_edit_product_route() ใน DB (0090) */
+async function requireRouteEditor(): Promise<boolean> {
+  const profile = await getProfile();
+  return !!profile && canEditProductRoute(profile.roles);
+}
+
+const NO_ROUTE_PERM =
+  "ไม่มีสิทธิ์แก้ขั้นตอนการผลิต (เฉพาะฝ่ายวางแผน/หัวหน้าฝ่ายผลิต/ผู้บริหาร)";
 
 /** เพิ่ม/แก้ผลิตภัณฑ์ */
 export async function upsertProduct(v: {
@@ -184,8 +202,7 @@ export async function upsertStation(v: {
   is_active: boolean;
   is_packing: boolean;
 }): Promise<ActionResult> {
-  if (!(await requireManager()))
-    return { error: "ไม่มีสิทธิ์ (เฉพาะผู้บริหาร)" };
+  if (!(await requireStationManager())) return { error: NO_STATION_PERM };
   if (!v.code.trim()) return { error: "กรุณาระบุรหัสสถานี" };
   if (!v.name.trim()) return { error: "กรุณาระบุชื่อสถานี" };
 
@@ -215,8 +232,7 @@ export async function setStationActive(
   stationId: string,
   isActive: boolean,
 ): Promise<ActionResult> {
-  if (!(await requireManager()))
-    return { error: "ไม่มีสิทธิ์ (เฉพาะผู้บริหาร)" };
+  if (!(await requireStationManager())) return { error: NO_STATION_PERM };
   if (!stationId) return { error: "ไม่พบสถานี" };
 
   const supabase = await createClient();
@@ -231,8 +247,7 @@ export async function setStationActive(
 
 /** ปุ่ม "ลบ" สถานี — ลบจริงถ้ายังไม่มีประวัติการผลิตผูกอยู่ · ติดแล้วปิดใช้งานแทน (0044) */
 export async function deleteStation(stationId: string): Promise<DeleteResult> {
-  if (!(await requireManager()))
-    return { error: "ไม่มีสิทธิ์ (เฉพาะผู้บริหาร)" };
+  if (!(await requireStationManager())) return { error: NO_STATION_PERM };
   if (!stationId) return { error: "ไม่พบสถานี" };
 
   const supabase = await createClient();
@@ -253,8 +268,7 @@ export async function setProductRoute(
   productId: string,
   items: { station_id: string; note: string }[],
 ): Promise<ActionResult> {
-  if (!(await requireManager()))
-    return { error: "ไม่มีสิทธิ์ (เฉพาะผู้บริหาร)" };
+  if (!(await requireRouteEditor())) return { error: NO_ROUTE_PERM };
   if (!productId) return { error: "ไม่พบผลิตภัณฑ์" };
 
   const payload: { station_id: string; note?: string }[] = [];

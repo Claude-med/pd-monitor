@@ -14,6 +14,9 @@ import { hasAnyRole } from "@/lib/auth/roles";
  * ⚠️ helper ด้านล่างต้อง "ตรงกับ guard ใน DB" เสมอ (migration 0039 · 0044 · 0046 · 0049):
  *      canPlanJobs()          ↔ public.can_plan_jobs()
  *      canManageProducts()    ↔ public.can_manage_products()
+ *      canManageStations()    ↔ public.can_manage_stations()     (0090)
+ *      canEditProductRoute()  ↔ public.can_edit_product_route()  (0090)
+ *      canSetJobNo()          ↔ public.can_set_job_no()          (0090)
  *      canManageMachines()    ↔ public.can_manage_machines()
  *      canSetLotStatus()      ↔ public.can_set_lot_status()
  *      canSetJobLot()         ↔ public.can_set_job_lot()
@@ -57,7 +60,8 @@ export const ROLE_ACCESS: Record<AppRole, RoleAccess> = {
     duty: "วางแผนการผลิต — เปิดงานเข้าระบบ",
     manage: [
       "สร้างงานผลิตใหม่ทีละหลายใบ (ออเดอร์ + งาน · เลขล็อตเป็นของฝ่ายผลิต)",
-      "เพิ่ม/แก้/ลบผลิตภัณฑ์ในทะเบียน",
+      "เพิ่ม/แก้/ลบผลิตภัณฑ์ในทะเบียน + แก้ขั้นตอนการผลิต (route) ของผลิตภัณฑ์",
+      "ตั้งค่าเลขงานของแต่ละบริษัท (แท็บ บริษัท / เลขงาน)",
       "ตั้งสถานะล็อตในคลัง (พร้อมใช้ / ไม่พร้อมใช้)",
       "ยืนยันแผนผลิต (รอแจ้งผลิต → มีแผนแล้ว)",
     ],
@@ -92,6 +96,7 @@ export const ROLE_ACCESS: Record<AppRole, RoleAccess> = {
       "ทำได้ทุกอย่างเหมือนฝ่ายผลิต",
       "ยืนยัน Line Clearance ที่พนักงานติ๊กไว้ (ต้องคนละคนกับผู้ทำ)",
       "เลือกเครื่องจักรของแต่ละขั้นตอนการผลิต",
+      "ตั้งค่าสถานีการผลิต (master) + แก้ขั้นตอนการผลิต (route) ของผลิตภัณฑ์",
       "อนุมัติ / ไม่อนุมัติ บันทึกผลผลิตที่พนักงานลงไว้ (ต้องคนละคนกับผู้บันทึก)",
       "อนุมัติคำขอแก้ไขบันทึกผลผลิตย้อนหลัง (เมนู คำขอแก้ไข)",
       "สร้าง/ดูแล/ลบบัญชีพนักงานในฝ่ายผลิต",
@@ -166,6 +171,7 @@ export const ROLE_ACCESS: Record<AppRole, RoleAccess> = {
       "เพิ่ม/แก้ทะเบียนเครื่องจักร (รวมห้อง/สถานะ)",
       "กำหนดวันซ่อมบำรุง + วันสอบเทียบครั้งหน้า",
       "บันทึกหมายเหตุ Incident Case ในนามฝ่ายวิศวกรรม",
+      "ตั้งค่าสถานีการผลิต (master)",
     ],
     view: ["รายงานการใช้เครื่อง"],
   },
@@ -182,6 +188,18 @@ export const ROLE_ACCESS: Record<AppRole, RoleAccess> = {
     code: "COST",
     duty: "บัญชีต้นทุน — ดูต้นทุนค่าแรงทางตรง",
     manage: ["ปรับอัตราค่าแรง (฿/ชม.) ที่ใช้คำนวณบนแดชบอร์ด"],
+    view: [
+      "ต้นทุนค่าแรงทางตรง (DL cost) รวม + แยกรายสถานี",
+      "คน-ชั่วโมงและชั่วโมงทำงานตามช่วงวันที่",
+    ],
+  },
+  cost_lead: {
+    code: "COST-L",
+    duty: "หัวหน้าบัญชีต้นทุน — ดูแลทีมบัญชีต้นทุน",
+    manage: [
+      "ทำได้ทุกอย่างเหมือนบัญชีต้นทุน",
+      "สร้าง/ดูแล/ลบบัญชีพนักงานในฝ่ายบัญชีต้นทุน",
+    ],
     view: [
       "ต้นทุนค่าแรงทางตรง (DL cost) รวม + แยกรายสถานี",
       "คน-ชั่วโมงและชั่วโมงทำงานตามช่วงวันที่",
@@ -217,10 +235,32 @@ export function canPlanJobs(roles: AppRole[]): boolean {
 
 /**
  * เพิ่ม/แก้/ลบทะเบียนผลิตภัณฑ์ — ตรงกับ can_manage_products() ใน DB (0044)
- * ฝ่ายคลังจัดการผลิตภัณฑ์ได้ แต่ "ขั้นตอนการผลิต (route)" ยังเป็นผู้บริหารเท่านั้น
+ * ฝ่ายคลังจัดการผลิตภัณฑ์ได้ · "ขั้นตอนการผลิต (route)" แยกไปที่ canEditProductRoute()
  */
 export function canManageProducts(roles: AppRole[]): boolean {
   return hasAnyRole(roles, ["planner", "warehouse", "manager"]);
+}
+
+/**
+ * จัดการทะเบียน "สถานีการผลิต" (master) — ตรงกับ can_manage_stations() ใน DB (0090)
+ * Part F: เดิมเป็นผู้บริหารคนเดียว · เปิดให้ฝ่ายวิศวกรรม + หัวหน้าฝ่ายผลิต
+ * ⚠️ ใส่ "production_lead" ตรง ๆ ตั้งใจให้ "เฉพาะหัวหน้า" — ลูกน้องฝ่ายผลิตไม่ผ่าน
+ */
+export function canManageStations(roles: AppRole[]): boolean {
+  return hasAnyRole(roles, ["engineering", "production_lead", "manager"]);
+}
+
+/**
+ * แก้ "ขั้นตอนการผลิต (Route)" ของผลิตภัณฑ์ — ตรงกับ can_edit_product_route() ใน DB (0090)
+ * Part F: ฝ่ายวางแผนเพิ่มผลิตภัณฑ์แล้วผูก route เองได้ · ฝ่ายผลิต (หัวหน้า) เข้าไปแก้ตามที่ถูกแจ้งเตือน
+ */
+export function canEditProductRoute(roles: AppRole[]): boolean {
+  return hasAnyRole(roles, ["planner", "production_lead", "manager"]);
+}
+
+/** ตั้งค่าเลขงาน (แท็บ บริษัท / เลขงาน) — ตรงกับ can_set_job_no() ใน DB (0090) */
+export function canSetJobNo(roles: AppRole[]): boolean {
+  return hasAnyRole(roles, ["planner", "manager"]);
 }
 
 /** เพิ่ม/แก้ทะเบียนเครื่องจักร — ตรงกับ can_manage_machines() ใน DB */

@@ -29,9 +29,11 @@ export default async function JobMaterialsPage({
   searchParams: Promise<{ status?: string; scope?: string }>;
 }) {
   const sp = await searchParams;
+  // Part F — ค่าเริ่มต้น "ทั้งหมด" + "ทุกงาน" (เดิมเป็น ไม่พร้อม + เฉพาะงานที่ยังไม่จบ)
+  //   ⚠️ ต้องตรงกับค่าเริ่มต้นใน listJobMaterialsAcrossJobs() (lib/data/job-materials.ts)
   const status: MaterialReadyStatus | "all" =
-    sp.status === "ready" || sp.status === "all" ? sp.status : "not_ready";
-  const scope: "active" | "all" = sp.scope === "all" ? "all" : "active";
+    sp.status === "ready" || sp.status === "not_ready" ? sp.status : "all";
+  const scope: "active" | "all" = sp.scope === "active" ? "active" : "all";
 
   const profile = await getProfile();
   const roles = profile?.roles ?? [];
@@ -92,9 +94,9 @@ export default async function JobMaterialsPage({
             สถานะ
           </label>
           <select name="status" defaultValue={status} className={selectCls}>
+            <option value="all">ทั้งหมด</option>
             <option value="not_ready">ไม่พร้อม</option>
             <option value="ready">พร้อมแล้ว</option>
-            <option value="all">ทั้งหมด</option>
           </select>
         </div>
         <div>
@@ -102,8 +104,8 @@ export default async function JobMaterialsPage({
             ขอบเขต
           </label>
           <select name="scope" defaultValue={scope} className={selectCls}>
-            <option value="active">เฉพาะงานที่ยังไม่จบ</option>
             <option value="all">ทุกงาน</option>
+            <option value="active">เฉพาะงานที่ยังไม่จบ</option>
           </select>
         </div>
         <button
@@ -118,7 +120,9 @@ export default async function JobMaterialsPage({
         <p className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
           {status === "not_ready"
             ? "✅ ไม่มีรายการที่ไม่พร้อมค้างอยู่"
-            : "ยังไม่มีรายการเบิกที่ตรงกับตัวกรอง"}
+            : status === "all" && scope === "all"
+              ? "ยังไม่มีรายการเบิกในระบบ"
+              : "ยังไม่มีรายการเบิกที่ตรงกับตัวกรอง"}
         </p>
       ) : (
         <div className="space-y-5">

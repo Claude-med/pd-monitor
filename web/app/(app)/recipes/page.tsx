@@ -1,6 +1,10 @@
 import { getProfile } from "@/lib/auth/dal";
 import { hasAnyRole } from "@/lib/auth/roles";
-import { canManageProducts as canManageProductsFor } from "@/lib/data/role-access";
+import {
+  canManageProducts as canManageProductsFor,
+  canManageStations as canManageStationsFor,
+  canEditProductRoute as canEditProductRouteFor,
+} from "@/lib/data/role-access";
 import { listProductsWithRoutes } from "@/lib/data/recipes";
 import { listStations } from "@/lib/data/stations";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
@@ -12,7 +16,11 @@ export default async function RecipesPage() {
   const profile = await getProfile();
   const roles = profile?.roles ?? [];
   const canManageProducts = canManageProductsFor(roles);
-  const canManageStations = hasAnyRole(roles, ["manager"]);
+  // Part F — แยก "ทะเบียนสถานี (master)" ออกจาก "ขั้นตอนการผลิต (route)"
+  //   สถานี = วิศวกรรม + หัวหน้าฝ่ายผลิต + ผู้บริหาร
+  //   route = วางแผน + หัวหน้าฝ่ายผลิต + ผู้บริหาร
+  const canManageStations = canManageStationsFor(roles);
+  const canEditRoute = canEditProductRouteFor(roles);
   // "ลบถาวร" สูงกว่าปุ่มลบปกติ — ตรงกับ guard has_role('manager') ใน force_delete_product (0050)
   const canForceDelete = hasAnyRole(roles, ["manager"]);
   const [products, stations] = await Promise.all([
@@ -38,6 +46,7 @@ export default async function RecipesPage() {
         stations={stations}
         canManageProducts={canManageProducts}
         canManageStations={canManageStations}
+        canEditRoute={canEditRoute}
         canForceDelete={canForceDelete}
       />
     </div>

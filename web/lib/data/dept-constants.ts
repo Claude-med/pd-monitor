@@ -18,8 +18,10 @@ import { ALL_ROLES } from "@/lib/nav";
 /** คำต่อท้ายชื่อ role ของหัวหน้าฝ่าย */
 const LEAD_SUFFIX = "_lead";
 
-/** role ที่ไม่สังกัดฝ่ายใด — ไม่มีหัวหน้า และหัวหน้าแจกให้ใครไม่ได้ */
-const NO_DEPT_ROLES: readonly string[] = ["manager", "admin", "cost"];
+/** role ที่ไม่สังกัดฝ่ายใด — ไม่มีหัวหน้า และหัวหน้าแจกให้ใครไม่ได้
+ *  📌 Part F: ถอด "cost" ออกจากรายการนี้แล้ว — บัญชีต้นทุนมีหัวหน้า (cost_lead) แล้ว
+ *     ตรงกับ dept_of_role() ที่ 0090 แก้ให้เหลือ manager/admin เท่านั้น */
+const NO_DEPT_ROLES: readonly string[] = ["manager", "admin"];
 
 export type DeptKey =
   | "planner"
@@ -27,7 +29,8 @@ export type DeptKey =
   | "qc"
   | "qa"
   | "warehouse"
-  | "engineering";
+  | "engineering"
+  | "cost";
 
 /** แผนกทั้งหมดที่มีหัวหน้าได้ — ป้ายชื่อนี้คือค่าที่เขียนลง profiles.department ตอนหัวหน้าสร้างบัญชี */
 export const DEPARTMENTS: { key: DeptKey; label: string }[] = [
@@ -37,6 +40,7 @@ export const DEPARTMENTS: { key: DeptKey; label: string }[] = [
   { key: "qa", label: "ฝ่าย QA" },
   { key: "warehouse", label: "ฝ่ายคลังสินค้า" },
   { key: "engineering", label: "ฝ่ายวิศวกรรม" },
+  { key: "cost", label: "ฝ่ายบัญชีต้นทุน" },
 ];
 
 export const DEPT_LABEL: Record<DeptKey, string> = Object.fromEntries(
@@ -44,8 +48,8 @@ export const DEPT_LABEL: Record<DeptKey, string> = Object.fromEntries(
 ) as Record<DeptKey, string>;
 
 /**
- * ฝ่ายของ role หนึ่ง ๆ — ตัด "_lead" ออก · manager/admin/cost คืน null
- * ตรงกับ public.dept_of_role() ใน 0079
+ * ฝ่ายของ role หนึ่ง ๆ — ตัด "_lead" ออก · manager/admin คืน null
+ * ตรงกับ public.dept_of_role() ใน 0079 (แก้ล่าสุด 0090)
  */
 export function deptOfRole(role: AppRole): DeptKey | null {
   if (NO_DEPT_ROLES.includes(role)) return null;

@@ -100,8 +100,11 @@ export async function listJobMaterialsAcrossJobs(opts?: {
   status?: MaterialReadyStatus | "all";
   scope?: "active" | "all";
 }): Promise<JobMaterialGroup[]> {
-  const status = opts?.status ?? "not_ready";
-  const scope = opts?.scope ?? "active";
+  // Part F — ค่าเริ่มต้นเป็น "ทั้งหมด / ทุกงาน" ตามที่ทีมขอ
+  //   ⚠️ ค่าเริ่มต้นมี 2 ที่ (ที่นี่ + searchParams ใน app/(app)/job-materials/page.tsx)
+  //      ถ้าแก้ที่เดียวจะเพี้ยนเวลาเรียกฟังก์ชันนี้จากที่อื่น
+  const status = opts?.status ?? "all";
+  const scope = opts?.scope ?? "all";
 
   const supabase = await createClient();
   let q = supabase

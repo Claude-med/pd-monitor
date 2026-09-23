@@ -24,7 +24,8 @@ export type AppRole =
   | "planner_lead" // หัวหน้าฝ่ายวางแผน (Part E)
   | "qa_lead" // หัวหน้า QA (Part E)
   | "warehouse_lead" // หัวหน้าคลังสินค้า (Part E)
-  | "engineering_lead"; // หัวหน้าฝ่ายวิศวกรรม (Part E)
+  | "engineering_lead" // หัวหน้าฝ่ายวิศวกรรม (Part E)
+  | "cost_lead"; // หัวหน้าบัญชีต้นทุน (Part F · 0089)
 
 export type Profile = {
   id: string;

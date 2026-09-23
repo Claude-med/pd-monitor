@@ -161,7 +161,7 @@ export function roleGroupOf(roles: AppRole[]): string {
   if (has("engineering_lead") || has("engineering")) return "engineering";
   if (has("warehouse_lead") || has("warehouse")) return "warehouse";
   if (has("planner_lead") || has("planner")) return "planner";
-  if (has("cost")) return "cost";
+  if (has("cost_lead") || has("cost")) return "cost";
   if (has("manager") || has("admin")) return "manager";
   return "other";
 }
