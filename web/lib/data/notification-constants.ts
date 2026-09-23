@@ -28,7 +28,12 @@ export type InboxKind =
   | "job_new"
   | "job_plan"
   | "station"
-  | "missing_data";
+  | "missing_data"
+  // Part F (0092)
+  | "material_request"
+  | "qc_due"
+  | "product_new"
+  | "machine_due";
 
 /**
  * ป้าย/ไอคอน/สีของแจ้งเตือนแต่ละชนิด
@@ -55,12 +60,19 @@ export const KIND_META: Record<
   job_plan: { label: "แผนเปลี่ยน", icon: "📅", color: "#a855f7" },
   station: { label: "งานเข้าสถานี", icon: "🏭", color: "#0ea5e9" },
   missing_data: { label: "ข้อมูลไม่ครบ", icon: "📋", color: "#ef4444" },
+  material_request: { label: "ขอเบิกวัตถุดิบ", icon: "🧾", color: "#f59e0b" },
+  qc_due: { label: "รอตรวจ In-process", icon: "🔬", color: "#f59e0b" },
+  product_new: { label: "ผลิตภัณฑ์ใหม่", icon: "🧪", color: "#6366f1" },
+  machine_due: { label: "เครื่องถึงกำหนด", icon: "🛠️", color: "#f59e0b" },
 };
 
 /** ลำดับชิปตัวกรองในหน้า 🔔 แจ้งเตือน — เรียงตาม "ต้องลงมือทำ" ก่อน "รับทราบ" */
 export const KIND_FILTER_ORDER: InboxKind[] = [
   "approval_request",
   "edit_request",
+  "material_request",
+  "qc_due",
+  "machine_due",
   "reject",
   "deviation",
   "missing_data",
@@ -70,6 +82,7 @@ export const KIND_FILTER_ORDER: InboxKind[] = [
   "station",
   "job_new",
   "job_plan",
+  "product_new",
   "approval_result",
   "edit_reviewed",
 ];

@@ -159,6 +159,17 @@ export default async function JobDetailPage({
   ]);
   // จำนวนรายการเบิก — ใช้เตือนตอนแก้ Batch Size (โหลดอยู่แล้ว ไม่ต้อง query เพิ่ม)
   const materialCount = jobMaterials.length;
+  // Part F (0092) — ด่านความพร้อมวัตถุดิบ: บอกเหตุผลบนหน้าจอก่อนผู้ใช้เจอ error จาก server
+  //   กติกาต้องตรงกับด่านใน add_production_record เป๊ะ (DB เป็นด่านบังคับจริง)
+  const materialNotReady = jobMaterials.filter(
+    (m) => m.status !== "ready",
+  ).length;
+  const recordBlockedReason =
+    materialCount === 0
+      ? 'งานนี้ยังไม่มีรายการเบิกวัตถุดิบ/บรรจุภัณฑ์ — ลงรายการอย่างน้อย 1 รายการ แล้วให้ฝ่ายคลังกด "พร้อม" ก่อน'
+      : materialNotReady > 0
+        ? `ยังมีวัตถุดิบ/บรรจุภัณฑ์ที่ฝ่ายคลังยังไม่กดเป็น "พร้อม" อีก ${materialNotReady} รายการ`
+        : null;
   // Part C.2: ฝ่ายผลิตลงรายการ · ฝ่ายคลังกดสถานะ — คนละสิทธิ์กันคนละ helper
   const canEditMat = canEditJobMaterials(roles);
   const canSetMatStatus = canSetJobMaterialStatus(roles);
@@ -605,6 +616,7 @@ export default async function JobDetailPage({
               jobRouteId={activeStep.id}
               stationName={`${activeStep.step_no}. ${activeStep.station_name}`}
               machines={activeStep.machines}
+              blockedReason={recordBlockedReason}
             />
           ) : canRecord && !activeStep ? (
             <p className="text-xs text-amber-700 dark:text-amber-400">
