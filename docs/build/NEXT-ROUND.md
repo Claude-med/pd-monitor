@@ -118,7 +118,7 @@
 | **เพิ่ม/ลด role** | `web/lib/nav.ts` → `ALL_ROLES`, `ROLE_LABELS`<br>`web/lib/data/role-access.ts` → `ROLE_ACCESS` | `manual-intro.md` ตาราง "ฉันเป็นฝ่ายไหน" · ภาค 1 "บัญชีและบทบาทของคุณ" · ภาค 2 §1.3 · **§4 (ต้องเพิ่มแผ่นใหม่ + `<!--sheet-->` + `<!--sheet-notes-->`)** · ภาคผนวก ก | `16-users-roles` `04-sidebar-user` |
 | **เพิ่ม/ลด/เปลี่ยนชื่อเมนู** | `web/lib/nav.ts` → `NAV_ITEMS` | ภาค 2 §1.2 ตารางเมนู · เพิ่มหัวข้อ §2.x ใหม่ | `02-app-shell` `03-sidebar` `06-mobile-menu` |
 | **เปลี่ยนสถานะงาน / ใครเลื่อนสถานะได้** | `web/lib/data/job-constants.ts` → `JOB_STATUS`, `TRANSITIONS` | ภาค 1 "เส้นทางที่เราจะเดิน" · ภาค 2 §1.4 · §3.2 | `24-stepper` `20-board` `44-qc-decision` `46-qa-decision` |
-| **เพิ่มชนิดแจ้งเตือน** | `web/lib/data/notification-constants.ts` → `KIND_META` | ภาค 1 E1 ตาราง 13 ชนิด · ภาค 2 §1.6 | `70-inbox` `72-inbox-full` |
+| **เพิ่มชนิดแจ้งเตือน** | `web/lib/data/notification-constants.ts` → `KIND_META` | ภาค 1 E1 ตาราง 17 ชนิด · ภาค 2 §1.6 | `70-inbox` `72-inbox-full` |
 | **เปลี่ยนสิทธิ์ราย field ของงาน / ล็อกตามสถานะ** | `web/lib/data/job-field-rules.ts` → `JOB_FIELD_RULES` | ภาค 1 B3 ตาราง · ภาค 2 §2.3 ตาราง | `23-job-info` `27-job-edit` |
 | **เปลี่ยนผู้อนุมัติคำขอแก้ไข** | `web/lib/data/edit-request-constants.ts` → `EDIT_REVIEWER_ROLES`, `EDIT_REVIEWER_TARGETS` | ภาค 1 E2 · ภาค 2 §2.15 · §3.4 · §4 (ฝ่ายที่เกี่ยว) | `73-edit-review` |
 | **เปลี่ยน flow Incident Case** | `web/lib/data/deviation-constants.ts` → `DEVIATION_STATUS`, `DEVIATION_TYPES` | ภาค 1 C12 (ผัง 5 ขั้น + ตาราง) · ภาคผนวก ข | `37-incident` `42-incident-form` `43-incident-detail` |
@@ -130,6 +130,21 @@
 | **เปลี่ยนหน้าปริ้นตารางบอร์ดงาน** | `.../print-table/print-table-view.tsx` · `table-columns.ts` | ภาค 1 D2 · ภาค 2 §2.6 | `62-print-table` `67-table-preview` |
 | **เปลี่ยนแดชบอร์ด** | `web/lib/data/dashboard.ts` · `app/(app)/page.tsx` | ภาค 1 D7 · ภาค 2 §1.5 | `80-dashboard` `02-app-shell` |
 | **เปลี่ยนกฎ 2 ลายเซ็น / ด่านกั้น** | `web/lib/data/role-access.ts` (helper `can*`) + migration ที่คู่กัน | ภาค 1 "กฎ 2 ลายเซ็น" · ภาค 2 §3.1 · §3.2 | — |
+
+### ของค้างรอบนี้ (Part F · กันยายน 2569) — **แก้ `user-guide.md` แล้ว · ยังไม่ได้ build PDF ใหม่**
+
+ภาค 2 (`user-guide.md`) อัปเดตครบแล้ว แต่ **ภาค 1 (`tutorial-walkthrough.md`) ยังไม่ได้แตะ**
+และยังไม่ได้ถ่ายภาพใหม่ — ต้องทำก่อน build เล่มถัดไป
+
+| เปลี่ยนอะไร | ภาค 1 ต้องแก้ | ภาพที่ต้องถ่ายใหม่ |
+|---|---|---|
+| role ที่ 16 `cost_lead` (COST-L) | ตาราง "ฉันเป็นฝ่ายไหน" · "บัญชีและบทบาทของคุณ" · **§4 ต้องเพิ่มแผ่น COST-L** | `16-users-roles` `04-sidebar-user` |
+| แจ้งเตือน 13 → 17 ชนิด + ปุ่มลบ/เลือกหลายรายการ | E1 ตารางชนิด + วิธีลบ | `70-inbox` `72-inbox-full` |
+| ด่านวัตถุดิบต้อง "พร้อม" ก่อนบันทึกผลผลิต | C7 (ฟอร์มบันทึกผลผลิต) · "กฎ 2 ลายเซ็น/ด่านกั้น" | `38-record-form` `83-job-materials` |
+| ด่านส่งเข้า QC 4 ข้อ + เช็กลิสต์บนหน้างาน | C10/C11 (ส่งตรวจ QC) · §3.2ก ของภาค 2 มีแล้ว | `24-stepper` (ต้องได้ภาพกล่องเช็กลิสต์) |
+| In-process ต้องผูกบันทึกผลผลิตเสมอ | C8 (ฟอร์ม in-process) | `40-qc-form` |
+| สิทธิ์สถานี/Route/เลขงาน เปิดให้ ENG · PROD-L · PLN | A/B ที่พูดถึงหน้า `/recipes` และ `/admin/companies` | `86-recipes-full` `11-companies` |
+| ตัวกรองหน้าเบิกของเริ่มต้น "ทั้งหมด/ทุกงาน" | — (ภาค 2 §2.10 แก้แล้ว) | `83-job-materials` |
 
 > ⚠️ **อย่าเขียนคู่มือจากความจำ** — บทเรียนจากรอบ ก.ค. คือคู่มือเพี้ยนเพราะเดาเอา
 > ทุกตัวเลข/ชื่อปุ่ม/สิทธิ์ ถอดจากไฟล์ค่าคงที่ข้างบน แล้วสุ่มตรวจย้อนกลับอีกที
