@@ -56,7 +56,7 @@ import {
   canApproveInprocess,
   canApproveProductionRecord,
 } from "@/lib/data/role-access";
-import { canRecordQaSample } from "@/lib/data/qa-sample-constants";
+import { canRecordQaSample, canReviewQaSample } from "@/lib/data/qa-sample-constants";
 import { listJobSubStatuses } from "@/lib/data/job-sub-statuses";
 import { listCustomers } from "@/lib/data/customers";
 import { fmtDateTime, displayJobNo } from "@/lib/format";
@@ -680,6 +680,7 @@ export default async function JobDetailPage({
         canApprove={canApproveQc}
         currentProfileId={profile?.id ?? ""}
         canSample={canSample}
+        canReviewSample={canReviewQaSample(roles)}
         canAmend={canAmend}
         // Part C.4: ขอแก้ไขผลตรวจ in-process ได้เฉพาะ QC (ฝ่ายผลิตต้องไม่เห็นปุ่ม)
         // ⚠️ ห้ามรวมกับ canAmend ที่ยังต้องเป็น "ทุกคนที่ล็อกอิน" สำหรับบันทึกผลผลิต

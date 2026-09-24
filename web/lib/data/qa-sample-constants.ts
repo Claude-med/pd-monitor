@@ -1,5 +1,5 @@
 import type { AppRole } from "@/lib/auth/dal";
-import { hasAnyRole } from "@/lib/auth/roles";
+import { hasAnyRole, hasRole } from "@/lib/auth/roles";
 
 /**
  * ค่าคงที่ของ "จุดเก็บตัวอย่าง (ตรวจ Finished product)" — Part C.4 ก้อน 3
@@ -26,4 +26,12 @@ export const QA_RESULT_META: Record<string, { label: string; color: string }> =
  */
 export function canRecordQaSample(roles: AppRole[]): boolean {
   return hasAnyRole(roles, ["qa", "manager"]);
+}
+
+/**
+ * อนุมัติผล ผ่าน/ไม่ผ่าน + อนุมัติการแก้ไข + ลบรายการ — หัวหน้า QA เท่านั้น
+ * ตรงกับ has_role('qa_lead') ใน review_qa_sample / delete_qa_sample (0096) · admin ผ่านตาม hasRole
+ */
+export function canReviewQaSample(roles: AppRole[]): boolean {
+  return hasRole(roles, "qa_lead");
 }

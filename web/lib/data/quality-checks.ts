@@ -39,6 +39,9 @@ export type QaSample = {
   collected_at: string;
   collector_name: string | null;
   note: string | null;
+  /** Part G (0096): pending = รอหัวหน้า QA อนุมัติ (result เป็นแค่ผลที่เสนอ) · approved = อนุมัติแล้ว */
+  review_status: "pending" | "approved";
+  reviewer_name: string | null;
 };
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -90,8 +93,9 @@ export async function getQaSamples(jobId: string): Promise<QaSample[]> {
   const { data, error } = await supabase
     .from("qa_samples")
     .select(
-      `id, qty, unit, result, collected_at, note,
-       collector:profiles!collected_by ( full_name )`,
+      `id, qty, unit, result, collected_at, note, review_status,
+       collector:profiles!collected_by ( full_name ),
+       reviewer:profiles!reviewed_by ( full_name )`,
     )
     .eq("job_id", jobId)
     // soft delete (0066) — RLS อ่านเป็น using(true) จึงต้องกรองแถวที่ถูกลบที่นี่
@@ -106,6 +110,8 @@ export async function getQaSamples(jobId: string): Promise<QaSample[]> {
     collected_at: r.collected_at,
     collector_name: one<any>(r.collector)?.full_name ?? null,
     note: r.note,
+    review_status: r.review_status === "pending" ? "pending" : "approved",
+    reviewer_name: one<any>(r.reviewer)?.full_name ?? null,
   }));
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */

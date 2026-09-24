@@ -7,7 +7,10 @@ import {
   canRecordInprocess,
   canApproveInprocess,
 } from "@/lib/data/role-access";
-import { canRecordQaSample } from "@/lib/data/qa-sample-constants";
+import {
+  canRecordQaSample,
+  canReviewQaSample,
+} from "@/lib/data/qa-sample-constants";
 
 export type ActionResult = { ok?: boolean; error?: string };
 
@@ -184,8 +187,8 @@ export async function deleteQaSample(
   reason: string,
 ): Promise<ActionResult> {
   const profile = await getProfile();
-  if (!profile || !canRecordQaSample(profile.roles))
-    return { error: "ไม่มีสิทธิ์ (เฉพาะ QA/ผู้บริหาร)" };
+  if (!profile || !canReviewQaSample(profile.roles))
+    return { error: "ไม่มีสิทธิ์ (เฉพาะหัวหน้า QA)" };
   if (!id) return { error: "ไม่พบรายการที่เลือก" };
   if (!reason.trim()) return { error: "กรุณาระบุเหตุผลที่ลบ" };
 
@@ -195,6 +198,28 @@ export async function deleteQaSample(
     p_reason: reason.trim(),
   });
   if (error) return { error: error.message || "ลบจุดเก็บตัวอย่างไม่สำเร็จ" };
+  revalidatePath(`/board/${jobNo}`);
+  return { ok: true };
+}
+
+/** หัวหน้า QA อนุมัติผลจุดเก็บตัวอย่าง ผ่าน/ไม่ผ่าน (Part G · 0096) — ไม่ผ่าน → DB เปิด Incident Case เอง */
+export async function reviewQaSample(
+  jobNo: string,
+  id: string,
+  result: "pass" | "fail",
+): Promise<ActionResult> {
+  const profile = await getProfile();
+  if (!profile || !canReviewQaSample(profile.roles))
+    return { error: "ไม่มีสิทธิ์ (เฉพาะหัวหน้า QA)" };
+  if (!id) return { error: "ไม่พบรายการที่เลือก" };
+  if (result !== "pass" && result !== "fail") return { error: "กรุณาเลือกผล" };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("review_qa_sample", {
+    p_id: id,
+    p_result: result,
+  });
+  if (error) return { error: error.message || "อนุมัติไม่สำเร็จ" };
   revalidatePath(`/board/${jobNo}`);
   return { ok: true };
 }

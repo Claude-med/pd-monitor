@@ -386,7 +386,12 @@ export default async function EbrPage({
                   <tr key={s.id}>
                     <td className={td}>{dt(s.collected_at)}</td>
                     <td className={td}>
-                      {s.result ? QA_RESULT_META[s.result].label : "—"}
+                      {/* Part G (0096): ยังไม่อนุมัติ = ยังไม่ใช่ผลจริง */}
+                      {s.review_status === "pending"
+                        ? "รอหัวหน้า QA อนุมัติ"
+                        : s.result
+                          ? QA_RESULT_META[s.result].label
+                          : "—"}
                     </td>
                     <td className={`${td} text-right tabular-nums`}>
                       {s.qty == null ? "—" : fmt(s.qty)} {s.unit ?? ""}

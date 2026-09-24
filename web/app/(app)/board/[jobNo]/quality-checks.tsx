@@ -16,6 +16,7 @@ import {
   updateQaSample,
   deleteQaSample,
   reviewInprocessCheck,
+  reviewQaSample,
   type QaSampleInput,
 } from "./quality-actions";
 import { EditRequestButton } from "./edit-request-button";
@@ -46,6 +47,7 @@ export function QualityChecks({
   canApprove,
   currentProfileId,
   canSample,
+  canReviewSample,
   canAmend,
   canAmendCheck,
   canEditStation,
@@ -69,6 +71,8 @@ export function QualityChecks({
   canApprove: boolean;
   currentProfileId: string;
   canSample: boolean;
+  /** อนุมัติผล/การแก้ไข + ลบ จุดเก็บตัวอย่าง — หัวหน้า QA (Part G · 0096) */
+  canReviewSample: boolean;
   /** ขอแก้ไข "บันทึกผลผลิต" ได้ — ทุกคนที่ล็อกอิน */
   canAmend: boolean;
   /**
@@ -335,7 +339,7 @@ export function QualityChecks({
               {samples.map((s) => (
                 <div key={s.id} className="rounded-lg border bg-muted/20 p-3">
                   <div className="flex items-center justify-between gap-2">
-                    <SampleResultBadge result={s.result} />
+                    <SampleResultBadge sample={s} />
                     <span className="text-sm tabular-nums">
                       {s.qty == null ? "—" : s.qty.toLocaleString("th-TH")} {s.unit ?? ""}
                     </span>
@@ -346,9 +350,15 @@ export function QualityChecks({
                   {s.note && (
                     <p className="mt-1 text-xs text-muted-foreground">📝 {s.note}</p>
                   )}
-                  {canSample && (
+                  <SampleReviewBar jobNo={jobNo} sample={s} canReview={canReviewSample} />
+                  {(canSample || canReviewSample) && (
                     <div className="mt-2">
-                      <SampleRowActions jobNo={jobNo} sample={s} />
+                      <SampleRowActions
+                        jobNo={jobNo}
+                        sample={s}
+                        canEdit={canSample || canReviewSample}
+                        canDelete={canReviewSample}
+                      />
                     </div>
                   )}
                 </div>
@@ -365,7 +375,9 @@ export function QualityChecks({
                     <th className="px-2 py-2 text-right font-medium">จำนวน</th>
                     <th className="px-2 py-2 font-medium">ผู้เก็บ</th>
                     <th className="px-2 py-2 font-medium">หมายเหตุ</th>
-                    {canSample && <th className="px-2 py-2 font-medium">จัดการ</th>}
+                    {(canSample || canReviewSample) && (
+                      <th className="px-2 py-2 font-medium">จัดการ</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -375,7 +387,8 @@ export function QualityChecks({
                         {fmtDateTime(s.collected_at)}
                       </td>
                       <td className="px-2 py-2">
-                        <SampleResultBadge result={s.result} />
+                        <SampleResultBadge sample={s} />
+                        <SampleReviewBar jobNo={jobNo} sample={s} canReview={canReviewSample} />
                       </td>
                       <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums">
                         {s.qty == null ? "—" : s.qty.toLocaleString("th-TH")} {s.unit ?? ""}
@@ -386,9 +399,14 @@ export function QualityChecks({
                       <td className="px-2 py-2 text-muted-foreground">
                         {s.note ?? ""}
                       </td>
-                      {canSample && (
+                      {(canSample || canReviewSample) && (
                         <td className="px-2 py-2">
-                          <SampleRowActions jobNo={jobNo} sample={s} />
+                          <SampleRowActions
+                            jobNo={jobNo}
+                            sample={s}
+                            canEdit={canSample || canReviewSample}
+                            canDelete={canReviewSample}
+                          />
                         </td>
                       )}
                     </tr>
@@ -402,11 +420,18 @@ export function QualityChecks({
         )}
 
         <div className="mt-4">
-          {canSample ? (
-            <SampleForm jobId={jobId} jobNo={jobNo} />
+          {canSample || canReviewSample ? (
+            <>
+              <SampleForm jobId={jobId} jobNo={jobNo} />
+              {!canReviewSample && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  บันทึกหรือแก้ไขแล้ว รายการจะรอหัวหน้า QA อนุมัติผล ผ่าน/ไม่ผ่าน · ลบรายการได้เฉพาะหัวหน้า QA
+                </p>
+              )}
+            </>
           ) : (
             <p className="text-xs text-muted-foreground">
-              เฉพาะ QA/ผู้บริหารบันทึก แก้ไข และลบจุดเก็บตัวอย่างได้
+              เฉพาะ QA/ผู้บริหารบันทึกและแก้ไขจุดเก็บตัวอย่างได้ · อนุมัติผลและลบได้เฉพาะหัวหน้า QA
             </p>
           )}
         </div>
@@ -603,7 +628,20 @@ function InprocessForm({
 }
 
 /** ป้ายผลตรวจ Finished product — null = แถวเก่าที่ยังไม่ได้ลงผล */
-function SampleResultBadge({ result }: { result: "pass" | "fail" | null }) {
+/**
+ * ป้ายผลตรวจของจุดเก็บตัวอย่าง
+ * Part G (0096): รายการที่ยังรอหัวหน้า QA → ป้าย "รออนุมัติ" + ผลที่ลูกน้องเสนอ (ยังไม่ใช่ผลจริง)
+ */
+function SampleResultBadge({ sample }: { sample: QaSample }) {
+  const result = sample.result;
+  if (sample.review_status === "pending") {
+    return (
+      <span className="inline-block whitespace-nowrap rounded bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400">
+        ⏳ รอหัวหน้า QA อนุมัติ
+        {result ? ` · เสนอ: ${QA_RESULT_META[result].label}` : ""}
+      </span>
+    );
+  }
   if (!result) {
     return (
       <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
@@ -795,9 +833,14 @@ function SampleForm({ jobId, jobNo }: { jobId: string; jobNo: string }) {
 function SampleRowActions({
   jobNo,
   sample,
+  canEdit,
+  canDelete,
 }: {
   jobNo: string;
   sample: QaSample;
+  canEdit: boolean;
+  /** ลบได้เฉพาะหัวหน้า QA (Part G · 0096) */
+  canDelete: boolean;
 }) {
   const [mode, setMode] = useState<"none" | "edit" | "delete">("none");
   const [v, setV] = useState<QaSampleInput>(emptySample);
@@ -852,24 +895,28 @@ function SampleRowActions({
   if (mode === "none") {
     return (
       <div className="flex flex-wrap gap-1.5">
-        <button
-          type="button"
-          onClick={openEdit}
-          className="rounded-md border px-2.5 py-1 text-xs hover:bg-accent"
-        >
-          ✏️ แก้ไข
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setError(null);
-            setReason("");
-            setMode("delete");
-          }}
-          className="rounded-md border border-destructive/40 px-2.5 py-1 text-xs text-destructive hover:bg-destructive/10"
-        >
-          🗑 ลบ
-        </button>
+        {canEdit && (
+          <button
+            type="button"
+            onClick={openEdit}
+            className="rounded-md border px-2.5 py-1 text-xs hover:bg-accent"
+          >
+            ✏️ แก้ไข
+          </button>
+        )}
+        {canDelete && (
+          <button
+            type="button"
+            onClick={() => {
+              setError(null);
+              setReason("");
+              setMode("delete");
+            }}
+            className="rounded-md border border-destructive/40 px-2.5 py-1 text-xs text-destructive hover:bg-destructive/10"
+          >
+            🗑 ลบ
+          </button>
+        )}
       </div>
     );
   }
@@ -934,6 +981,62 @@ function SampleRowActions({
           ยกเลิก
         </button>
       </div>
+    </div>
+  );
+}
+
+/**
+ * ปุ่มอนุมัติผลจุดเก็บตัวอย่าง — หัวหน้า QA เท่านั้น · โผล่เฉพาะรายการที่ยังรออนุมัติ (Part G · 0096)
+ * หัวหน้าเลือกผลสุดท้ายเองได้ ไม่จำเป็นต้องตรงกับผลที่ลูกน้องเสนอ · ไม่ผ่าน → DB เปิด Incident Case เอง
+ */
+function SampleReviewBar({
+  jobNo,
+  sample,
+  canReview,
+}: {
+  jobNo: string;
+  sample: QaSample;
+  canReview: boolean;
+}) {
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  const router = useRouter();
+
+  if (sample.review_status !== "pending" || !canReview) return null;
+
+  function run(result: "pass" | "fail") {
+    setError(null);
+    start(async () => {
+      const res = await reviewQaSample(jobNo, sample.id, result);
+      if (res.ok) {
+        router.refresh();
+        return;
+      }
+      setError(res.error ?? "อนุมัติไม่สำเร็จ");
+    });
+  }
+
+  return (
+    <div className="mt-1.5 space-y-1">
+      <div className="flex flex-wrap gap-1.5">
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => run("pass")}
+          className="rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+        >
+          ✅ อนุมัติ ผ่าน
+        </button>
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => run("fail")}
+          className="rounded-md bg-red-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
+        >
+          ❌ อนุมัติ ไม่ผ่าน
+        </button>
+      </div>
+      {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   );
 }
