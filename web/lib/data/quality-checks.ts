@@ -42,6 +42,13 @@ export type QaSample = {
   /** Part G (0096): pending = รอหัวหน้า QA อนุมัติ (result เป็นแค่ผลที่เสนอ) · approved = อนุมัติแล้ว */
   review_status: "pending" | "approved";
   reviewer_name: string | null;
+  /**
+   * ผลที่ "แสดงบนหน้าจอ" (Part G ก้อน 4) — ปกติ = result
+   * ยกเว้นผล "ไม่ผ่าน" ที่ Incident Case ของตัวอย่างนี้ถูกปิด (closed) แล้ว → แสดง "ผ่าน"
+   * ⚠️ แก้แค่การแสดงผล — result ใน DB ยังเป็น fail ตามจริง (ALCOA · ประวัติอยู่ใน audit/Incident)
+   *    เคสที่ "ยกเลิก" (cancelled) ไม่นับ
+   */
+  display_result: "pass" | "fail" | null;
 };
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -95,7 +102,8 @@ export async function getQaSamples(jobId: string): Promise<QaSample[]> {
     .select(
       `id, qty, unit, result, collected_at, note, review_status,
        collector:profiles!collected_by ( full_name ),
-       reviewer:profiles!reviewed_by ( full_name )`,
+       reviewer:profiles!reviewed_by ( full_name ),
+       incident:deviations ( status )`,
     )
     .eq("job_id", jobId)
     // soft delete (0066) — RLS อ่านเป็น using(true) จึงต้องกรองแถวที่ถูกลบที่นี่
@@ -107,6 +115,10 @@ export async function getQaSamples(jobId: string): Promise<QaSample[]> {
     qty: r.qty === null ? null : Number(r.qty),
     unit: r.unit,
     result: r.result ?? null,
+    display_result:
+      r.result === "fail" && one<any>(r.incident)?.status === "closed"
+        ? "pass"
+        : (r.result ?? null),
     collected_at: r.collected_at,
     collector_name: one<any>(r.collector)?.full_name ?? null,
     note: r.note,

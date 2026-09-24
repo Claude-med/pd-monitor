@@ -389,8 +389,8 @@ export default async function EbrPage({
                       {/* Part G (0096): ยังไม่อนุมัติ = ยังไม่ใช่ผลจริง */}
                       {s.review_status === "pending"
                         ? "รอหัวหน้า QA อนุมัติ"
-                        : s.result
-                          ? QA_RESULT_META[s.result].label
+                        : s.display_result
+                          ? QA_RESULT_META[s.display_result].label
                           : "—"}
                     </td>
                     <td className={`${td} text-right tabular-nums`}>

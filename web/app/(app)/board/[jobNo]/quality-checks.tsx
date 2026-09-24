@@ -634,6 +634,8 @@ function InprocessForm({
  */
 function SampleResultBadge({ sample }: { sample: QaSample }) {
   const result = sample.result;
+  // Part G ก้อน 4: อนุมัติแล้ว → ใช้ display_result (ไม่ผ่าน + Incident ปิดแล้ว = แสดง "ผ่าน")
+  const shown = sample.display_result;
   if (sample.review_status === "pending") {
     return (
       <span className="inline-block whitespace-nowrap rounded bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400">
@@ -642,14 +644,14 @@ function SampleResultBadge({ sample }: { sample: QaSample }) {
       </span>
     );
   }
-  if (!result) {
+  if (!shown) {
     return (
       <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
         ยังไม่ลงผล
       </span>
     );
   }
-  const meta = QA_RESULT_META[result];
+  const meta = QA_RESULT_META[shown];
   return (
     <span
       className="inline-block whitespace-nowrap rounded px-2 py-0.5 text-xs font-medium text-white"
