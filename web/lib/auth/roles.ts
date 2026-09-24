@@ -26,6 +26,19 @@ export function isAdmin(roles: AppRole[]): boolean {
   return roles.includes("admin");
 }
 
+/** ถือ role หัวหน้าแผนก (<ฝ่าย>_lead) ตัวใดตัวหนึ่งไหม — ตรงกับ is_any_lead() ใน DB (0095) */
+export function isAnyLead(roles: AppRole[]): boolean {
+  return roles.some((r) => r.endsWith(LEAD_SUFFIX));
+}
+
+/**
+ * ลบงาน — ตรงกับด่านใน delete_job() (0095)
+ * Part G: หัวหน้าทุกแผนก + ผู้บริหาร + admin ลบได้ทุกสถานะ (ต้องกรอกรหัสผ่านยืนยันเสมอ)
+ */
+export function canDeleteJob(roles: AppRole[]): boolean {
+  return hasAnyRole(roles, ["manager", "admin"]) || isAnyLead(roles);
+}
+
 /** ผู้ใช้มีสิทธิ์ role นี้ไหม (admin ผ่านเสมอ · หัวหน้าฝ่ายผ่านสิทธิ์ของฝ่ายตัวเอง) */
 export function hasRole(roles: AppRole[], role: AppRole): boolean {
   if (roles.includes("admin")) return true;

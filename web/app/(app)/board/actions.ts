@@ -8,6 +8,14 @@ import { getUser } from "@/lib/auth/dal";
 export type ActionResult = { ok?: boolean; error?: string };
 
 /**
+ * DB (advance_job_status) ยังส่งคำว่า "deviation" มา แต่หน้าจอใช้ชื่อ "Incident Case" ทั้งระบบ
+ * → แปลงเฉพาะฝั่งแสดงผล (Part G ก้อน 1 · ทีมขอแก้แค่ frontend)
+ */
+function toUiMessage(message: string): string {
+  return message.replace("deviation เปิดค้าง", "Incident Case เปิดค้าง");
+}
+
+/**
  * เปลี่ยนสถานะงาน — เรียกฟังก์ชัน advance_job_status() ใน DB
  * (DB เป็นด่านบังคับลำดับ/สิทธิ์/เหตุผลจริง · ที่นี่แค่ส่งต่อ + แสดง error)
  */
@@ -25,7 +33,7 @@ export async function changeStatus(
   });
 
   if (error) {
-    return { error: error.message || "ทำรายการไม่สำเร็จ" };
+    return { error: toUiMessage(error.message || "ทำรายการไม่สำเร็จ") };
   }
 
   revalidatePath("/board");
@@ -34,7 +42,7 @@ export async function changeStatus(
 }
 
 /**
- * ลบงาน (ข้อ 2) — เฉพาะผู้บริหาร/ผู้ดูแล + ยืนยันรหัสผ่านซ้ำ (กันลบผิดงาน)
+ * ลบงาน — หัวหน้าทุกแผนก/ผู้บริหาร/ผู้ดูแล (Part G · 0095) + ยืนยันรหัสผ่านซ้ำ (กันลบผิดงาน)
  * DB (delete_job) เป็นด่านบังคับสิทธิ์จริง + ลบตารางลูก cascade + audit
  * การยืนยันรหัส = พิสูจน์ว่า "คนหน้าจอ = เจ้าของบัญชี" (แพตเทิร์นเดียวกับ signDecision)
  */
@@ -124,7 +132,7 @@ export async function signDecision(
     p_reason: reason && reason.trim() ? reason.trim() : null,
   });
   if (error) {
-    return { error: error.message || "ลงนามไม่สำเร็จ" };
+    return { error: toUiMessage(error.message || "ลงนามไม่สำเร็จ") };
   }
 
   revalidatePath("/board");

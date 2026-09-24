@@ -44,7 +44,7 @@ import {
   fieldLabel,
 } from "@/lib/data/edit-request-constants";
 import { getProfile } from "@/lib/auth/dal";
-import { hasAnyRole } from "@/lib/auth/roles";
+import { canDeleteJob, hasAnyRole } from "@/lib/auth/roles";
 import {
   canPlanJobs,
   canEditJobMaterials,
@@ -389,7 +389,7 @@ export default async function JobDetailPage({
             }`}
           >
             {qcGateIssues.length === 0 ? (
-              <p>✅ ครบแล้ว — ส่งงานเข้า QC ได้</p>
+              <p>✅ ครบแล้ว — ส่งงานเข้า QC ได้ (หัวหน้าฝ่ายผลิตเป็นผู้กดส่ง)</p>
             ) : (
               <>
                 <p className="font-medium">🚦 ก่อนส่งเข้า QC ต้องมีให้ครบก่อน</p>
@@ -410,8 +410,8 @@ export default async function JobDetailPage({
           roles={roles}
         />
 
-        {/* ลบงาน (ข้อ 2) — เฉพาะผู้บริหาร/ผู้ดูแล */}
-        {hasAnyRole(roles, ["manager", "admin"]) && (
+        {/* ลบงาน — หัวหน้าทุกแผนก/ผู้บริหาร/ผู้ดูแล (Part G · 0095) */}
+        {canDeleteJob(roles) && (
           <div className="mt-4 border-t pt-4">
             <DeleteJobButton jobId={job.id} jobNo={job.job_no} />
           </div>

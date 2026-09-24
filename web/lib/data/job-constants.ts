@@ -54,9 +54,10 @@ export type Transition = {
 export const TRANSITIONS: Transition[] = [
   { from: "pending_announce", to: "planned", label: "ยืนยันแผนผลิต", roles: ["planner", "manager"], kind: "forward" },
   { from: "planned", to: "in_production", label: "เริ่มผลิต", roles: ["production", "manager"], kind: "forward" },
-  { from: "in_production", to: "qc", label: "ส่งตรวจ QC", roles: ["production"], kind: "forward" },
-  { from: "qc", to: "qa", label: "QC ผ่าน → ส่ง QA", roles: ["qc"], kind: "forward", esign: true, stage: "qc" },
-  { from: "qc", to: "in_production", label: "QC ตีกลับ", roles: ["qc"], kind: "reject", esign: true, stage: "qc" },
+  // Part G (0095): ส่งตรวจ QC = หัวหน้าฝ่ายผลิต · QC ผ่าน/ตีกลับ = หัวหน้า QC (ลูกน้องไม่เห็นปุ่ม)
+  { from: "in_production", to: "qc", label: "ส่งตรวจ QC", roles: ["production_lead"], kind: "forward" },
+  { from: "qc", to: "qa", label: "QC ผ่าน → ส่ง QA", roles: ["qc_lead"], kind: "forward", esign: true, stage: "qc" },
+  { from: "qc", to: "in_production", label: "QC ตีกลับ", roles: ["qc_lead"], kind: "reject", esign: true, stage: "qc" },
   { from: "qa", to: "finished_goods", label: "QA ปล่อยผ่าน → FG", roles: ["qa"], kind: "forward", esign: true, stage: "qa" },
   { from: "qa", to: "in_production", label: "QA ตีกลับ", roles: ["qa"], kind: "reject", esign: true, stage: "qa" },
 ];
