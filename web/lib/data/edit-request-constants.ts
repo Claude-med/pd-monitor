@@ -6,7 +6,9 @@ import { hasAnyRole } from "@/lib/auth/roles";
 export type EditTargetType =
   | "production_record"
   | "material_requisition"
-  | "inprocess_check";
+  | "inprocess_check"
+  // Part H (0098/0099): จุดเก็บตัวอย่าง (ตรวจ Finished product) ที่หัวหน้า QA อนุมัติแล้ว
+  | "qa_sample";
 
 export type EditRequestStatus = "pending" | "applied" | "rejected";
 
@@ -16,6 +18,7 @@ export const EDIT_TARGET_LABEL: Record<EditTargetType, string> = {
   // ลบค่าทิ้งไม่ได้ (Postgres ไม่มี ALTER TYPE ... DROP VALUE) และแถวเก่ายังอ้างถึง
   material_requisition: "ใบเบิกผลิตภัณฑ์ (ระบบเดิม — ยกเลิกแล้ว)",
   inprocess_check: "ผลตรวจ QC ระหว่างผลิต",
+  qa_sample: "จุดเก็บตัวอย่าง (QA)",
 };
 
 /** ป้ายฟิลด์ (ใช้แสดง diff ในหน้ารีวิว/ประวัติ) */
@@ -41,6 +44,7 @@ export const EDIT_FIELD_LABEL: Record<string, string> = {
   result: "ผล",
   // Part C.4: เปิดให้แก้ valid date ของผลตรวจ in-process ได้ (whitelist ใน request_edit · 0065)
   valid_date: "Valid date (ใช้ได้ถึง)",
+  collected_at: "วันที่/เวลาที่เก็บ",
   note: "หมายเหตุ",
 };
 
@@ -55,6 +59,22 @@ export const EDIT_STATUS_META: Record<
 
 export function fieldLabel(key: string): string {
   return EDIT_FIELD_LABEL[key] ?? key;
+}
+
+/**
+ * ค่าในตาราง diff (ค่าเดิม → ค่าใหม่) ให้อ่านรู้เรื่อง
+ * · result: pass/fail → ผ่าน/ไม่ผ่าน
+ * · collected_at: ทั้งค่าเดิม (snapshot) และค่าใหม่ (จาก datetime-local) เป็น "YYYY-MM-DDTHH:mm" เวลาไทย
+ */
+export function fmtEditValue(key: string, value: unknown): string {
+  if (value === null || value === undefined || value === "") return "—";
+  const v = String(value);
+  if (key === "result") return v === "pass" ? "ผ่าน" : v === "fail" ? "ไม่ผ่าน" : v;
+  if (key === "collected_at") {
+    const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(v);
+    if (m) return `${m[3]}/${m[2]}/${Number(m[1]) + 543} ${m[4]}:${m[5]}`;
+  }
+  return v;
 }
 
 /**
@@ -79,6 +99,8 @@ export const EDIT_REVIEWER_ROLES: AppRole[] = [
   "manager",
   "qc_lead",
   "production_lead",
+  // Part H (0099): หัวหน้า QA อนุมัติคำขอแก้จุดเก็บตัวอย่าง
+  "qa_lead",
 ];
 
 /** ชนิดคำขอที่ role นี้อนุมัติได้จริง — ใช้กรอง badge ให้ตรงกับปุ่มที่กดได้ */
@@ -88,13 +110,25 @@ export const EDIT_REVIEWER_TARGETS: {
 }[] = [
   { targetType: "inprocess_check", roles: ["qc_lead"] },
   { targetType: "production_record", roles: ["production_lead"] },
+  { targetType: "qa_sample", roles: ["qa_lead"] },
 ];
+
+/**
+ * ชนิดคำขอที่ "ผู้บริหารอนุมัติแทนไม่ได้" — ต้องเป็นหัวหน้าสายงาน (หรือ admin) เท่านั้น
+ * Part H (0099): qa_sample ตรงกับ review_qa_sample (0096) ที่ผู้บริหารไม่ผ่าน
+ */
+export const EDIT_LEAD_ONLY_TARGETS: EditTargetType[] = ["qa_sample"];
 
 export function canReviewEdit(
   roles: AppRole[],
   targetType: EditTargetType,
 ): boolean {
-  if (hasAnyRole(roles, ["manager", "admin"])) return true;
+  if (hasAnyRole(roles, ["admin"])) return true;
+  if (
+    hasAnyRole(roles, ["manager"]) &&
+    !EDIT_LEAD_ONLY_TARGETS.includes(targetType)
+  )
+    return true;
   return EDIT_REVIEWER_TARGETS.some(
     (t) => t.targetType === targetType && hasAnyRole(roles, t.roles),
   );

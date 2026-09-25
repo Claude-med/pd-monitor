@@ -8,7 +8,8 @@ import { requestEdit } from "./edit-request-actions";
 export type EditField = {
   key: string;
   label: string;
-  kind: "text" | "number" | "date" | "select";
+  /** datetime = datetime-local "YYYY-MM-DDTHH:mm" เวลาไทย (DB แปลงด้วย at time zone 'Asia/Bangkok') */
+  kind: "text" | "number" | "date" | "datetime" | "select";
   current: string; // ค่าปัจจุบัน (string) — ใช้ prefill + เทียบว่าเปลี่ยนไหม
   options?: { value: string; label: string }[];
 };
@@ -161,7 +162,15 @@ export function EditRequestButton({
               </select>
             ) : (
               <input
-                type={f.kind === "number" ? "number" : f.kind === "date" ? "date" : "text"}
+                type={
+                  f.kind === "number"
+                    ? "number"
+                    : f.kind === "date"
+                      ? "date"
+                      : f.kind === "datetime"
+                        ? "datetime-local"
+                        : "text"
+                }
                 inputMode={f.kind === "number" ? "decimal" : undefined}
                 step={f.kind === "number" ? "any" : undefined}
                 value={vals[f.key] ?? ""}

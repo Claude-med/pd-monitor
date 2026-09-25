@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { InprocessCheck, QaSample } from "@/lib/data/quality-checks";
 import { INPROCESS_STATUS_META } from "@/lib/data/inprocess-constants";
@@ -358,6 +359,8 @@ export function QualityChecks({
                         sample={s}
                         canEdit={canSample || canReviewSample}
                         canDelete={canReviewSample}
+                        isLead={canReviewSample}
+                        hasPendingEdit={pendingSet.has(s.id)}
                       />
                     </div>
                   )}
@@ -382,34 +385,14 @@ export function QualityChecks({
                 </thead>
                 <tbody>
                   {samples.map((s) => (
-                    <tr key={s.id} className="border-b last:border-0 align-top">
-                      <td className="whitespace-nowrap px-2 py-2 text-muted-foreground">
-                        {fmtDateTime(s.collected_at)}
-                      </td>
-                      <td className="px-2 py-2">
-                        <SampleResultBadge sample={s} />
-                        <SampleReviewBar jobNo={jobNo} sample={s} canReview={canReviewSample} />
-                      </td>
-                      <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums">
-                        {s.qty == null ? "—" : s.qty.toLocaleString("th-TH")} {s.unit ?? ""}
-                      </td>
-                      <td className="whitespace-nowrap px-2 py-2 text-muted-foreground">
-                        {s.collector_name ?? "—"}
-                      </td>
-                      <td className="px-2 py-2 text-muted-foreground">
-                        {s.note ?? ""}
-                      </td>
-                      {(canSample || canReviewSample) && (
-                        <td className="px-2 py-2">
-                          <SampleRowActions
-                            jobNo={jobNo}
-                            sample={s}
-                            canEdit={canSample || canReviewSample}
-                            canDelete={canReviewSample}
-                          />
-                        </td>
-                      )}
-                    </tr>
+                    <SampleTableRow
+                      key={s.id}
+                      jobNo={jobNo}
+                      sample={s}
+                      canSample={canSample}
+                      canReviewSample={canReviewSample}
+                      hasPendingEdit={pendingSet.has(s.id)}
+                    />
                   ))}
                 </tbody>
               </table>
@@ -425,7 +408,9 @@ export function QualityChecks({
               <SampleForm jobId={jobId} jobNo={jobNo} />
               {!canReviewSample && (
                 <p className="mt-2 text-xs text-muted-foreground">
-                  บันทึกหรือแก้ไขแล้ว รายการจะรอหัวหน้า QA อนุมัติผล ผ่าน/ไม่ผ่าน · ลบรายการได้เฉพาะหัวหน้า QA
+                  บันทึกแล้วรายการจะรอหัวหน้า QA อนุมัติผล ผ่าน/ไม่ผ่าน (ระหว่างรอแก้ไขได้เลย) ·
+                  รายการที่อนุมัติแล้วต้องกด &quot;ขอแก้ไข&quot; ค่าเดิมจะคงอยู่จนหัวหน้า QA อนุมัติคำขอ ·
+                  ลบรายการได้เฉพาะหัวหน้า QA
                 </p>
               )}
             </>
@@ -831,22 +816,91 @@ function SampleForm({ jobId, jobNo }: { jobId: string; jobNo: string }) {
   );
 }
 
-/** ปุ่มแก้ไข / ลบ ของจุดเก็บตัวอย่าง 1 แถว — QA เท่านั้น (ด่านจริงอยู่ที่ RPC · 0066) */
-function SampleRowActions({
+/**
+ * แถวตารางจุดเก็บตัวอย่าง (จอกว้าง)
+ * Part H: ฟอร์มแก้ไขเปิดเป็น "แถวใหม่เต็มความกว้างการ์ด" ใต้แถวเดิม
+ *   (เดิมยัดอยู่ในช่อง "จัดการ" แคบ ๆ → ช่องกรอกเบียดเป็นสี่เหลี่ยมจัตุรัส)
+ */
+function SampleTableRow({
   jobNo,
-  sample,
-  canEdit,
-  canDelete,
+  sample: s,
+  canSample,
+  canReviewSample,
+  hasPendingEdit,
 }: {
   jobNo: string;
   sample: QaSample;
-  canEdit: boolean;
-  /** ลบได้เฉพาะหัวหน้า QA (Part G · 0096) */
-  canDelete: boolean;
+  canSample: boolean;
+  canReviewSample: boolean;
+  hasPendingEdit: boolean;
 }) {
-  const [mode, setMode] = useState<"none" | "edit" | "delete">("none");
-  const [v, setV] = useState<QaSampleInput>(emptySample);
-  const [reason, setReason] = useState("");
+  const [editing, setEditing] = useState(false);
+  const canManage = canSample || canReviewSample;
+  return (
+    <>
+      <tr className={`align-top ${editing ? "" : "border-b last:border-0"}`}>
+        <td className="whitespace-nowrap px-2 py-2 text-muted-foreground">
+          {fmtDateTime(s.collected_at)}
+        </td>
+        <td className="px-2 py-2">
+          <SampleResultBadge sample={s} />
+          <SampleReviewBar jobNo={jobNo} sample={s} canReview={canReviewSample} />
+        </td>
+        <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums">
+          {s.qty == null ? "—" : s.qty.toLocaleString("th-TH")} {s.unit ?? ""}
+        </td>
+        <td className="whitespace-nowrap px-2 py-2 text-muted-foreground">
+          {s.collector_name ?? "—"}
+        </td>
+        <td className="px-2 py-2 text-muted-foreground">{s.note ?? ""}</td>
+        {canManage && (
+          <td className="px-2 py-2">
+            {!editing && (
+              <SampleRowActions
+                jobNo={jobNo}
+                sample={s}
+                canEdit={canManage}
+                canDelete={canReviewSample}
+                isLead={canReviewSample}
+                hasPendingEdit={hasPendingEdit}
+                onEdit={() => setEditing(true)}
+              />
+            )}
+          </td>
+        )}
+      </tr>
+      {editing && (
+        <tr className="border-b last:border-0">
+          <td colSpan={canManage ? 6 : 5} className="px-2 pb-3">
+            <SampleEditForm
+              jobNo={jobNo}
+              sample={s}
+              onClose={() => setEditing(false)}
+            />
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
+/** ฟอร์มแก้ไขตรง (ลูกน้องกับรายการที่ยังไม่อนุมัติ / หัวหน้า QA) — ใช้ทั้งมือถือและจอกว้าง */
+function SampleEditForm({
+  jobNo,
+  sample,
+  onClose,
+}: {
+  jobNo: string;
+  sample: QaSample;
+  onClose: () => void;
+}) {
+  const [v, setV] = useState<QaSampleInput>(() => ({
+    qty: sample.qty == null ? "" : String(sample.qty),
+    unit: sample.unit ?? "",
+    result: sample.result ?? "pass",
+    collected_at: toLocalInput(sample.collected_at),
+    note: sample.note ?? "",
+  }));
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const router = useRouter();
@@ -855,30 +909,80 @@ function SampleRowActions({
     setV((c) => ({ ...c, [k]: val }));
   }
 
-  function openEdit() {
-    setError(null);
-    setV({
-      qty: sample.qty == null ? "" : String(sample.qty),
-      unit: sample.unit ?? "",
-      result: sample.result ?? "pass",
-      collected_at: toLocalInput(sample.collected_at),
-      note: sample.note ?? "",
-    });
-    setMode("edit");
-  }
-
   function saveEdit() {
     setError(null);
     start(async () => {
       const res = await updateQaSample(jobNo, sample.id, v);
       if (res.ok) {
-        setMode("none");
+        onClose();
         router.refresh();
         return;
       }
       setError(res.error ?? "แก้ไขไม่สำเร็จ");
     });
   }
+
+  return (
+    <div className="space-y-3 rounded-md border bg-muted/30 p-3">
+      <p className="text-sm font-medium">✏️ แก้ไขจุดเก็บตัวอย่าง</p>
+      <SampleFields v={v} set={set} />
+      {error && (
+        <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          {error}
+        </p>
+      )}
+      <div className="flex gap-2">
+        <button
+          type="button"
+          disabled={pending}
+          onClick={saveEdit}
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+        >
+          {pending ? "กำลังบันทึก…" : "บันทึกการแก้ไข"}
+        </button>
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-md border px-4 py-2 text-sm hover:bg-accent"
+        >
+          ยกเลิก
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * ปุ่มแก้ไข / ลบ ของจุดเก็บตัวอย่าง 1 แถว — QA เท่านั้น (ด่านจริงอยู่ที่ RPC · 0066/0099)
+ * Part H (0099): ลูกน้อง + รายการที่หัวหน้าอนุมัติแล้ว → "ขอแก้ไข" (ระบบ Amendment · ค่าเดิมคงอยู่จนอนุมัติ)
+ *                ลูกน้อง + รายการที่ยังไม่อนุมัติ / หัวหน้า QA → แก้ตรง
+ */
+function SampleRowActions({
+  jobNo,
+  sample,
+  canEdit,
+  canDelete,
+  isLead,
+  hasPendingEdit,
+  onEdit,
+}: {
+  jobNo: string;
+  sample: QaSample;
+  canEdit: boolean;
+  /** ลบได้เฉพาะหัวหน้า QA (Part G · 0096) */
+  canDelete: boolean;
+  /** หัวหน้า QA — แก้ตรงได้เสมอ */
+  isLead: boolean;
+  /** มีคำขอแก้ไขรายการนี้รออนุมัติอยู่ */
+  hasPendingEdit: boolean;
+  /** จอกว้าง: ให้แถวแม่เปิดฟอร์มเต็มความกว้าง · ไม่ส่ง = เปิดฟอร์มในที่ (มือถือ) */
+  onEdit?: () => void;
+}) {
+  const [mode, setMode] = useState<"none" | "edit" | "delete">("none");
+  const [reason, setReason] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  const router = useRouter();
 
   function confirmDelete() {
     setError(null);
@@ -894,18 +998,79 @@ function SampleRowActions({
     });
   }
 
-  if (mode === "none") {
+  if (mode === "edit") {
     return (
-      <div className="flex flex-wrap gap-1.5">
-        {canEdit && (
+      <SampleEditForm jobNo={jobNo} sample={sample} onClose={() => setMode("none")} />
+    );
+  }
+
+  if (mode === "none") {
+    let editControl: ReactNode = null;
+    if (canEdit) {
+      if (hasPendingEdit) {
+        editControl = isLead ? (
+          <Link
+            href="/edit-requests"
+            className="whitespace-nowrap rounded bg-amber-500/15 px-1.5 py-0.5 text-[11px] text-amber-700 hover:underline dark:text-amber-400"
+          >
+            ⏳ มีคำขอแก้ไข — ไปอนุมัติ →
+          </Link>
+        ) : (
+          <span className="whitespace-nowrap rounded bg-amber-500/15 px-1.5 py-0.5 text-[11px] text-amber-700 dark:text-amber-400">
+            ⏳ รออนุมัติแก้ไข
+          </span>
+        );
+      } else if (!isLead && sample.review_status === "approved") {
+        editControl = (
+          <EditRequestButton
+            targetType="qa_sample"
+            targetId={sample.id}
+            jobNo={jobNo}
+            hasPending={false}
+            fields={[
+              {
+                key: "collected_at",
+                label: "วันที่/เวลาที่เก็บ",
+                kind: "datetime",
+                current: toLocalInput(sample.collected_at),
+              },
+              {
+                key: "result",
+                label: "ผลตรวจ",
+                kind: "select",
+                current: sample.result ?? "",
+                options: QA_SAMPLE_RESULT.map((r) => ({ value: r.key, label: r.label })),
+              },
+              {
+                key: "qty",
+                label: "จำนวน",
+                kind: "number",
+                current: sample.qty == null ? "" : String(sample.qty),
+              },
+              { key: "unit", label: "หน่วย", kind: "text", current: sample.unit ?? "" },
+              { key: "note", label: "หมายเหตุ", kind: "text", current: sample.note ?? "" },
+            ]}
+          />
+        );
+      } else {
+        editControl = (
           <button
             type="button"
-            onClick={openEdit}
+            onClick={() => {
+              setError(null);
+              if (onEdit) onEdit();
+              else setMode("edit");
+            }}
             className="rounded-md border px-2.5 py-1 text-xs hover:bg-accent"
           >
             ✏️ แก้ไข
           </button>
-        )}
+        );
+      }
+    }
+    return (
+      <div className="flex flex-wrap gap-1.5">
+        {editControl}
         {canDelete && (
           <button
             type="button"
@@ -923,57 +1088,27 @@ function SampleRowActions({
     );
   }
 
-  if (mode === "delete") {
-    return (
-      <div className="space-y-2 rounded-md border border-destructive/40 bg-destructive/5 p-2">
-        <label className={labelClass}>เหตุผลที่ลบ *</label>
-        <input
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-          placeholder="เช่น บันทึกซ้ำ / ลงผิดงาน"
-          className={inputClass}
-        />
-        <p className="text-[11px] text-muted-foreground">
-          รายการจะหายจากหน้าจอ แต่ยังเก็บไว้ใน DB และประวัติ (audit) ตามหลัก GMP
-        </p>
-        {error && <p className="text-xs text-destructive">{error}</p>}
-        <div className="flex gap-2">
-          <button
-            type="button"
-            disabled={pending || !reason.trim()}
-            onClick={confirmDelete}
-            className="rounded-md bg-destructive px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50"
-          >
-            {pending ? "กำลังลบ…" : "ยืนยันลบ"}
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode("none")}
-            className="rounded-md border px-3 py-1.5 text-xs hover:bg-accent"
-          >
-            ยกเลิก
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-3 rounded-md border bg-muted/30 p-3">
-      <SampleFields v={v} set={set} />
-      {error && (
-        <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          {error}
-        </p>
-      )}
+    <div className="space-y-2 rounded-md border border-destructive/40 bg-destructive/5 p-2">
+      <label className={labelClass}>เหตุผลที่ลบ *</label>
+      <input
+        value={reason}
+        onChange={(e) => setReason(e.target.value)}
+        placeholder="เช่น บันทึกซ้ำ / ลงผิดงาน"
+        className={inputClass}
+      />
+      <p className="text-[11px] text-muted-foreground">
+        รายการจะหายจากหน้าจอ แต่ยังเก็บไว้ใน DB และประวัติ (audit) ตามหลัก GMP
+      </p>
+      {error && <p className="text-xs text-destructive">{error}</p>}
       <div className="flex gap-2">
         <button
           type="button"
-          disabled={pending}
-          onClick={saveEdit}
-          className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+          disabled={pending || !reason.trim()}
+          onClick={confirmDelete}
+          className="rounded-md bg-destructive px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50"
         >
-          {pending ? "กำลังบันทึก…" : "บันทึกการแก้ไข"}
+          {pending ? "กำลังลบ…" : "ยืนยันลบ"}
         </button>
         <button
           type="button"

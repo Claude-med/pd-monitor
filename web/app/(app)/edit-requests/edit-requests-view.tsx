@@ -9,6 +9,7 @@ import {
   EDIT_TARGET_LABEL,
   canReviewEdit,
   fieldLabel,
+  fmtEditValue,
 } from "@/lib/data/edit-request-constants";
 import { fmtDateTime, displayJobNo } from "@/lib/format";
 import { reviewEditRequest } from "./actions";
@@ -117,12 +118,10 @@ function RequestCard({
               <tr key={k} className="border-b last:border-0">
                 <td className="px-2 py-1.5">{fieldLabel(k)}</td>
                 <td className="px-2 py-1.5 text-muted-foreground line-through">
-                  {before[k] === "" || before[k] == null ? "—" : before[k]}
+                  {fmtEditValue(k, before[k])}
                 </td>
                 <td className="px-2 py-1.5 font-medium text-emerald-700 dark:text-emerald-400">
-                  {req.changes[k] === null || req.changes[k] === ""
-                    ? "—"
-                    : String(req.changes[k])}
+                  {fmtEditValue(k, req.changes[k])}
                 </td>
               </tr>
             ))}

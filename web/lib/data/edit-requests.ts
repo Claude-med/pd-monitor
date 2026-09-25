@@ -2,7 +2,8 @@ import { createClient } from "@/lib/supabase/server";
 import type { AppRole } from "@/lib/auth/dal";
 import { hasAnyRole } from "@/lib/auth/roles";
 import {
-  EDIT_REVIEWER_TARGETS,
+  EDIT_TARGET_LABEL,
+  canReviewEdit,
   type EditTargetType,
   type EditRequestStatus,
 } from "@/lib/data/edit-request-constants";
@@ -99,22 +100,43 @@ export async function getTargetSnapshot(
   if (targetType === "material_requisition") return {};
 
   const supabase = await createClient();
-  const table =
+  const [table, cols] =
     targetType === "production_record"
-      ? "production_records"
-      : "inprocess_checks";
-  const cols =
-    targetType === "production_record"
-      ? "input_qty, output_qty, loss_qty, minutes, headcount, note, record_date, station_id, machine_id, input_unit, output_unit, loss_unit, shift, work_period"
-      // Part D: เดิมขาด station_id/valid_date ทั้งที่ whitelist ของ request_edit เปิดให้แก้ได้
-      //          (0065:136) → คอลัมน์ "ค่าเดิม" ในหน้ารีวิวขึ้น "—" ผู้อนุมัติเห็น diff ไม่ครบ
-      : "param, value, unit, result, note, station_id, valid_date";
+      ? [
+          "production_records",
+          "input_qty, output_qty, loss_qty, minutes, headcount, note, record_date, station_id, machine_id, input_unit, output_unit, loss_unit, shift, work_period",
+        ]
+      : targetType === "qa_sample"
+        ? // Part H (0099): ต้องตรงกับ whitelist ของ request_edit สาขา qa_sample
+          ["qa_samples", "qty, unit, result, collected_at, note"]
+        : // Part D: เดิมขาด station_id/valid_date ทั้งที่ whitelist ของ request_edit เปิดให้แก้ได้
+          //          (0065:136) → คอลัมน์ "ค่าเดิม" ในหน้ารีวิวขึ้น "—" ผู้อนุมัติเห็น diff ไม่ครบ
+          ["inprocess_checks", "param, value, unit, result, note, station_id, valid_date"];
   const { data } = await supabase.from(table).select(cols).eq("id", targetId).single();
   const out: Record<string, string> = {};
   if (data)
     for (const [k, v] of Object.entries(data as unknown as Record<string, unknown>))
-      out[k] = v == null ? "" : String(v);
+      out[k] =
+        v == null
+          ? ""
+          : k === "collected_at"
+            ? toBangkokInput(String(v)) // ให้รูปแบบเดียวกับค่าใหม่จาก datetime-local
+            : String(v);
   return out;
+}
+
+/** ISO → "YYYY-MM-DDTHH:mm" เวลาไทย (Vercel เป็น UTC — ต้องล็อก timeZone เอง) */
+function toBangkokInput(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const tz = "Asia/Bangkok";
+  const date = d.toLocaleDateString("en-CA", { timeZone: tz });
+  const time = d.toLocaleTimeString("en-GB", {
+    timeZone: tz,
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  return `${date}T${time}`;
 }
 
 /**
@@ -131,10 +153,11 @@ export async function getPendingEditCount(roles: AppRole[]): Promise<number> {
     .select("id", { count: "exact", head: true })
     .eq("status", "pending");
 
-  if (!hasAnyRole(roles, ["manager", "admin"])) {
-    const types = EDIT_REVIEWER_TARGETS.filter((t) =>
-      hasAnyRole(roles, t.roles),
-    ).map((t) => t.targetType);
+  if (!hasAnyRole(roles, ["admin"])) {
+    // Part H: เดินตาม canReviewEdit ตัวเดียว (ผู้บริหารอนุมัติ qa_sample ไม่ได้)
+    const types = (Object.keys(EDIT_TARGET_LABEL) as EditTargetType[]).filter(
+      (t) => canReviewEdit(roles, t),
+    );
     if (types.length === 0) return 0;
     query = query.in("target_type", types);
   }
