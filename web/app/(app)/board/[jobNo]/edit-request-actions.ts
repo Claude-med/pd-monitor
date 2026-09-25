@@ -47,3 +47,29 @@ export async function cancelEditRequest(
   revalidatePath(`/board/${jobNo}`);
   return { ok: true };
 }
+
+/**
+ * แก้ตรงรายการที่ยังไม่อนุมัติ / ถูกตีกลับ (Part H · 0100)
+ * บันทึกผลผลิต + ผลตรวจ in-process — เฉพาะผู้บันทึก (DB ตรวจสิทธิ์จริงใน edit_draft)
+ */
+export async function editDraft(
+  jobNo: string,
+  targetType: EditTargetType,
+  targetId: string,
+  changes: Record<string, string | null>,
+): Promise<ActionResult> {
+  const profile = await getProfile();
+  if (!profile) return { error: "กรุณาเข้าสู่ระบบ" };
+  if (!changes || Object.keys(changes).length === 0)
+    return { error: "ยังไม่มีการแก้ไข (ค่ายังเหมือนเดิม)" };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("edit_draft", {
+    p_target_type: targetType,
+    p_target_id: targetId,
+    p_changes: changes,
+  });
+  if (error) return { error: error.message || "แก้ไขไม่สำเร็จ" };
+  revalidatePath(`/board/${jobNo}`);
+  return { ok: true };
+}

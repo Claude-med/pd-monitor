@@ -117,6 +117,11 @@ export function QualityChecks({
   // ปุ่มขอแก้ไขผลตรวจ (ใช้ทั้งการ์ด/ตาราง) — null ถ้าไม่มีสิทธิ์
   // ⚠️ ใช้ canAmendCheck ไม่ใช่ canAmend — Part C.4: การขอแก้ผลตรวจเป็นหน้าที่ QC เท่านั้น
   //    (canAmend = ทุกคนที่ล็อกอิน · ยังใช้กับปุ่มขอแก้ "บันทึกผลผลิต" ตามเดิม)
+  // Part H (0100): ผู้ลงผล + ผลที่ยังไม่อนุมัติ/ถูกตีกลับ → แก้ตรง (สถานีแก้ตรงไม่ได้)
+  const draftOf = (c: InprocessCheck) =>
+    c.checked_by_id === currentProfileId && c.status !== "approved"
+      ? (c.status as "pending" | "rejected")
+      : null;
   const checkEditButton = (c: InprocessCheck) =>
     canAmendCheck ? (
       <EditRequestButton
@@ -124,8 +129,9 @@ export function QualityChecks({
         targetId={c.id}
         jobNo={jobNo}
         hasPending={pendingSet.has(c.id)}
+        direct={draftOf(c)}
         fields={[
-          ...(canEditStation && stationOptions.length
+          ...(canEditStation && stationOptions.length && !draftOf(c)
             ? [
                 {
                   key: "station_id",

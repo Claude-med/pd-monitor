@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { EditTargetType } from "@/lib/data/edit-request-constants";
-import { requestEdit } from "./edit-request-actions";
+import { editDraft, requestEdit } from "./edit-request-actions";
 
 export type EditField = {
   key: string;
@@ -23,12 +23,18 @@ export function EditRequestButton({
   jobNo,
   fields,
   hasPending,
+  direct = null,
 }: {
   targetType: EditTargetType;
   targetId: string;
   jobNo: string;
   fields: EditField[];
   hasPending: boolean;
+  /**
+   * Part H (0100): แก้ตรง (ไม่ต้องขออนุมัติ) — ใช้กับรายการที่ยังไม่อนุมัติ/ถูกตีกลับของผู้บันทึกเอง
+   * pending = ยังรออนุมัติ · rejected = แก้แล้วส่งอนุมัติใหม่ · null = โหมดขอแก้ไข (เดิม)
+   */
+  direct?: "pending" | "rejected" | null;
 }) {
   const [open, setOpen] = useState(false);
   const [vals, setVals] = useState<Record<string, string>>(() =>
@@ -70,12 +76,14 @@ export function EditRequestButton({
       setError("ยังไม่มีการแก้ไข (ค่ายังเหมือนเดิม)");
       return;
     }
-    if (!reason.trim()) {
+    if (!direct && !reason.trim()) {
       setError("กรุณาระบุเหตุผลการขอแก้ไข");
       return;
     }
     start(async () => {
-      const res = await requestEdit(jobNo, targetType, targetId, changes, reason);
+      const res = direct
+        ? await editDraft(jobNo, targetType, targetId, changes)
+        : await requestEdit(jobNo, targetType, targetId, changes, reason);
       if (res.ok) {
         setOpen(false);
         setReason("");
@@ -93,7 +101,7 @@ export function EditRequestButton({
         onClick={() => setOpen(true)}
         className="whitespace-nowrap rounded-md border px-2 py-1 text-xs hover:bg-accent"
       >
-        ✏️ ขอแก้ไข
+        {direct ? "✏️ แก้ไข" : "✏️ ขอแก้ไข"}
       </button>
     );
   }
@@ -112,9 +120,13 @@ export function EditRequestButton({
       >
         <div className="flex items-start justify-between gap-2">
           <p className="text-sm font-semibold">
-            ขอแก้ไขย้อนหลัง{" "}
+            {direct ? "แก้ไขรายการ" : "ขอแก้ไขย้อนหลัง"}{" "}
             <span className="text-xs font-normal text-muted-foreground">
-              (ต้องได้รับอนุมัติก่อน)
+              {direct === "pending"
+                ? "(ยังไม่อนุมัติ — แก้ได้เลย รายการยังรอหัวหน้าอนุมัติ)"
+                : direct === "rejected"
+                  ? "(ถูกตีกลับ — แก้แล้วจะส่งให้หัวหน้าอนุมัติใหม่)"
+                  : "(ต้องได้รับอนุมัติก่อน)"}
             </span>
           </p>
           <button
@@ -183,6 +195,7 @@ export function EditRequestButton({
           </div>
         ))}
       </div>
+      {!direct && (
       <div>
         <label className="mb-1 block text-xs font-medium text-muted-foreground">
           เหตุผลการขอแก้ไข *
@@ -195,6 +208,7 @@ export function EditRequestButton({
           className={inputClass}
         />
       </div>
+      )}
       {error && (
         <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {error}
@@ -207,7 +221,13 @@ export function EditRequestButton({
           onClick={submit}
           className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
         >
-          {pending ? "กำลังส่ง…" : "ส่งคำขอแก้ไข"}
+          {pending
+            ? "กำลังบันทึก…"
+            : direct === "rejected"
+              ? "บันทึก + ส่งอนุมัติใหม่"
+              : direct
+                ? "บันทึกการแก้ไข"
+                : "ส่งคำขอแก้ไข"}
         </button>
         <button
           type="button"

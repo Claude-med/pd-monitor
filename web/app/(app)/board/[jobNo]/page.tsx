@@ -251,6 +251,32 @@ export default async function JobDetailPage({
   const editRequests = await getEditRequestsForJob(job.id);
   const pendingTargets = await getPendingTargetIds(job.id);
   const canAmend = roles.length > 0;
+  // Part H (0100): ผู้บันทึก + รายการที่ยังไม่อนุมัติ/ถูกตีกลับ → แก้ตรง · นอกนั้น → ขอแก้ไข (Amendment)
+  const recordEditButton = (r: ProductionRecordRow) => {
+    const own =
+      !!profile?.id &&
+      (r.created_by_id === profile.id || r.operator_id === profile.id);
+    const draft =
+      own && job.status === "in_production" && r.status !== "approved"
+        ? (r.status as "pending" | "rejected")
+        : null;
+    return (
+      <EditRequestButton
+        targetType="production_record"
+        targetId={r.id}
+        jobNo={job.job_no}
+        hasPending={pendingTargets.has(r.id)}
+        direct={draft}
+        fields={productionEditFields(
+          r,
+          // แก้ตรงเปลี่ยนสถานี/เครื่องไม่ได้ (ผูกขั้นตอน + Line Clearance · 0100)
+          draft ? false : canEditStationMachine,
+          stationIdEditOptions,
+          machineEditOptions,
+        )}
+      />
+    );
+  };
   // Part C.4 ก้อน 6: ผลตรวจที่ไม่อนุมัติ/ไม่ผ่าน เปิด Incident Case ให้อัตโนมัติที่ DB แล้ว
   // (ปุ่ม quick-open เดิมถูกลบทิ้ง — มันไม่เช็ก status จึงโชว์กับผลที่ยัง pending ด้วย)
 
@@ -528,13 +554,7 @@ export default async function JobDetailPage({
                   </div>
                   {canAmend && (
                     <div className="mt-2">
-                      <EditRequestButton
-                        targetType="production_record"
-                        targetId={r.id}
-                        jobNo={job.job_no}
-                        hasPending={pendingTargets.has(r.id)}
-                        fields={productionEditFields(r, canEditStationMachine, stationIdEditOptions, machineEditOptions)}
-                      />
+                      {recordEditButton(r)}
                     </div>
                   )}
                 </div>
@@ -588,13 +608,7 @@ export default async function JobDetailPage({
                         </td>
                         {canAmend && (
                           <td className="px-2 py-2">
-                            <EditRequestButton
-                              targetType="production_record"
-                              targetId={r.id}
-                              jobNo={job.job_no}
-                              hasPending={pendingTargets.has(r.id)}
-                              fields={productionEditFields(r, canEditStationMachine, stationIdEditOptions, machineEditOptions)}
-                            />
+                            {recordEditButton(r)}
                           </td>
                         )}
                         <td className="px-2 py-2">
