@@ -121,7 +121,8 @@ export default async function JobDetailPage({
 }: {
   params: Promise<{ jobNo: string }>;
   /** ?step=<job_routes.id> — แท็บขั้นตอนที่กำลังดูอยู่ (Part C.3 ก้อน 3) */
-  searchParams: Promise<{ step?: string; qc?: string }>;
+  /** ?pending=records|inprocess|qa-sample|lc — มาจากแจ้งเตือนรออนุมัติ (Part H) */
+  searchParams: Promise<{ step?: string; qc?: string; pending?: string }>;
 }) {
   const { jobNo } = await params;
   const sp = await searchParams;
@@ -197,9 +198,44 @@ export default async function JobDetailPage({
   // ── Part C.3 ก้อน 3: แท็บตามขั้นตอนการผลิต ──────────────────────────
   // steps มาจาก job_routes (snapshot ตอนสร้างงาน) พร้อมเครื่องจักรที่ผูกไว้ + ตัวนับ
   const steps = await getJobRouteSteps(job.id);
+  // ── Part H: รายการที่ "ผู้ดูคนนี้อนุมัติได้" แยกตามขั้นตอน ──────────────
+  //   ใช้ทำป้าย "⏳ รออนุมัติ" บนแท็บ + เลือกแท็บให้เองเมื่อมาจากแจ้งเตือน (?pending=)
+  //   กติกาเดียวกับปุ่มอนุมัติ: ยัง pending และไม่ใช่รายการของตัวเอง (สองลายเซ็น)
+  const me = profile?.id ?? "";
+  const pendingFor = {
+    records: canApproveProductionRecord(roles)
+      ? records
+          .filter(
+            (r) => r.status === "pending" && r.created_by_id !== me && r.operator_id !== me,
+          )
+          .map((r) => r.station_id)
+      : [],
+    inprocess: canApproveInprocess(roles)
+      ? inprocessChecks
+          .filter((c) => c.status === "pending" && c.checked_by_id !== me)
+          .map((c) => c.station_id)
+      : [],
+    // LC: ทำแล้ว (performed) แต่หัวหน้ายังไม่ยืนยัน · ผูกกับขั้นตอน ไม่ใช่สถานี
+    lc: canCheckLc
+      ? lineClearances.filter((l) => l.performed_at && !l.checked_at).map((l) => l.job_route_id)
+      : [],
+  };
+  const pendingCountOf = (step: { id: string; station_id: string }) =>
+    pendingFor.records.filter((id) => id === step.station_id).length +
+    pendingFor.inprocess.filter((id) => id === step.station_id).length +
+    pendingFor.lc.filter((id) => id === step.id).length;
+  const focus = sp.pending;
+  const autoStep =
+    !sp.step && (focus === "records" || focus === "inprocess" || focus === "lc")
+      ? steps.find((s) =>
+          focus === "lc"
+            ? pendingFor.lc.includes(s.id)
+            : pendingFor[focus].includes(s.station_id),
+        )
+      : undefined;
   // ?step ที่ไม่มีอยู่จริง (ลิงก์เก่า/พิมพ์มั่ว) → ตกกลับขั้นตอนแรก ไม่ใช่จอว่าง
   const activeStep =
-    steps.find((s) => s.id === sp.step) ?? steps[0] ?? null;
+    steps.find((s) => s.id === sp.step) ?? autoStep ?? steps[0] ?? null;
 
   // บันทึกผลผลิต / ผลตรวจ QC ที่แสดงในแท็บ = เฉพาะสถานีของขั้นตอนที่เลือก
   // งานเก่าที่ไม่มี route (steps ว่าง) → แสดงทั้งหมดเหมือนเดิม ไม่งั้นจอจะว่างเปล่า
@@ -463,6 +499,7 @@ export default async function JobDetailPage({
             jobNo={job.job_no}
             steps={steps}
             activeId={activeStep.id}
+            pendingCounts={Object.fromEntries(steps.map((s) => [s.id, pendingCountOf(s)]))}
           />
         </div>
       )}
@@ -495,8 +532,8 @@ export default async function JobDetailPage({
         />
       )}
 
-      {/* บันทึกผลผลิตรายวัน — เฉพาะขั้นตอนที่เลือกอยู่ */}
-      <div className="rounded-xl border bg-card p-5">
+      {/* บันทึกผลผลิตรายวัน — เฉพาะขั้นตอนที่เลือกอยู่ · id = ปลายทางลิงก์แจ้งเตือน (Part H) */}
+      <div id="records" className="scroll-mt-20 rounded-xl border bg-card p-5">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h2 className="font-semibold">
             บันทึกผลผลิตรายวัน
@@ -517,7 +554,14 @@ export default async function JobDetailPage({
             {/* มือถือ: การ์ด (เห็นครบทุกช่องในใบเดียว ไม่ต้องเลื่อนแนวนอน) */}
             <div className="space-y-3 md:hidden">
               {viewRecords.map((r) => (
-                <div key={r.id} className="rounded-lg border bg-muted/20 p-3">
+                <div
+                  key={r.id}
+                  className={`rounded-lg border p-3 ${
+                    approvableIds.includes(r.id)
+                      ? "border-amber-400 bg-amber-500/10"
+                      : "bg-muted/20"
+                  }`}
+                >
                   <div className="mb-2 flex items-center justify-between gap-2">
                     <span className="flex items-center gap-2 text-sm font-medium">
                       <RecordPickCheckbox id={r.id} />
@@ -584,7 +628,11 @@ export default async function JobDetailPage({
                 <tbody>
                   {viewRecords.map((r) => (
                     <Fragment key={r.id}>
-                      <tr className={`align-top ${r.note ? "" : "border-b last:border-0"}`}>
+                      <tr
+                        className={`align-top ${r.note ? "" : "border-b last:border-0"} ${
+                          approvableIds.includes(r.id) ? "bg-amber-500/10" : ""
+                        }`}
+                      >
                         {canApproveRecord && (
                           <td className="px-2 py-2">
                             <RecordPickCheckbox id={r.id} />

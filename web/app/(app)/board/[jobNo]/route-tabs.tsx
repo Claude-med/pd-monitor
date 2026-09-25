@@ -15,10 +15,13 @@ export function RouteTabs({
   jobNo,
   steps,
   activeId,
+  pendingCounts = {},
 }: {
   jobNo: string;
   steps: JobRouteStepFull[];
   activeId: string;
+  /** Part H: จำนวนรายการที่ "ผู้ดูคนนี้" อนุมัติได้ ต่อขั้นตอน (job_routes.id → จำนวน) */
+  pendingCounts?: Record<string, number>;
 }) {
   return (
     <div className="-mx-1 overflow-x-auto pb-1">
@@ -53,6 +56,11 @@ export function RouteTabs({
                 <Badge active={active} tone="neutral">
                   📋 {s.recordCount}
                 </Badge>
+                {(pendingCounts[s.id] ?? 0) > 0 && (
+                  <Badge active={active} tone="warning">
+                    ⏳ รออนุมัติ {pendingCounts[s.id]}
+                  </Badge>
+                )}
                 {s.failCount > 0 && (
                   <Badge active={active} tone="danger">
                     ✕ QC ไม่ผ่าน {s.failCount}
@@ -75,10 +83,14 @@ function Badge({
 }: {
   children: React.ReactNode;
   active: boolean;
-  tone: "neutral" | "danger";
+  tone: "neutral" | "danger" | "warning";
 }) {
   const cls =
-    tone === "danger"
+    tone === "warning"
+      ? active
+        ? "bg-amber-300 text-amber-950"
+        : "bg-amber-500/20 text-amber-800 dark:text-amber-300"
+      : tone === "danger"
       ? active
         ? "bg-white/25 text-white"
         : "bg-destructive/15 text-destructive"

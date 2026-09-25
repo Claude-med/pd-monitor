@@ -86,3 +86,38 @@ export const KIND_FILTER_ORDER: InboxKind[] = [
   "approval_result",
   "edit_reviewed",
 ];
+
+/** ส่วนในหน้างานที่รายการรออนุมัติอยู่ — ใช้เป็นทั้ง ?pending= และ #anchor (Part H) */
+export type PendingFocus = "records" | "inprocess" | "qa-sample" | "lc";
+
+export const PENDING_FOCUS: PendingFocus[] = ["records", "inprocess", "qa-sample", "lc"];
+
+/**
+ * ลิงก์ของแจ้งเตือนหนึ่งใบ — Part H: พาไป "ตรงจุด" แทนหน้างานเฉย ๆ
+ *   · คำขอแก้ไข (edit_request) → แท็บ คำขอแก้ไข (Amendment)
+ *   · รออนุมัติ (approval_request) → /board/X?pending=<ส่วน>#<ส่วน> (หน้างานเลือกขั้นตอนที่มีของรอให้เอง)
+ *   · ผลอนุมัติ / ผลคำขอ → /board/X#<ส่วน>
+ *
+ * ⚠️ ตารางแจ้งเตือนไม่มีคอลัมน์ลิงก์/สถานี — แยกส่วนจาก "คำขึ้นต้นหัวข้อ" ที่ SQL เขียนไว้
+ *    (0085 · 0092 · 0096 · 0099) ถ้าเพิ่มแจ้งเตือนชนิดใหม่ ให้เพิ่มคำขึ้นต้นที่นี่ด้วย
+ *    หัวข้อที่ไม่ตรงแบบไหนเลย → ตกกลับเป็นลิงก์หน้างานเฉย ๆ เหมือนเดิม (ไม่พัง)
+ */
+export function notificationHref(item: InboxItem): string | null {
+  if (item.kind === "edit_request") return "/edit-requests";
+  if (!item.job_no) return null;
+  const base = `/board/${encodeURIComponent(item.job_no)}`;
+  const t = item.title;
+  const focus: PendingFocus | null = t.startsWith("บันทึกผลผลิต")
+    ? "records"
+    : t.startsWith("ผลตรวจ")
+      ? "inprocess"
+      : t.startsWith("จุดเก็บตัวอย่าง")
+        ? "qa-sample"
+        : t.startsWith("Line Clearance")
+          ? "lc"
+          : null;
+  if (!focus) return base;
+  if (item.kind === "approval_request") return `${base}?pending=${focus}#${focus}`;
+  if (item.kind === "approval_result") return `${base}#${focus}`;
+  return base;
+}

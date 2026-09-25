@@ -61,7 +61,7 @@ export function LineClearancePanel({
   ).length;
 
   return (
-    <div className="rounded-xl border bg-card p-5">
+    <div id="lc" className="scroll-mt-20 rounded-xl border bg-card p-5">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h2 className="font-semibold">Line Clearance (เตรียมสายการผลิต)</h2>
         <span className="text-xs text-muted-foreground">

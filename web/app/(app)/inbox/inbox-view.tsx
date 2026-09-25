@@ -8,6 +8,7 @@ import {
   KIND_FILTER_ORDER,
   type InboxItem,
   type InboxKind,
+  notificationHref,
 } from "@/lib/data/notification-constants";
 import { fmtDateTime, displayJobNo } from "@/lib/format";
 import { markRead, markAllRead, dismissMany } from "./actions";
@@ -289,6 +290,7 @@ function InboxRow({
 }) {
   const meta = KIND_META[item.kind];
   const unread = item.source === "stored" && !item.read;
+  const href = notificationHref(item);
 
   return (
     <li
@@ -323,12 +325,15 @@ function InboxRow({
       {item.body && <p className="mt-1 text-muted-foreground">{item.body}</p>}
       <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
         {item.created_at && <span>{fmtDateTime(item.created_at)}</span>}
-        {item.job_no && (
-          <Link
-            href={`/board/${encodeURIComponent(item.job_no)}`}
-            className="text-primary hover:underline"
-          >
-            ไปที่งาน {displayJobNo(item.job_no)} →
+        {href && (
+          <Link href={href} className="text-primary hover:underline">
+            {item.kind === "edit_request"
+              ? "ไปที่คำขอแก้ไข →"
+              : item.kind === "approval_request" && item.job_no
+                ? `ไปอนุมัติ (งาน ${displayJobNo(item.job_no)}) →`
+                : item.job_no
+                  ? `ไปที่งาน ${displayJobNo(item.job_no)} →`
+                  : "เปิด →"}
           </Link>
         )}
         {unread && (

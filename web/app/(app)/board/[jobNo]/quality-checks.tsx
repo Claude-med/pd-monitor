@@ -117,6 +117,9 @@ export function QualityChecks({
   // ปุ่มขอแก้ไขผลตรวจ (ใช้ทั้งการ์ด/ตาราง) — null ถ้าไม่มีสิทธิ์
   // ⚠️ ใช้ canAmendCheck ไม่ใช่ canAmend — Part C.4: การขอแก้ผลตรวจเป็นหน้าที่ QC เท่านั้น
   //    (canAmend = ทุกคนที่ล็อกอิน · ยังใช้กับปุ่มขอแก้ "บันทึกผลผลิต" ตามเดิม)
+  // Part H: แถวที่รอ "ผู้ดูคนนี้" อนุมัติ → ไฮไลต์ (กติกาเดียวกับปุ่มอนุมัติ · คนละคนกับผู้ลงผล)
+  const waitsForMe = (c: InprocessCheck) =>
+    canApprove && c.status === "pending" && c.checked_by_id !== currentProfileId;
   // Part H (0100): ผู้ลงผล + ผลที่ยังไม่อนุมัติ/ถูกตีกลับ → แก้ตรง (สถานีแก้ตรงไม่ได้)
   const draftOf = (c: InprocessCheck) =>
     c.checked_by_id === currentProfileId && c.status !== "approved"
@@ -169,7 +172,7 @@ export function QualityChecks({
   return (
     <div className="space-y-6">
       {/* In-process QC */}
-      <section id="inprocess" className="rounded-xl border bg-card p-5">
+      <section id="inprocess" className="scroll-mt-20 rounded-xl border bg-card p-5">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h2 className="font-semibold">ตรวจระหว่างผลิต (In-process QC)</h2>
           <span className="text-xs text-muted-foreground">{checks.length} รายการ</span>
@@ -227,7 +230,12 @@ export function QualityChecks({
             {/* มือถือ: การ์ด */}
             <div className="space-y-3 md:hidden">
               {checks.map((c) => (
-                <div key={c.id} className="rounded-lg border bg-muted/20 p-3">
+                <div
+                  key={c.id}
+                  className={`rounded-lg border p-3 ${
+                    waitsForMe(c) ? "border-amber-400 bg-amber-500/10" : "bg-muted/20"
+                  }`}
+                >
                   <div className="mb-1.5 flex items-start justify-between gap-2">
                     <span className="text-sm font-medium">{showStation(c)}</span>
                     {resultBadge(c)}
@@ -278,7 +286,12 @@ export function QualityChecks({
                 </thead>
                 <tbody>
                   {checks.map((c) => (
-                    <tr key={c.id} className="border-b last:border-0 align-top">
+                    <tr
+                      key={c.id}
+                      className={`border-b last:border-0 align-top ${
+                        waitsForMe(c) ? "bg-amber-500/10" : ""
+                      }`}
+                    >
                       <td className="whitespace-nowrap px-2 py-2 text-muted-foreground">
                         {fmtDateTime(c.checked_at)}
                       </td>
@@ -333,7 +346,7 @@ export function QualityChecks({
       </section>
 
       {/* จุดเก็บตัวอย่าง (ตรวจ Finished product) — Part C.4 ก้อน 3 */}
-      <section id="qa-sample" className="rounded-xl border bg-card p-5">
+      <section id="qa-sample" className="scroll-mt-20 rounded-xl border bg-card p-5">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h2 className="font-semibold">จุดเก็บตัวอย่าง (ตรวจ Finished product)</h2>
           <span className="text-xs text-muted-foreground">{samples.length} รายการ</span>
@@ -344,7 +357,14 @@ export function QualityChecks({
             {/* มือถือ: การ์ด */}
             <div className="space-y-3 md:hidden">
               {samples.map((s) => (
-                <div key={s.id} className="rounded-lg border bg-muted/20 p-3">
+                <div
+                  key={s.id}
+                  className={`rounded-lg border p-3 ${
+                    canReviewSample && s.review_status === "pending"
+                      ? "border-amber-400 bg-amber-500/10"
+                      : "bg-muted/20"
+                  }`}
+                >
                   <div className="flex items-center justify-between gap-2">
                     <SampleResultBadge sample={s} />
                     <span className="text-sm tabular-nums">
@@ -844,7 +864,11 @@ function SampleTableRow({
   const canManage = canSample || canReviewSample;
   return (
     <>
-      <tr className={`align-top ${editing ? "" : "border-b last:border-0"}`}>
+      <tr
+        className={`align-top ${editing ? "" : "border-b last:border-0"} ${
+          canReviewSample && s.review_status === "pending" ? "bg-amber-500/10" : ""
+        }`}
+      >
         <td className="whitespace-nowrap px-2 py-2 text-muted-foreground">
           {fmtDateTime(s.collected_at)}
         </td>
