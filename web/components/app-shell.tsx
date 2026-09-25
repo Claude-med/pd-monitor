@@ -12,11 +12,14 @@ export function AppShell({
   children,
   unreadCount = 0,
   pendingEditCount = 0,
+  pendingApprovalCount = 0,
 }: {
   profile: Profile;
   children: React.ReactNode;
   unreadCount?: number;
   pendingEditCount?: number;
+  /** Part H: รายการที่ผู้ใช้คนนี้อนุมัติได้ (เมนู ⏳ รออนุมัติ) */
+  pendingApprovalCount?: number;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const pathname = usePathname();
@@ -58,6 +61,11 @@ export function AppShell({
             {item.href === "/edit-requests" && pendingEditCount > 0 && (
               <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
                 {pendingEditCount > 99 ? "99+" : pendingEditCount}
+              </span>
+            )}
+            {item.href === "/approvals" && pendingApprovalCount > 0 && (
+              <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                {pendingApprovalCount > 99 ? "99+" : pendingApprovalCount}
               </span>
             )}
             {!item.ready && (

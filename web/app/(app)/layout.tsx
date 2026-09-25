@@ -5,6 +5,7 @@ import { getPendingEditCount } from "@/lib/data/edit-requests";
 import { hasAnyRole } from "@/lib/auth/roles";
 import { AppShell } from "@/components/app-shell";
 import { EDIT_REVIEWER_ROLES } from "@/lib/data/edit-request-constants";
+import { APPROVER_ROLES, getMyApprovals } from "@/lib/data/pending-approvals";
 
 export default async function AppLayout({
   children,
@@ -57,12 +58,16 @@ export default async function AppLayout({
   const pendingEditCount = hasAnyRole(profile.roles, EDIT_REVIEWER_ROLES)
     ? await getPendingEditCount(profile.roles)
     : 0;
+  const pendingApprovalCount = hasAnyRole(profile.roles, APPROVER_ROLES)
+    ? (await getMyApprovals(profile)).length
+    : 0;
 
   return (
     <AppShell
       profile={profile}
       unreadCount={unreadCount}
       pendingEditCount={pendingEditCount}
+      pendingApprovalCount={pendingApprovalCount}
     >
       {children}
     </AppShell>

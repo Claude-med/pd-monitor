@@ -1,6 +1,7 @@
 import type { AppRole } from "@/lib/auth/dal";
 import { hasAnyRole } from "@/lib/auth/roles";
 import { EDIT_REVIEWER_ROLES } from "@/lib/data/edit-request-constants";
+import { APPROVER_ROLES } from "@/lib/data/pending-approvals-constants";
 
 export type NavItem = {
   href: string;
@@ -26,6 +27,8 @@ export const USER_ADMIN_ROLES: AppRole[] = [
 export const NAV_ITEMS: NavItem[] = [
   { href: "/", label: "แดชบอร์ด", roles: "all", ready: true },
   { href: "/inbox", label: "🔔 แจ้งเตือน", roles: "all", ready: true },
+  // Part H: รวมของที่หัวหน้าต้องอนุมัติจากทุกงาน · ค่ากลาง role อยู่ที่ pending-approvals.ts
+  { href: "/approvals", label: "⏳ รออนุมัติ", roles: APPROVER_ROLES, ready: true },
   { href: "/board", label: "บอร์ดงาน", roles: "all", ready: true },
   { href: "/daily", label: "รายงานประจำวัน", roles: "all", ready: true },
   { href: "/machines", label: "เครื่องจักร", roles: "all", ready: true },
