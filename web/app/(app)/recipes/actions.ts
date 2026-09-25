@@ -75,7 +75,6 @@ export async function upsertProduct(v: {
   });
   if (error) return { error: error.message || "บันทึกผลิตภัณฑ์ไม่สำเร็จ" };
   revalidatePath("/recipes");
-  revalidatePath("/materials");
   return { ok: true, id: data as string };
 }
 
@@ -94,7 +93,6 @@ export async function setProductActive(
   });
   if (error) return { error: error.message || "เปลี่ยนสถานะไม่สำเร็จ" };
   revalidatePath("/recipes");
-  revalidatePath("/materials");
   return { ok: true };
 }
 
@@ -112,7 +110,6 @@ export async function deleteProduct(productId: string): Promise<DeleteResult> {
 
   const res = (data ?? {}) as { action?: string; message?: string };
   revalidatePath("/recipes");
-  revalidatePath("/materials");
   return {
     ok: true,
     action: res.action === "deleted" ? "deleted" : "deactivated",
@@ -189,7 +186,6 @@ export async function forceDeleteProduct(
 
   const res = (data ?? {}) as { message?: string };
   revalidatePath("/recipes");
-  revalidatePath("/materials");
   return { ok: true, action: "deleted", message: res.message ?? "ลบถาวรแล้ว" };
 }
 

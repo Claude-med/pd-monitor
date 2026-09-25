@@ -36,8 +36,7 @@ delete from public.jobs;
 -- (2) สต็อก FG ที่ไม่ได้ผูกงาน (ถ้ามีหลงเหลือ)
 delete from public.fg_inventory;
 
--- (3) ล็อตในคลัง — ทำหลังข้อ (1) เพราะใบเบิกชี้มาที่ล็อต ถ้าลบก่อนจะติด FK
-delete from public.material_lots;
+-- (3) ล็อตในคลัง — ตาราง material_lots ถูกลบถาวรใน 0101 แล้ว (ข้อนี้ไม่มีอีก)
 
 -- (4) ลบล็อตการผลิตที่กำพร้า (ไม่มีงานไหนใช้แล้ว)
 delete from public.batches b
@@ -52,7 +51,6 @@ delete from public.orders o
 select (select count(*) from public.jobs)           as jobs_เหลือ,
        (select count(*) from public.batches)        as batches_เหลือ,
        (select count(*) from public.orders)         as orders_เหลือ,
-       (select count(*) from public.material_lots)  as ล็อตคลัง_เหลือ,
        (select count(*) from public.fg_inventory)   as สต็อกFG_เหลือ;
 
 commit;

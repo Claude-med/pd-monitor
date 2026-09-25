@@ -32,7 +32,6 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/board", label: "บอร์ดงาน", roles: "all", ready: true },
   { href: "/daily", label: "รายงานประจำวัน", roles: "all", ready: true },
   { href: "/machines", label: "เครื่องจักร", roles: "all", ready: true },
-  { href: "/materials", label: "ผลิตภัณฑ์คลัง", roles: "all", ready: true },
   {
     // Part C.2 — ฝ่ายคลังกดสถานะความพร้อมข้ามงานได้จากที่เดียว
     // (เพิ่ม/แก้/ลบรายการยังทำที่หน้างานที่เดียว ไม่ทำ 2 ทางเข้า)

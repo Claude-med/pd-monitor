@@ -29,7 +29,7 @@ export const TABLE_LABEL: Record<string, string> = {
   product_routes: "ขั้นตอนการผลิต (route)",
   job_routes: "ขั้นตอนการผลิตของงาน",
   materials: "วัตถุดิบ (เลิกใช้แล้ว)",
-  material_lots: "ล็อตผลิตภัณฑ์",
+  material_lots: "ล็อตผลิตภัณฑ์ (หน้าคลังเดิม — ลบแล้ว 0101)",
   material_requisitions: "ใบเบิกผลิตภัณฑ์ (ระบบเดิม)",
   job_materials: "รายการเบิกวัตถุดิบ/บรรจุภัณฑ์",
   line_clearances: "Line Clearance",

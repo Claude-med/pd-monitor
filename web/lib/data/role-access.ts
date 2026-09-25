@@ -18,7 +18,6 @@ import { hasAnyRole } from "@/lib/auth/roles";
  *      canEditProductRoute()  ↔ public.can_edit_product_route()  (0090)
  *      canSetJobNo()          ↔ public.can_set_job_no()          (0090)
  *      canManageMachines()    ↔ public.can_manage_machines()
- *      canSetLotStatus()      ↔ public.can_set_lot_status()
  *      canSetJobLot()         ↔ public.can_set_job_lot()
  *      canSetMachineSchedule()↔ public.can_set_machine_schedule()
  *      canEditJobPlanFields()      ↔ can_plan_jobs()      (ใช้ใน update_job_details · 0054)
@@ -52,7 +51,7 @@ export type RoleAccess = {
 
 /** หน้าที่ทุก role ที่ล็อกอินเห็นได้เหมือนกัน (ดูอย่างเดียว) */
 export const COMMON_VIEW =
-  "แดชบอร์ด · บอร์ดงาน · รายงานประจำวัน · เครื่องจักร · ผลิตภัณฑ์คลัง · ผลิตภัณฑ์/ขั้นตอนการผลิต · แจ้งเตือน";
+  "แดชบอร์ด · บอร์ดงาน · รายงานประจำวัน · เครื่องจักร · ผลิตภัณฑ์/ขั้นตอนการผลิต · แจ้งเตือน";
 
 export const ROLE_ACCESS: Record<AppRole, RoleAccess> = {
   planner: {
@@ -62,7 +61,6 @@ export const ROLE_ACCESS: Record<AppRole, RoleAccess> = {
       "สร้างงานผลิตใหม่ทีละหลายใบ (ออเดอร์ + งาน · เลขล็อตเป็นของฝ่ายผลิต)",
       "เพิ่ม/แก้/ลบผลิตภัณฑ์ในทะเบียน + แก้ขั้นตอนการผลิต (route) ของผลิตภัณฑ์",
       "ตั้งค่าเลขงานของแต่ละบริษัท (แท็บ บริษัท / เลขงาน)",
-      "ตั้งสถานะล็อตในคลัง (พร้อมใช้ / ไม่พร้อมใช้)",
       "ยืนยันแผนผลิต (รอแจ้งผลิต → มีแผนแล้ว)",
     ],
     view: ["ความคืบหน้าทุกงานบนบอร์ด"],
@@ -154,10 +152,9 @@ export const ROLE_ACCESS: Record<AppRole, RoleAccess> = {
   },
   warehouse: {
     code: "WH",
-    duty: "คลังผลิตภัณฑ์ + รับสินค้าสำเร็จรูปเข้าคลัง",
+    duty: "วัตถุดิบพร้อมให้แต่ละงาน + รับสินค้าสำเร็จรูปเข้าคลัง",
     manage: [
       "เพิ่ม/แก้/ลบผลิตภัณฑ์ในทะเบียน (แก้ขั้นตอนการผลิตไม่ได้)",
-      "ล็อต/สต็อกของผลิตภัณฑ์ทุกตัว (ตั้งสถานะล็อตไม่ได้ — ฝ่ายวางแผนกดปลดเองที่แถวล็อต)",
       "กดสถานะ พร้อม/ไม่พร้อม ให้รายการเบิกของแต่ละงาน (เพิ่ม/แก้/ลบรายการไม่ได้)",
       "รับ FG เข้าคลัง · บันทึกจ่ายออก (ดูยอดคงคลังรายเดือน)",
     ],
@@ -283,18 +280,6 @@ export function canManageMachines(roles: AppRole[]): boolean {
     "engineering",
     "manager",
   ]);
-}
-
-/**
- * ตั้งสถานะล็อต "พร้อมใช้ / ไม่พร้อมใช้" — ตรงกับ can_set_lot_status() ใน DB (0046)
- * ฝ่ายคลังเพิ่ม/แก้ล็อตได้ แต่ปลดสถานะเป็นหน้าที่ฝ่ายวางแผน
- *
- * 0051: ใช้กับ RPC set_lot_status() (ชิปกดบนแถวล็อต) — แยกจาก canManage ของหน้าคลัง
- * ก่อนหน้านี้ helper นี้ถูกต้องแล้วแต่ code path จริงกันฝ่ายวางแผนไว้ 3 ชั้น
- * จนมีแต่ผู้บริหารที่ปลดล็อตได้ · ห้ามเอา requireWarehouse() มาครอบซ้ำอีก
- */
-export function canSetLotStatus(roles: AppRole[]): boolean {
-  return hasAnyRole(roles, ["planner", "manager"]);
 }
 
 /**
