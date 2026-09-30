@@ -88,8 +88,12 @@ grant  execute on function public.delete_product(uuid) to authenticated;
 -- ✅ ตรวจหลัง paste (รันทีละข้อ)
 --
 -- ข้อ 1 · ไม่มีฟังก์ชันไหนอ้างตาราง material_lots เหลืออยู่แล้ว (กันตกหล่นแบบรอบนี้ซ้ำ)
+--   ⚠️ ต้องหาเฉพาะ "จุดที่ใช้ตารางจริง" (from / join / update …) — ค้นคำเฉย ๆ จะติดบรรทัดหมายเหตุ
+--      (เวอร์ชันแรกของข้อนี้ใช้ ilike '%material_lots%' แล้วได้ delete_product / product_delete_report
+--       ซึ่งมีคำนี้แค่ในหมายเหตุ — ตรวจแล้ว 30 ก.ย. 69 ไม่ใช่บั๊ก)
 --   select proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
---    where n.nspname = 'public' and p.prosrc ilike '%material_lots%';
+--    where n.nspname = 'public'
+--      and p.prosrc ~* '(from|join|update|into|table)\s+(public\.)?material_lots';
 --   ✅ ไม่มีแถวเลย (No rows returned)
 --   ❌ มีชื่อฟังก์ชันโผล่ = ยังมีตัวที่จะพังแบบเดียวกัน → ส่งชื่อให้ Claude
 --
