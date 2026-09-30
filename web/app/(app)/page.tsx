@@ -3,7 +3,11 @@ import { getProfile } from "@/lib/auth/dal";
 import { canSeeCost } from "@/lib/data/role-access";
 import {
   getDashboardData,
+  getLaborByJob,
+  laborCost,
   DEFAULT_LABOR_RATE,
+  DEFAULT_OT_MULTIPLIER,
+  type JobLabor,
   type PendingOrderCounts,
 } from "@/lib/data/dashboard";
 import { STATUS_COLOR } from "@/lib/data/job-constants";
@@ -99,6 +103,144 @@ function StatCard({ card, value }: { card: Card; value: number }) {
   );
 }
 
+/**
+ * "ดูรายละเอียดการคำนวณ" — ค่าแรงแตกราย Job (0103 dashboard_labor_by_job)
+ * ใช้ <details> ของ HTML ล้วน (server component · ไม่ต้องมี JS ฝั่งเครื่องผู้ใช้)
+ * แถวรวมต้องเท่ากับการ์ดต้นทุนเสมอ — ถ้าไม่เท่าขึ้นเตือน (ไม่ควรเกิด: เงื่อนไขกรองชุดเดียวกัน)
+ */
+function LaborBreakdown({
+  rows,
+  error,
+  rate,
+  otRate,
+  expectedTotal,
+}: {
+  rows: JobLabor[];
+  error: string | null;
+  rate: number;
+  otRate: number;
+  expectedTotal: number;
+}) {
+  const sum = rows.reduce(
+    (a, r) => ({
+      records: a.records + r.recordCount,
+      normal: a.normal + r.normalPersonHours,
+      ot: a.ot + r.otPersonHours,
+    }),
+    { records: 0, normal: 0, ot: 0 },
+  );
+  const total = sum.normal * rate + sum.ot * otRate;
+  const mismatch = !error && Math.abs(total - expectedTotal) >= 0.5;
+
+  return (
+    <details className="mt-4 rounded-lg border">
+      <summary className="cursor-pointer select-none px-3 py-2 text-sm font-medium hover:bg-accent/50">
+        🧮 ดูรายละเอียดการคำนวณ (ราย Job · {rows.length} งาน)
+      </summary>
+      <div className="border-t p-3">
+        {error ? (
+          <p className="text-sm text-destructive">
+            ⚠️ โหลดรายละเอียดไม่สำเร็จ: {error} (ตรวจว่ารัน migration 0103 แล้วหรือยัง)
+          </p>
+        ) : rows.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            ไม่มีบันทึกผลผลิตในช่วงนี้
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[640px] text-sm">
+              <thead>
+                <tr className="border-b text-left text-xs text-muted-foreground">
+                  <th className="px-2 py-2 font-medium">Job</th>
+                  <th className="px-2 py-2 font-medium">ผลิตภัณฑ์</th>
+                  <th className="px-2 py-2 text-right font-medium">บันทึก</th>
+                  <th className="px-2 py-2 text-right font-medium">คน-ชม. ปกติ</th>
+                  <th className="px-2 py-2 text-right font-medium">คน-ชม. OT</th>
+                  <th className="px-2 py-2 text-right font-medium">ค่าแรงปกติ</th>
+                  <th className="px-2 py-2 text-right font-medium">ค่าแรง OT</th>
+                  <th className="px-2 py-2 text-right font-medium">รวม (฿)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => {
+                  const n = r.normalPersonHours * rate;
+                  const o = r.otPersonHours * otRate;
+                  return (
+                    <tr key={r.jobId} className="border-b last:border-0">
+                      <td className="whitespace-nowrap px-2 py-1.5">
+                        <Link
+                          href={`/board/${encodeURIComponent(r.jobNo)}`}
+                          className="font-medium text-primary hover:underline"
+                        >
+                          {r.jobNo}
+                        </Link>
+                      </td>
+                      <td className="px-2 py-1.5">{r.productName ?? "—"}</td>
+                      <td className="px-2 py-1.5 text-right tabular-nums">
+                        {r.recordCount}
+                      </td>
+                      <td className="px-2 py-1.5 text-right tabular-nums">
+                        {fmt(r.normalPersonHours)}
+                      </td>
+                      <td className="px-2 py-1.5 text-right tabular-nums">
+                        {r.otPersonHours > 0 ? fmt(r.otPersonHours) : "—"}
+                      </td>
+                      <td className="px-2 py-1.5 text-right tabular-nums">
+                        {fmtBaht(n)}
+                      </td>
+                      <td className="px-2 py-1.5 text-right tabular-nums">
+                        {o > 0 ? fmtBaht(o) : "—"}
+                      </td>
+                      <td className="px-2 py-1.5 text-right font-medium tabular-nums">
+                        {fmtBaht(n + o)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr className="border-t-2 font-semibold">
+                  <td className="px-2 py-2" colSpan={2}>
+                    รวม
+                  </td>
+                  <td className="px-2 py-2 text-right tabular-nums">
+                    {sum.records}
+                  </td>
+                  <td className="px-2 py-2 text-right tabular-nums">
+                    {fmt(sum.normal)}
+                  </td>
+                  <td className="px-2 py-2 text-right tabular-nums">
+                    {fmt(sum.ot)}
+                  </td>
+                  <td className="px-2 py-2 text-right tabular-nums">
+                    {fmtBaht(sum.normal * rate)}
+                  </td>
+                  <td className="px-2 py-2 text-right tabular-nums">
+                    {fmtBaht(sum.ot * otRate)}
+                  </td>
+                  <td className="px-2 py-2 text-right tabular-nums">
+                    ฿{fmtBaht(total)}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
+        <p className="mt-2 text-xs text-muted-foreground">
+          สูตรต่อ Job: (คน-ชม. ปกติ × {fmt(rate)} ฿) + (คน-ชม. OT × {fmt(otRate)} ฿) ·
+          คน-ชม. = นาทีที่บันทึก ÷ 60 × จำนวนคน · ไม่นับบันทึกที่ถูกตีกลับ
+        </p>
+        {mismatch && (
+          <p className="mt-1 text-xs text-destructive">
+            ⚠️ ผลรวมราย Job (฿{fmtBaht(total)}) ไม่เท่ากับยอดรวมด้านบน (฿
+            {fmtBaht(expectedTotal)}) — แจ้งผู้ดูแลระบบ
+          </p>
+        )}
+      </div>
+    </details>
+  );
+}
+
 function fmt(n: number): string {
   // ตัดทศนิยมที่ลงท้ายด้วยศูนย์ออก แต่คงสูงสุด 2 ตำแหน่ง
   return n.toLocaleString("th-TH", { maximumFractionDigits: 2 });
@@ -124,7 +266,12 @@ const ISO = /^\d{4}-\d{2}-\d{2}$/;
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ from?: string; to?: string; rate?: string }>;
+  searchParams: Promise<{
+    from?: string;
+    to?: string;
+    rate?: string;
+    otRate?: string;
+  }>;
 }) {
   const profile = await getProfile();
   // ต้นทุนค่าแรง: เห็น/ปรับอัตราได้เฉพาะผู้บริหาร + บัญชีต้นทุน (COST)
@@ -139,10 +286,18 @@ export default async function DashboardPage({
     Number.isFinite(parsedRate) && parsedRate >= 0
       ? parsedRate
       : DEFAULT_LABOR_RATE;
+  // ช่อง OT ว่าง = ค่าแรงปกติ × 1.5 (Number("") คือ 0 จึงต้องเช็กสตริงว่างเอง)
+  const parsedOtRate = sp.otRate?.trim() ? Number(sp.otRate) : NaN;
+  const otRateEntered = Number.isFinite(parsedOtRate) && parsedOtRate >= 0;
+  const otRate = otRateEntered ? parsedOtRate : rate * DEFAULT_OT_MULTIPLIER;
 
-  const d = await getDashboardData(from, to);
+  const [d, labor] = await Promise.all([
+    getDashboardData(from, to),
+    showCost ? getLaborByJob(from, to) : Promise.resolve(null),
+  ]);
   const c = d.counts;
-  const dlCost = d.totalPersonHours * rate;
+  const normalPersonHours = d.totalPersonHours - d.totalOtPersonHours;
+  const dlCost = laborCost(d.totalPersonHours, d.totalOtPersonHours, rate, otRate);
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -280,6 +435,23 @@ export default async function DashboardPage({
             />
           </div>
         )}
+        {showCost && (
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">
+              ค่าแรง OT (฿/ชม.)
+            </label>
+            <input
+              type="number"
+              name="otRate"
+              min={0}
+              step="any"
+              defaultValue={otRateEntered ? otRate : ""}
+              placeholder={`${fmt(otRate)} (×${DEFAULT_OT_MULTIPLIER})`}
+              title={`เว้นว่าง = ค่าแรงปกติ × ${DEFAULT_OT_MULTIPLIER}`}
+              className="w-36 rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
+        )}
         <button
           type="submit"
           className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
@@ -293,7 +465,7 @@ export default async function DashboardPage({
         <h2 className="mb-2 text-sm font-semibold text-muted-foreground">
           ผลผลิตช่วง {from} ถึง {to} ({d.recordCount} บันทึก)
         </h2>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
           <div className="rounded-xl border bg-card p-4">
             <p className="text-xs text-muted-foreground">ผลิตได้รวม</p>
             <p className="mt-1 text-xl font-bold tabular-nums">
@@ -318,6 +490,15 @@ export default async function DashboardPage({
               {fmt(d.totalHours)}
             </p>
           </div>
+          <div className="rounded-xl border bg-card p-4">
+            <p className="text-xs text-muted-foreground">ชั่วโมง OT รวม</p>
+            <p className="mt-1 text-xl font-bold tabular-nums">
+              {fmt(d.totalOtHours)}
+            </p>
+            <p className="text-[11px] text-muted-foreground">
+              รวมอยู่ในชั่วโมงแรงงานแล้ว
+            </p>
+          </div>
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
           * ไม่นับบันทึกผลผลิตที่หัวหน้าตีกลับ (ไม่อนุมัติ)
@@ -328,7 +509,8 @@ export default async function DashboardPage({
       {showCost && (
         <div>
           <h2 className="mb-2 text-sm font-semibold text-muted-foreground">
-            ต้นทุนค่าแรงทางตรง (DL cost) · ที่ {fmt(rate)} ฿/ชม.
+            ต้นทุนค่าแรงทางตรง (DL cost) · ปกติ {fmt(rate)} ฿/ชม. · OT{" "}
+            {fmt(otRate)} ฿/ชม.
           </h2>
           <div className="rounded-xl border bg-card p-5">
             <p className="text-xs text-muted-foreground">
@@ -338,7 +520,10 @@ export default async function DashboardPage({
               ฿{fmtBaht(dlCost)}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              = {fmt(d.totalPersonHours)} คน-ชม. × {fmt(rate)} ฿/ชม.
+              = ปกติ {fmt(normalPersonHours)} คน-ชม. × {fmt(rate)} ฿ (฿
+              {fmtBaht(normalPersonHours * rate)}) + OT{" "}
+              {fmt(d.totalOtPersonHours)} คน-ชม. × {fmt(otRate)} ฿ (฿
+              {fmtBaht(d.totalOtPersonHours * otRate)})
             </p>
 
             <div className="mt-4 overflow-x-auto">
@@ -348,6 +533,9 @@ export default async function DashboardPage({
                     <th className="px-3 py-2 font-medium">สถานี</th>
                     <th className="px-3 py-2 text-right font-medium">ชม.</th>
                     <th className="px-3 py-2 text-right font-medium">คน-ชม.</th>
+                    <th className="px-3 py-2 text-right font-medium">
+                      คน-ชม. OT
+                    </th>
                     <th className="px-3 py-2 text-right font-medium">ผลิตได้</th>
                     <th className="px-3 py-2 text-right font-medium">ของเสีย</th>
                     <th className="px-3 py-2 text-right font-medium">ค่าแรง (฿)</th>
@@ -366,13 +554,19 @@ export default async function DashboardPage({
                         {fmt(s.personHours)}
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums">
+                        {s.otPersonHours > 0 ? fmt(s.otPersonHours) : "—"}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums">
                         {fmt(s.output)}
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums">
                         {fmt(s.loss)}
                       </td>
                       <td className="px-3 py-2 text-right font-medium tabular-nums">
-                        ฿{fmtBaht(s.personHours * rate)}
+                        ฿
+                        {fmtBaht(
+                          laborCost(s.personHours, s.otPersonHours, rate, otRate),
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -385,6 +579,9 @@ export default async function DashboardPage({
                     </td>
                     <td className="px-3 py-2 text-right tabular-nums">
                       {fmt(d.totalPersonHours)}
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums">
+                      {fmt(d.totalOtPersonHours)}
                     </td>
                     <td className="px-3 py-2 text-right tabular-nums">
                       {fmt(d.totalOutput)}
@@ -400,9 +597,20 @@ export default async function DashboardPage({
               </table>
             </div>
             <p className="mt-3 text-xs text-muted-foreground">
-              * ค่าแรงคิดจาก คน-ชม. (ชั่วโมง × จำนวนคน) × อัตราที่ตั้ง — ไม่ระบุจำนวนคน = คิด 1 คน (ปรับช่อง
-              &ldquo;ค่าแรง&rdquo; ด้านบนได้) — ใช้ประเมินต้นทุนเบื้องต้น
+              * ค่าแรงคิดจาก คน-ชม. (ชั่วโมง × จำนวนคน) × อัตราที่ตั้ง — ไม่ระบุจำนวนคน = คิด 1 คน ·
+              บันทึกที่เลือกช่วงเวลา &ldquo;OT&rdquo; คิดด้วยค่าแรง OT (เว้นว่าง = ค่าแรงปกติ ×{" "}
+              {DEFAULT_OT_MULTIPLIER}) — ใช้ประเมินต้นทุนเบื้องต้น
             </p>
+
+            {labor && (
+              <LaborBreakdown
+                rows={labor.rows}
+                error={labor.error}
+                rate={rate}
+                otRate={otRate}
+                expectedTotal={dlCost}
+              />
+            )}
           </div>
         </div>
       )}

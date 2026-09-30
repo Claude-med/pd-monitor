@@ -12,6 +12,9 @@ import { createClient } from "@/lib/supabase/server";
 /** อัตราค่าแรงตั้งต้น (บาท/ชั่วโมง) — ปรับได้ในหน้าแดชบอร์ด (ผู้บริหาร) */
 export const DEFAULT_LABOR_RATE = 60;
 
+/** ค่าแรง OT ตั้งต้น = ค่าแรงปกติ × ตัวคูณนี้ (ช่อง OT ว่าง) — ผู้ใช้เลือก 30 ก.ย. 69 */
+export const DEFAULT_OT_MULTIPLIER = 1.5;
+
 /** คีย์ของแถวสถานีที่ไม่ได้ผูกสถานี (station_id เป็น null) — ใช้เป็น React key เท่านั้น */
 export const NO_STATION_KEY = "__no_station__";
 
@@ -21,6 +24,8 @@ export type StationAgg = {
   stationName: string;
   hours: number;
   personHours: number; // ชม. × จำนวนคน (คน-ชม.) — A5
+  otHours: number; // ส่วนที่เป็น OT ของ hours (0103)
+  otPersonHours: number; // ส่วนที่เป็น OT ของ personHours (0103)
   output: number;
   loss: number;
 };
@@ -72,6 +77,8 @@ export type DashboardData = {
   totalLoss: number;
   totalHours: number;
   totalPersonHours: number; // ชม. × คน รวม (ใช้คิดค่าแรง) — A5
+  totalOtHours: number; // ชั่วโมง OT รวม (0103)
+  totalOtPersonHours: number; // คน-ชม. ที่เป็น OT (คิดด้วยค่าแรง OT)
   yieldPct: number | null; // output/input × 100 (null = ยังไม่มี input)
   byStation: StationAgg[];
 };
@@ -103,6 +110,8 @@ type ProductionSummaryRow = {
   output_qty: number | string;
   loss_qty: number | string;
   record_count: number;
+  ot_minutes: number | string;
+  ot_person_minutes: number | string;
 };
 
 const EMPTY_COUNTS: PendingOrderCounts = {
@@ -145,7 +154,7 @@ export async function getDashboardData(
   const loadError =
     countsErr?.message || sumErr?.message
       ? `โหลดตัวเลขไม่สำเร็จ: ${countsErr?.message ?? sumErr?.message}` +
-        ` (ถ้าเพิ่งขึ้นเว็บใหม่ ตรวจว่ารัน migration 0081 ใน Supabase แล้วหรือยัง)`
+        ` (ถ้าเพิ่งขึ้นเว็บใหม่ ตรวจว่ารัน migration 0081 / 0103 ใน Supabase แล้วหรือยัง)`
       : null;
 
   // RPC ที่ returns table คืนมาเป็น array — แถวเดียว
@@ -186,6 +195,8 @@ export async function getDashboardData(
   let totalLoss = 0;
   let totalMinutes = 0;
   let totalPersonMinutes = 0;
+  let totalOtMinutes = 0;
+  let totalOtPersonMinutes = 0;
   for (const r of rows) {
     recordCount += r.record_count;
     totalInput += num(r.input_qty);
@@ -193,6 +204,8 @@ export async function getDashboardData(
     totalLoss += num(r.loss_qty);
     totalMinutes += num(r.minutes);
     totalPersonMinutes += num(r.person_minutes);
+    totalOtMinutes += num(r.ot_minutes);
+    totalOtPersonMinutes += num(r.ot_person_minutes);
   }
 
   // 0063: DB เก็บเป็นนาที — ต้นทุนค่าแรงคิดเป็น ฿/ชม. จึงแปลงที่นี่
@@ -210,6 +223,8 @@ export async function getDashboardData(
     totalLoss,
     totalHours,
     totalPersonHours,
+    totalOtHours: totalOtMinutes / 60,
+    totalOtPersonHours: totalOtPersonMinutes / 60,
     yieldPct: totalInput > 0 ? (totalOutput / totalInput) * 100 : null,
     // แสดงสถานีที่เปิดใช้งานทั้งหมด + สถานีที่ปิดไปแล้วแต่มีบันทึกในช่วงนี้
     // (เรียงตาม seq มาจาก RPC แล้ว)
@@ -227,8 +242,68 @@ export async function getDashboardData(
         stationName: r.station_name,
         hours: num(r.minutes) / 60,
         personHours: num(r.person_minutes) / 60,
+        otHours: num(r.ot_minutes) / 60,
+        otPersonHours: num(r.ot_person_minutes) / 60,
         output: num(r.output_qty),
         loss: num(r.loss_qty),
       })),
+  };
+}
+
+/** ค่าแรงของก้อนเวลาหนึ่ง — สูตรเดียวทั้งหน้า (การ์ดรวม · รายสถานี · ราย Job ต้องบวกกันได้ตรง) */
+export function laborCost(
+  personHours: number,
+  otPersonHours: number,
+  rate: number,
+  otRate: number,
+): number {
+  return (personHours - otPersonHours) * rate + otPersonHours * otRate;
+}
+
+export type JobLabor = {
+  jobId: string;
+  jobNo: string;
+  productName: string | null;
+  recordCount: number;
+  normalPersonHours: number;
+  otPersonHours: number;
+  otHours: number;
+};
+
+type LaborByJobRow = {
+  job_id: string;
+  job_no: string;
+  product_name: string | null;
+  record_count: number;
+  normal_person_minutes: number | string;
+  ot_person_minutes: number | string;
+  ot_minutes: number | string;
+};
+
+/**
+ * รายละเอียดการคำนวณค่าแรงราย Job (0103) — เรียกเฉพาะคนที่ canSeeCost
+ * DB กั้นสิทธิ์อีกชั้น (manager / cost) · error = คืน error ให้หน้าโชว์ ไม่กลืนเงียบ
+ */
+export async function getLaborByJob(
+  from: string,
+  to: string,
+): Promise<{ rows: JobLabor[]; error: string | null }> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("dashboard_labor_by_job", {
+    p_from: from,
+    p_to: to,
+  });
+  if (error) return { rows: [], error: error.message };
+  return {
+    rows: ((data ?? []) as LaborByJobRow[]).map((r) => ({
+      jobId: r.job_id,
+      jobNo: r.job_no,
+      productName: r.product_name,
+      recordCount: r.record_count,
+      normalPersonHours: num(r.normal_person_minutes) / 60,
+      otPersonHours: num(r.ot_person_minutes) / 60,
+      otHours: num(r.ot_minutes) / 60,
+    })),
+    error: null,
   };
 }
