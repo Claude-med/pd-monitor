@@ -3532,8 +3532,13 @@ feedback ทีม 4 ข้อ: ลบผลิตภัณฑ์ไม่ได
 `web/supabase/migrations/0102–0104` · `web/app/(app)/page.tsx` · `lib/data/dashboard.ts` · `board/page.tsx` · `board/board-view.tsx` ·
 `lib/data/jobs.ts` · `lib/data/job-constants.ts` · `quality/page.tsx` · `quality/quick-actions.tsx` (ใหม่) · `lib/data/quality-inbox.ts` (ใหม่) · `approvals/page.tsx`
 
+### 📢 Notion
+หน้า **"🧭 Part I — บั๊กลบผลิตภัณฑ์ · ค่าแรง OT · งานมีปัญหา = Incident · หน้าตรวจ QC/QA ลงนามในหน้าเดียว claude"**
+(https://app.notion.com/p/3eb92ef2c18f81f8bdeff4c293f8d1bd) — สรุป + คำสั่งตรวจ SQL 9 ข้อ + เช็กลิสต์ทดสอบ 16 ข้อ ·
+สร้างไว้ใต้หน้าหลักโปรเจค (ใส่ในคอลัมน์ "Ai" ตรง ๆ ผ่าน API ไม่ได้ — ต้องลากเข้าเอง)
+
 ### ▶️ พรุ่งนี้เริ่มตรงนี้
-1. **รันคำสั่งตรวจ SQL ท้ายไฟล์ 0102 / 0103 / 0104** (ผู้ใช้ paste แล้ว แต่ยังไม่ได้ส่งผลตรวจ) — 0102 ข้อ 1 ต้องได้ 0 แถว
+1. **รันคำสั่งตรวจ SQL 9 ข้อ (อยู่ในหน้า Notion Part I)** (ผู้ใช้ paste แล้ว แต่ยังไม่ได้ส่งผลตรวจ) — 0102 ข้อ 1 ต้องได้ 0 แถว
 2. ทดสอบ UI: ลบผลิตภัณฑ์ · แดชบอร์ดด้วยบัญชีผู้บริหาร (ผลรวมราย Job = การ์ดต้นทุน) · กดการ์ด Pending Order แล้วตัวเลขตรงบอร์ด ·
    `/quality` ด้วยบัญชีลูกน้อง/หัวหน้า QC และ QA (รหัสผ่านผิดต้องไม่ผ่าน · งานที่มี Incident เปิด ปุ่มปล่อยผ่านต้องถูกปิด)
 3. อัปเดตคู่มือ (ค้างจาก Part G + H + I)
