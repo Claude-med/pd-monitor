@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import type { JobRow } from "@/lib/data/job-constants";
+import { DEVIATION_DONE_STATUSES } from "@/lib/data/deviation-constants";
 
 // re-export constants/types เผื่อ import จากที่เดียว (server ใช้ได้)
 export * from "@/lib/data/job-constants";
@@ -60,20 +61,34 @@ function shape(r: any): JobRow {
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
-/** งานทั้งหมด (RLS: ผู้ใช้ที่ login อ่านได้) + ธงว่ารับเข้าคลัง FG แล้วหรือยัง */
+/**
+ * งานทั้งหมด (RLS: ผู้ใช้ที่ login อ่านได้) + ธงว่ารับเข้าคลัง FG แล้วหรือยัง
+ * + จำนวน Incident ที่ยังไม่ปิด (Part I — ใช้กับ "งานมีปัญหา" ดู isProblemJob)
+ */
 export async function getJobs(): Promise<JobRow[]> {
   const supabase = await createClient();
-  const [{ data }, { data: fgRows }] = await Promise.all([
+  const [{ data }, { data: fgRows }, { data: incRows }] = await Promise.all([
     supabase.from("jobs").select(SELECT).order("job_no"),
     // fg_inventory อ่านได้ทุก role (RLS using(true)) — ใช้บอกว่างานเข้าคลังแล้ว
     supabase.from("fg_inventory").select("job_id"),
+    // deviations อ่านได้ทุก role (0025 using(true)) · ดึงเฉพาะที่ยังเปิด = แถวน้อย ไม่ชนเพดาน 1,000
+    // "เปิด" ต้องตรงกับ DEVIATION_DONE_STATUSES / has_open_deviation()
+    supabase
+      .from("deviations")
+      .select("job_id")
+      .not("status", "in", `(${DEVIATION_DONE_STATUSES.join(",")})`),
   ]);
   const receivedJobIds = new Set(
     (fgRows ?? []).map((r: { job_id: string }) => r.job_id),
   );
+  const openIncidents = new Map<string, number>();
+  for (const r of (incRows ?? []) as { job_id: string }[]) {
+    openIncidents.set(r.job_id, (openIncidents.get(r.job_id) ?? 0) + 1);
+  }
   return (data ?? []).map((r) => {
     const job = shape(r);
     job.fg_received = receivedJobIds.has(job.id);
+    job.open_incidents = openIncidents.get(job.id) ?? 0;
     return job;
   });
 }

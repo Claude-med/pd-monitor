@@ -69,7 +69,12 @@ export type DashboardData = {
   // snapshot ปัจจุบันของงานทั้งหมด (ไม่อิงช่วงวันที่)
   counts: PendingOrderCounts;
   totalJobs: number;
+  /** งานมีปัญหา = ธงปัญหา หรือ Incident เปิด — ตรงกับ isProblemJob() ของบอร์ดงาน (0104) */
   problemCount: number;
+  /** จำนวน "งาน" ที่มี Incident Case ยังไม่ปิด (0104) */
+  incidentOpenCount: number;
+  /** รับเข้าคลัง FG ในช่วงวันที่ (fg_inventory.received_date) — ไม่ใช่ยอดสะสม */
+  fgReceivedInRange: number;
   // สรุปบันทึกผลผลิตในช่วงวันที่ [from, to]
   recordCount: number;
   totalInput: number;
@@ -94,8 +99,9 @@ type JobCountsRow = {
   qa: number;
   awaiting_fg: number;
   in_stock: number;
-  problem: number;
+  problem: number; // 0104: ธงปัญหา หรือ Incident เปิด
   total: number;
+  incident_open: number; // 0104
 };
 
 /** แถวที่ dashboard_production_summary() คืนมา (0081) — หนึ่งแถวต่อสถานี */
@@ -139,14 +145,25 @@ function num(v: number | string | null | undefined): number {
 export async function getDashboardData(
   from: string,
   to: string,
+  /** กรองกล่อง Pending Order ตามบริษัท (null = ทุกบริษัท · 0104) — ไม่กระทบส่วนช่วงวันที่ */
+  companyId: string | null = null,
 ): Promise<DashboardData> {
   const supabase = await createClient();
 
-  const [{ data: countsData, error: countsErr }, { data: sumData, error: sumErr }] =
-    await Promise.all([
-      supabase.rpc("dashboard_job_counts"),
-      supabase.rpc("dashboard_production_summary", { p_from: from, p_to: to }),
-    ]);
+  const [
+    { data: countsData, error: countsErr },
+    { data: sumData, error: sumErr },
+    { count: fgCount },
+  ] = await Promise.all([
+    supabase.rpc("dashboard_job_counts", { p_company_id: companyId }),
+    supabase.rpc("dashboard_production_summary", { p_from: from, p_to: to }),
+    // เข้าคลังในช่วงวันที่ (Part I) — นับอย่างเดียว (head) ไม่ชนเพดาน max-rows
+    supabase
+      .from("fg_inventory")
+      .select("id", { count: "exact", head: true })
+      .gte("received_date", from)
+      .lte("received_date", to),
+  ]);
 
   // ต้องเช็ก error เสมอ — RPC/RLS พังจะตอบ [] แบบเงียบ แยกจาก "ไม่มีข้อมูล" ไม่ออก
   // (บทเรียนเดียวกับ job-routes.ts:85) · ที่นี่ไม่ throw เพราะนี่คือหน้าแรกหลังล็อกอิน
@@ -154,7 +171,7 @@ export async function getDashboardData(
   const loadError =
     countsErr?.message || sumErr?.message
       ? `โหลดตัวเลขไม่สำเร็จ: ${countsErr?.message ?? sumErr?.message}` +
-        ` (ถ้าเพิ่งขึ้นเว็บใหม่ ตรวจว่ารัน migration 0081 / 0103 ใน Supabase แล้วหรือยัง)`
+        ` (ถ้าเพิ่งขึ้นเว็บใหม่ ตรวจว่ารัน migration 0103 / 0104 ใน Supabase แล้วหรือยัง)`
       : null;
 
   // RPC ที่ returns table คืนมาเป็น array — แถวเดียว
@@ -217,6 +234,8 @@ export async function getDashboardData(
     counts,
     totalJobs: c?.total ?? 0,
     problemCount: c?.problem ?? 0,
+    incidentOpenCount: c?.incident_open ?? 0,
+    fgReceivedInRange: fgCount ?? 0,
     recordCount,
     totalInput,
     totalOutput,

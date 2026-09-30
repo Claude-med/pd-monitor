@@ -12,6 +12,7 @@ import {
 } from "@/lib/data/dashboard";
 import { STATUS_COLOR } from "@/lib/data/job-constants";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
+import { listCompanies } from "@/lib/data/companies";
 
 /**
  * การ์ดทั้งหมดของบล็อก Pending Order
@@ -89,10 +90,25 @@ const WIP_CARDS: Card[] = [
   },
 ];
 
-function StatCard({ card, value }: { card: Card; value: number }) {
+/** ต่อ ?company= ให้ลิงก์ไปบอร์ด — บอร์ดกรองบริษัทเดียวกัน ตัวเลขจึงตรงกับการ์ด (Part I) */
+function withCompany(href: string, company: string): string {
+  return company
+    ? `${href}${href.includes("?") ? "&" : "?"}company=${encodeURIComponent(company)}`
+    : href;
+}
+
+function StatCard({
+  card,
+  value,
+  company,
+}: {
+  card: Card;
+  value: number;
+  company: string;
+}) {
   return (
     <Link
-      href={card.href}
+      href={withCompany(card.href, company)}
       title={card.hint}
       className="block rounded-lg border border-l-4 bg-card p-3 transition-colors hover:bg-accent/50"
       style={{ borderLeftColor: card.color }}
@@ -271,9 +287,10 @@ export default async function DashboardPage({
     to?: string;
     rate?: string;
     otRate?: string;
+    company?: string;
   }>;
 }) {
-  const profile = await getProfile();
+  const [profile, companies] = await Promise.all([getProfile(), listCompanies()]);
   // ต้นทุนค่าแรง: เห็น/ปรับอัตราได้เฉพาะผู้บริหาร + บัญชีต้นทุน (COST)
   const showCost = canSeeCost(profile?.roles ?? []);
 
@@ -291,8 +308,14 @@ export default async function DashboardPage({
   const otRateEntered = Number.isFinite(parsedOtRate) && parsedOtRate >= 0;
   const otRate = otRateEntered ? parsedOtRate : rate * DEFAULT_OT_MULTIPLIER;
 
+  // ตัวกรองบริษัทของกล่อง Pending Order — validate กับรายชื่อจริง (ค่ามั่ว = ทุกบริษัท)
+  const company = companies.some((co) => co.id === sp.company)
+    ? (sp.company as string)
+    : "";
+  const companyCode = companies.find((co) => co.id === company)?.code ?? null;
+
   const [d, labor] = await Promise.all([
-    getDashboardData(from, to),
+    getDashboardData(from, to, company || null),
     showCost ? getLaborByJob(from, to) : Promise.resolve(null),
   ]);
   const c = d.counts;
@@ -303,7 +326,7 @@ export default async function DashboardPage({
     <div className="mx-auto max-w-5xl space-y-6">
       {/* กดรับเข้าคลังแล้วการ์ด "รอเข้าคลัง / เข้าคลังแล้ว" ต้องขยับเอง → ต้องฟัง fg_inventory ด้วย */}
       <RealtimeRefresh
-        tables={["jobs", "production_records", "fg_inventory"]}
+        tables={["jobs", "production_records", "fg_inventory", "deviations"]}
       />
 
       {d.loadError && (
@@ -329,8 +352,38 @@ export default async function DashboardPage({
               Pending Order
             </h2>
             <p className="text-xs text-muted-foreground">
-              = Plan + WIP · งานที่ยังไม่เข้าคลัง
+              = Plan + WIP · งานที่ยังไม่เข้าคลัง · <b>ภาพ ณ ตอนนี้</b> (ไม่ขึ้นกับช่วงวันที่ด้านล่าง)
+              {companyCode && <> · บริษัท {companyCode}</>}
             </p>
+            {/* ตัวกรองของกล่องนี้เอง (Part I) — แยกจากฟอร์มช่วงวันที่ · hidden ช่วยให้ค่าด้านล่างไม่หาย */}
+            {companies.length > 0 && (
+              <form method="get" className="mt-2 flex items-center gap-2">
+                <input type="hidden" name="from" value={from} />
+                <input type="hidden" name="to" value={to} />
+                {sp.rate && <input type="hidden" name="rate" value={sp.rate} />}
+                {sp.otRate && (
+                  <input type="hidden" name="otRate" value={sp.otRate} />
+                )}
+                <select
+                  name="company"
+                  defaultValue={company}
+                  className="rounded-md border border-input bg-background px-2 py-1 text-sm"
+                >
+                  <option value="">ทุกบริษัท</option>
+                  {companies.map((co) => (
+                    <option key={co.id} value={co.id}>
+                      {co.code}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="submit"
+                  className="rounded-md border px-3 py-1 text-sm hover:bg-accent"
+                >
+                  กรอง
+                </button>
+              </form>
+            )}
           </div>
           <p className="text-3xl font-bold tabular-nums">
             {c.pending}
@@ -349,7 +402,12 @@ export default async function DashboardPage({
             </p>
             <div className="grid grid-cols-3 gap-2">
               {PLAN_CARDS.map((card) => (
-                <StatCard key={card.key} card={card} value={c[card.key]} />
+                <StatCard
+                  key={card.key}
+                  card={card}
+                  value={c[card.key]}
+                  company={company}
+                />
               ))}
             </div>
           </div>
@@ -364,38 +422,54 @@ export default async function DashboardPage({
             </p>
             <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
               {WIP_CARDS.map((card) => (
-                <StatCard key={card.key} card={card} value={c[card.key]} />
+                <StatCard
+                  key={card.key}
+                  card={card}
+                  value={c[card.key]}
+                  company={company}
+                />
               ))}
             </div>
           </div>
         </div>
 
-        {/* งานที่จบแล้ว + งานติดปัญหา — อยู่นอก Pending Order โดยตั้งใจ */}
+        {/* งานมีปัญหา — นิยามเดียวกับปุ่ม "เฉพาะงานมีปัญหา" ในบอร์ด (0104 · isProblemJob)
+            กดแล้วไปบอร์ดที่เปิดตัวกรองนั้น + บริษัทเดียวกัน ⇒ จำนวนงานตรงกันเป๊ะ
+            "เข้าคลังแล้ว" ย้ายไปส่วนช่วงวันที่ (Part I) — ยอดสะสมทั้งหมดไม่บอกอะไรและทำให้สับสน */}
         <div className="mt-4 flex flex-wrap gap-2 border-t pt-3 text-sm">
           <Link
-            href="/warehouse"
-            className="rounded-md border px-3 py-1.5 hover:bg-accent"
+            href={withCompany("/board?problem=1", company)}
+            className={`rounded-md border px-3 py-1.5 ${
+              d.problemCount > 0
+                ? "border-destructive/40 bg-destructive/10 text-destructive hover:bg-destructive/20"
+                : "hover:bg-accent"
+            }`}
+            title="ติดธงปัญหา หรือมี Incident Case ที่ยังไม่ปิด (ไม่นับงานที่เข้าคลังแล้ว)"
           >
-            ✅ เข้าคลังแล้ว{" "}
-            <span className="font-semibold tabular-nums">{c.inStock}</span>
+            ⚠️ งานมีปัญหา{" "}
+            <span className="font-semibold tabular-nums">{d.problemCount}</span>
           </Link>
-          {d.problemCount > 0 && (
-            <Link
-              href="/board"
-              className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-1.5 text-destructive hover:bg-destructive/20"
-            >
-              ⚠️ ติดปัญหา{" "}
-              <span className="font-semibold tabular-nums">
-                {d.problemCount}
-              </span>
-            </Link>
-          )}
+          <Link
+            href={withCompany("/board?problem=1", company)}
+            className={`rounded-md border px-3 py-1.5 ${
+              d.incidentOpenCount > 0
+                ? "border-red-300 bg-red-50 text-red-700 hover:bg-red-100"
+                : "hover:bg-accent"
+            }`}
+            title="จำนวนงานที่มี Incident Case ยังไม่ปิด"
+          >
+            🚨 งานที่ Incident ยังเปิด{" "}
+            <span className="font-semibold tabular-nums">
+              {d.incidentOpenCount}
+            </span>
+          </Link>
         </div>
       </section>
 
       {/* ตัวกรองช่วงวันที่ (+ อัตราค่าแรง สำหรับผู้บริหาร/บัญชีต้นทุน)
           ⚠️ มีผลเฉพาะบล็อกด้านล่าง — Pending Order ด้านบนเป็นภาพ ณ ปัจจุบันเสมอ */}
       <form method="get" className="flex flex-wrap items-end gap-3">
+        {company && <input type="hidden" name="company" value={company} />}
         <div>
           <label className="mb-1 block text-xs font-medium text-muted-foreground">
             ตั้งแต่วันที่
@@ -465,7 +539,7 @@ export default async function DashboardPage({
         <h2 className="mb-2 text-sm font-semibold text-muted-foreground">
           ผลผลิตช่วง {from} ถึง {to} ({d.recordCount} บันทึก)
         </h2>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
           <div className="rounded-xl border bg-card p-4">
             <p className="text-xs text-muted-foreground">ผลิตได้รวม</p>
             <p className="mt-1 text-xl font-bold tabular-nums">
@@ -499,6 +573,21 @@ export default async function DashboardPage({
               รวมอยู่ในชั่วโมงแรงงานแล้ว
             </p>
           </div>
+          <Link
+            href="/warehouse"
+            className="rounded-xl border bg-card p-4 transition-colors hover:bg-accent/50"
+          >
+            <p className="text-xs text-muted-foreground">✅ รับเข้าคลัง FG</p>
+            <p className="mt-1 text-xl font-bold tabular-nums">
+              {d.fgReceivedInRange}
+              <span className="ml-1 text-sm font-normal text-muted-foreground">
+                งาน
+              </span>
+            </p>
+            <p className="text-[11px] text-muted-foreground">
+              ตามวันที่รับเข้าในช่วงนี้
+            </p>
+          </Link>
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
           * ไม่นับบันทึกผลผลิตที่หัวหน้าตีกลับ (ไม่อนุมัติ)

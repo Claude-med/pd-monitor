@@ -11,7 +11,7 @@ export const metadata = { title: "บอร์ดงาน — PD Monitor" };
 export default async function BoardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; company?: string; problem?: string }>;
 }) {
   // companies = ตัวเลือกของ dropdown กรองบริษัท (แพทเทิร์นเดียวกับหน้า /board/new)
   const [jobs, profile, companies, sp] = await Promise.all([
@@ -25,14 +25,21 @@ export default async function BoardPage({
   // ใช้ Object.hasOwn ไม่ใช่ truthiness — ไม่งั้น ?status=constructor จะผ่านด่านไปได้
   const initialStatus =
     sp.status && Object.hasOwn(STATUS_LABEL, sp.status) ? sp.status : "";
+  // Part I: ?company= / ?problem=1 มาจากกล่อง Pending Order — กดแล้วต้องเห็นชุดเดียวกับตัวเลขบนแดชบอร์ด
+  const initialCompany = companies.some((c) => c.id === sp.company)
+    ? (sp.company as string)
+    : "";
+  const initialProblem = sp.problem === "1";
   return (
     <>
-      <RealtimeRefresh tables={["jobs", "fg_inventory"]} />
+      <RealtimeRefresh tables={["jobs", "fg_inventory", "deviations"]} />
       <BoardView
         jobs={jobs}
         companies={companies}
         canCreate={canCreate}
         initialStatus={initialStatus}
+        initialCompany={initialCompany}
+        initialProblem={initialProblem}
       />
     </>
   );

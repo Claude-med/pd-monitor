@@ -130,7 +130,18 @@ export type JobRow = {
   pack_patterns: string[];
   /** งานถูกรับเข้าคลัง FG แล้ว (มีรายการใน fg_inventory) — ใช้ซ่อนออกจากบอร์ด */
   fg_received?: boolean;
+  /** จำนวน Incident Case ที่ยังไม่ปิดของงานนี้ (Part I — getJobs() เติมให้) */
+  open_incidents?: number;
 };
+
+/**
+ * "งานมีปัญหา" — นิยามเดียวทั้งระบบ (Part I · ผู้ใช้เลือก 30 ก.ย. 69)
+ *   = ติดธงปัญหา หรือ มี Incident Case ที่ยังไม่ปิด
+ * ⚠️ ต้องตรงกับคอลัมน์ problem ของ dashboard_job_counts() (0104) — ตัวเลขแดชบอร์ดกับบอร์ดงานต้องเท่ากัน
+ */
+export function isProblemJob(job: Pick<JobRow, "problem" | "open_incidents">): boolean {
+  return !!job.problem || (job.open_incidents ?? 0) > 0;
+}
 
 /**
  * แสดงเดือนแผนแบบที่ทีมเขียนในใบงาน: '2026-08-01' → '08/26' (ค.ศ. 2 หลัก)

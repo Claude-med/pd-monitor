@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   JOB_STATUS,
   PROBLEM_FLAGS,
+  isProblemJob,
   type JobRow,
 } from "@/lib/data/job-constants";
 import type { CompanyOption } from "@/lib/data/companies";
@@ -23,14 +24,17 @@ function planMonth(d: string | null) {
 
 function JobCard({ job }: { job: JobRow }) {
   const flag = job.problem ? PROBLEM_FLAGS[job.problem] : null;
+  const incidents = job.open_incidents ?? 0;
   const month = planMonth(job.planned_start);
+  // ขอบซ้าย: ธงปัญหามาก่อน (มีสีตามชนิด) · ไม่มีธงแต่มี Incident เปิด = แดง
+  const edge = flag?.color ?? (incidents > 0 ? "#dc2626" : null);
   return (
     <Link
       href={`/board/${encodeURIComponent(job.job_no)}`}
       className={`block rounded-lg border bg-card p-3 transition-colors hover:bg-accent/50 ${
-        flag ? "border-l-4" : ""
+        edge ? "border-l-4" : ""
       }`}
-      style={flag ? { borderLeftColor: flag.color } : undefined}
+      style={edge ? { borderLeftColor: edge } : undefined}
     >
       <div className="flex items-start justify-between gap-2">
         <span className="text-sm font-semibold">
@@ -46,12 +50,24 @@ function JobCard({ job }: { job: JobRow }) {
             </span>
           )}
         </span>
-        {flag && (
-          <span
-            className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium text-white"
-            style={{ backgroundColor: flag.color }}
-          >
-            {flag.icon} {flag.label}
+        {(flag || incidents > 0) && (
+          <span className="flex shrink-0 flex-col items-end gap-1">
+            {flag && (
+              <span
+                className="rounded px-1.5 py-0.5 text-[10px] font-medium text-white"
+                style={{ backgroundColor: flag.color }}
+              >
+                {flag.icon} {flag.label}
+              </span>
+            )}
+            {incidents > 0 && (
+              <span
+                className="rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-medium text-white"
+                title="Incident Case ที่ยังไม่ปิด"
+              >
+                🚨 Incident {incidents}
+              </span>
+            )}
           </span>
         )}
       </div>
@@ -70,17 +86,23 @@ export function BoardView({
   companies = [],
   canCreate = false,
   initialStatus = "",
+  initialCompany = "",
+  initialProblem = false,
 }: {
   jobs: JobRow[];
   companies?: CompanyOption[];
   canCreate?: boolean;
   /** สถานะตั้งต้นจาก ?status= (การ์ดบนแดชบอร์ดกดมา) — validate มาแล้วที่ page.tsx */
   initialStatus?: string;
+  /** บริษัทตั้งต้นจาก ?company= (Part I) — validate มาแล้วที่ page.tsx */
+  initialCompany?: string;
+  /** เปิดตัวกรอง "เฉพาะงานมีปัญหา" จาก ?problem=1 (Part I) */
+  initialProblem?: boolean;
 }) {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState(initialStatus);
-  const [company, setCompany] = useState("");
-  const [problemOnly, setProblemOnly] = useState(false);
+  const [company, setCompany] = useState(initialCompany);
+  const [problemOnly, setProblemOnly] = useState(initialProblem);
 
   // งานที่รับเข้าคลัง FG แล้ว = ถือว่าจบหน้าที่ ย้ายไปดูที่หน้า "คลัง / FG" → ซ่อนจากบอร์ด
   const boardJobs = useMemo(
@@ -100,7 +122,7 @@ export function BoardView({
     const q = search.trim().toLowerCase();
     return companyJobs.filter((j) => {
       if (status && j.status !== status) return false;
-      if (problemOnly && !j.problem) return false;
+      if (problemOnly && !isProblemJob(j)) return false;
       if (q) {
         const hay =
           `${j.job_no} ${displayJobNo(j.job_no)} ${j.company ?? ""} ${j.lot_no ?? ""} ${j.customer ?? ""} ${j.product_name ?? ""}`.toLowerCase();
@@ -122,7 +144,8 @@ export function BoardView({
       j.fg_received &&
       (!company || j.company_id === company),
   ).length;
-  const problem = companyJobs.filter((j) => j.problem).length;
+  // นิยามเดียวกับแดชบอร์ด (0104): ธงปัญหา หรือ Incident ยังไม่ปิด
+  const problem = companyJobs.filter(isProblemJob).length;
 
   return (
     <div className="space-y-5">
@@ -215,6 +238,9 @@ export function BoardView({
           }`}
         >
           🔴 เฉพาะงานมีปัญหา
+          <span className="ml-1 text-xs text-muted-foreground">
+            (Incident เปิด / ติดธง)
+          </span>
         </button>
         <span className="ml-auto text-sm text-muted-foreground">
           พบ <b>{filtered.length}</b> งาน
