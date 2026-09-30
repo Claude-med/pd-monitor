@@ -31,6 +31,7 @@ import {
   type Margins,
   type Side,
 } from "@/lib/print/paper-margins";
+import { printPdfBlob, sheetsToPdf } from "@/lib/print/sheets-to-pdf";
 import {
   AUTO_FONT_RANGE,
   FONT_STEP_PT,
@@ -121,6 +122,7 @@ export function PrintTableView({
   const [search, setSearch] = useState("");
   const [showPreview, setShowPreview] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
 
   /**
@@ -557,6 +559,28 @@ export function PrintTableView({
     }
   }
 
+  /**
+   * ปริ้น = สร้าง PDF จากแผ่นตัวอย่าง แล้วสั่งพิมพ์ไฟล์ PDF นั้น (ดู lib/print/sheets-to-pdf.ts)
+   * เหตุผล: สั่งเครื่องพิมพ์จริงตรงจากหน้าเว็บ Chrome จะบังคับขอบตามเครื่องพิมพ์
+   * แล้วพิมพ์วันที่/ชื่อแท็บ/URL ติดมา · พิมพ์จากไฟล์ PDF ไม่มีปัญหานี้ทุกเครื่อง
+   */
+  async function printPdf() {
+    if (pickedJobs.length === 0 || !fitReady) return;
+    setPdfBusy(true);
+    setExportError(null);
+    try {
+      const sheets = Array.from(
+        document.querySelectorAll<HTMLElement>(".pt-preview .pt-sheet"),
+      );
+      const blob = await sheetsToPdf(sheets, orientation);
+      printPdfBlob(blob, `ตารางบอร์ดงาน-${company?.code ?? "ALL"}-${todayStamp()}.pdf`);
+    } catch (err) {
+      setExportError(err instanceof Error ? err.message : "สร้าง PDF ไม่สำเร็จ");
+    } finally {
+      setPdfBusy(false);
+    }
+  }
+
   if (companies.length === 0) {
     return (
       <p className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
@@ -584,7 +608,9 @@ export function PrintTableView({
 
           🚨 margin: 0 เสมอ ห้ามเอาขอบของผู้ใช้มาใส่ตรงนี้ — Chrome พิมพ์ชื่อเรื่อง/เวลา/URL
              ของตัวเองลงใน "พื้นที่ขอบของ @page" ไม่เหลือขอบให้ = ไม่มีที่พิมพ์ = หายไปเอง
-             ขอบจริงไปอยู่ที่ padding ของ .pt-sheet แทน (ดู table-sheet.tsx) */}
+             ขอบจริงไปอยู่ที่ padding ของ .pt-sheet แทน (ดู table-sheet.tsx)
+          ⚠️ ได้ผลแค่ตอน "บันทึกเป็น PDF" — เลือกเครื่องพิมพ์จริง Chrome บังคับขอบตามเครื่องพิมพ์
+             แล้วหัว/ท้ายกลับมา ⇒ ปุ่มปริ้นหลักจึงสร้าง PDF เอง (printPdf) · ตัวนี้เหลือไว้ให้ปุ่ม "ปริ้นผ่านเบราว์เซอร์" */}
       <style>{`@page { size: A4 ${orientation}; margin: 0; }`}</style>
 
       {/* ---------- รูปแบบตาราง ---------- */}
@@ -819,13 +845,23 @@ export function PrintTableView({
             >
               {busy ? "กำลังสร้างไฟล์…" : "📊 Excel (.xlsx)"}
             </button>
+            {/* ปุ่มรอง: พิมพ์ตรงจากเบราว์เซอร์ (แบบเดิม) — ถ้าใช้เครื่องพิมพ์จริง ต้องปิดหัว/ท้ายกระดาษเอง */}
             <button
               type="button"
               onClick={() => window.print()}
               disabled={pickedJobs.length === 0}
+              title="ถ้าเห็นวันที่/URL ติดมา: หน้าต่างพิมพ์ → การตั้งค่าเพิ่มเติม → เอาติ๊ก “หัวกระดาษและท้ายกระดาษ” ออก"
+              className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-accent disabled:opacity-40"
+            >
+              ปริ้นผ่านเบราว์เซอร์
+            </button>
+            <button
+              type="button"
+              onClick={printPdf}
+              disabled={pickedJobs.length === 0 || !fitReady || pdfBusy}
               className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-40"
             >
-              🖨️ ปริ้นตารางบอร์ดงาน / PDF
+              {pdfBusy ? "กำลังสร้าง PDF…" : "🖨️ ปริ้นตารางบอร์ดงาน / PDF"}
             </button>
           </div>
         </div>
