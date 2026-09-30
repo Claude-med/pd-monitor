@@ -1,4 +1,8 @@
 import Link from "next/link";
+import {
+  InprocessReviewButtons,
+  SampleReviewButtons,
+} from "../quality/quick-actions";
 import { redirect } from "next/navigation";
 import { getProfile } from "@/lib/auth/dal";
 import { hasAnyRole } from "@/lib/auth/roles";
@@ -110,12 +114,23 @@ function ApprovalRow({ item }: { item: ApprovalItem }) {
           {when ? ` · ${when}` : ""}
         </p>
       </div>
-      <Link
-        href={item.href}
-        className="shrink-0 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90"
-      >
-        ไปอนุมัติ →
-      </Link>
+      {/* Part I: in-process / จุดเก็บตัวอย่าง อนุมัติได้ในแถวเลย (ปุ่มชุดเดียวกับหน้าตรวจ QC/QA) */}
+      <div className="flex shrink-0 flex-wrap items-start gap-2">
+        {item.focus === "inprocess" && (
+          <InprocessReviewButtons jobNo={item.jobNo} id={item.id} />
+        )}
+        {item.focus === "qa-sample" && (
+          <SampleReviewButtons jobNo={item.jobNo} id={item.id} />
+        )}
+        <Link
+          href={item.href}
+          className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90"
+        >
+          {item.focus === "inprocess" || item.focus === "qa-sample"
+            ? "เปิดดู →"
+            : "ไปอนุมัติ →"}
+        </Link>
+      </div>
     </li>
   );
 }
