@@ -708,11 +708,7 @@ function UserEditPanel({
                 disabled={pending}
                 onClick={() =>
                   run(async () => {
-                    const res = await resetPassword(
-                      user.id,
-                      user.auth_user_id!,
-                      newPw,
-                    );
+                    const res = await resetPassword(user.id, newPw);
                     if (res.ok) setNewPw("");
                     return res;
                   }, "ตั้งรหัสผ่านใหม่แล้ว")
@@ -743,7 +739,7 @@ function UserEditPanel({
           disabled={pending || isSelf}
           onClick={() =>
             run(
-              () => setActive(user.id, user.auth_user_id, !user.is_active),
+              () => setActive(user.id, !user.is_active),
               user.is_active ? "ระงับบัญชีแล้ว" : "เปิดใช้งานบัญชีแล้ว",
             )
           }
@@ -769,7 +765,6 @@ function UserEditPanel({
         ) : (
           <DeleteUserButton
             profileId={user.id}
-            authUserId={user.auth_user_id}
             fullName={user.full_name}
           />
         )}

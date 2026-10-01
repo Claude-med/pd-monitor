@@ -13,6 +13,7 @@ import {
 import { STATUS_COLOR } from "@/lib/data/job-constants";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
 import { listCompanies } from "@/lib/data/companies";
+import { todayTH } from "@/lib/format";
 
 /**
  * การ์ดทั้งหมดของบล็อก Pending Order
@@ -270,7 +271,7 @@ function fmtBaht(n: number): string {
 }
 
 function todayISO(): string {
-  return new Date().toISOString().slice(0, 10);
+  return todayTH(); // เวลาไทย ไม่ใช่ UTC
 }
 
 function firstOfMonthISO(): string {

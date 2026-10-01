@@ -92,6 +92,8 @@ export type QualityInbox = {
     recordSample: boolean;
     reviewSample: boolean;
     signQa: boolean;
+    /** ปล่อยผ่าน FG ได้ (หัวหน้า QA · รีวิว 1 ต.ค. 69) — พนักงาน QA ลงนามได้แค่ตีกลับ */
+    releaseQa: boolean;
   };
 };
 
@@ -320,6 +322,9 @@ export async function getQualityInbox(
       recordSample: canRecordQaSample(roles) && hasAnyRole(roles, ["qa"]),
       reviewSample: canReviewQaSample(roles),
       signQa: availableTransitions("qa", roles).some((t) => t.esign),
+      releaseQa: availableTransitions("qa", roles).some(
+        (t) => t.esign && t.kind === "forward",
+      ),
     },
   };
 }

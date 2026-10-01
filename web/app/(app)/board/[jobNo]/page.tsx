@@ -473,7 +473,7 @@ export default async function JobDetailPage({
         />
 
         {/* ลบงาน — หัวหน้าทุกแผนก/ผู้บริหาร/ผู้ดูแล (Part G · 0095) */}
-        {canDeleteJob(roles) && (
+        {canDeleteJob(roles, job.status) && (
           <div className="mt-4 border-t pt-4">
             <DeleteJobButton jobId={job.id} jobNo={job.job_no} />
           </div>
@@ -706,6 +706,7 @@ export default async function JobDetailPage({
         <div className="mt-4">
           {canRecord && activeStep ? (
             <RecordForm
+              profileId={profile?.id ?? ""}
               jobId={job.id}
               jobNo={job.job_no}
               jobRouteId={activeStep.id}

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getDailyReport } from "@/lib/data/daily";
-import { displayJobNo } from "@/lib/format";
+import { displayJobNo, todayTH } from "@/lib/format";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
 
 function fmt(n: number | null): string {
@@ -8,7 +8,7 @@ function fmt(n: number | null): string {
 }
 
 function todayISO(): string {
-  return new Date().toISOString().slice(0, 10);
+  return todayTH(); // เวลาไทย ไม่ใช่ UTC
 }
 
 export default async function DailyReportPage({

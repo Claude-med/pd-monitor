@@ -5,6 +5,8 @@
 // Part C.3 ก้อน 5: เปลี่ยนชื่อไฟล์มาจาก station-constants.ts — ไม่เหลือค่าคงที่ของ
 // "สถานี" อยู่ในนี้แล้วตั้งแต่เลิกใช้กลุ่มหลัก (0059) ชื่อเดิมจึงชวนเข้าใจผิด
 
+import { todayTH } from "@/lib/format";
+
 /** กะทำงาน — ตรงกับ enum work_shift ใน DB (0063) */
 export const WORK_SHIFTS = [
   { key: "morning", label: "กะเช้า" },
@@ -138,7 +140,7 @@ function num(s: string): number | null | typeof NaN {
 }
 
 function todayISO(): string {
-  return new Date().toISOString().slice(0, 10);
+  return todayTH(); // เวลาไทย ไม่ใช่ UTC
 }
 
 /**

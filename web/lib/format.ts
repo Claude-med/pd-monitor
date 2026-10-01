@@ -2,6 +2,23 @@
 // กันเวลาเพี้ยนเมื่อ runtime (Vercel serverless) เป็น UTC แต่ผู้ใช้อยู่ไทย (UTC+7)
 const TZ = "Asia/Bangkok";
 
+/**
+ * วันที่ "วันนี้" ตามเวลาไทย ในรูป YYYY-MM-DD (ใช้เป็นค่าเริ่มต้นของช่องวันที่ / เทียบกับคอลัมน์ date)
+ *
+ * 🚨 ห้ามใช้ `new Date().toISOString().slice(0, 10)` — นั่นคือวันที่ UTC
+ *    ช่วง 00:00–07:00 ของไทยจะได้ "เมื่อวาน" → กะดึกเลือกวันที่วันนี้แล้วโดนว่า "วันในอนาคต"
+ *    (บั๊กที่ปิดในรีวิว 1 ต.ค. 69 · ฝั่ง DB แก้คู่กันใน 0105)
+ */
+export function todayTH(now: Date = new Date()): string {
+  // en-CA ให้รูปแบบ YYYY-MM-DD ตรงตัว
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+}
+
 /** วันที่ + เวลา — ใช้กับ timestamp เช่น created_at, signed_at, checked_at */
 export function fmtDateTime(
   value: string | number | Date | null | undefined,

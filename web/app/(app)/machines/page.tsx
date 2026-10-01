@@ -14,11 +14,12 @@ import {
 } from "@/lib/data/machine-constants";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
 import { MachinesView } from "./machines-view";
+import { todayTH } from "@/lib/format";
 
 export const metadata = { title: "เครื่องจักร — PD Monitor" };
 
 function todayISO(): string {
-  return new Date().toISOString().slice(0, 10);
+  return todayTH(); // เวลาไทย ไม่ใช่ UTC
 }
 function firstOfMonthISO(): string {
   const d = new Date();

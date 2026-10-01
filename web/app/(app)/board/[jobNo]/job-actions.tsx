@@ -38,7 +38,7 @@ export function JobActions({
   function runForward(to: string) {
     setError(null);
     start(async () => {
-      const res = await changeStatus(jobId, jobNo, to, null);
+      const res = await changeStatus(jobId, jobNo, status, to, null);
       if (res?.error) return setError(res.error);
       reset();
       router.refresh();

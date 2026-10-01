@@ -23,12 +23,15 @@ import {
   upsertPending,
   type PendingRecord,
 } from "@/lib/offline-queue";
+import { todayTH } from "@/lib/format";
 
 function today(): string {
-  return new Date().toISOString().slice(0, 10);
+  return todayTH(); // เวลาไทย ไม่ใช่ UTC
 }
 
-const EMPTY: RecordFormValues = {
+/** ฟอร์มว่าง — เป็นฟังก์ชันเพื่อให้วันที่เริ่มต้นเป็น "วันนี้" ทุกครั้ง
+ *  (เดิมเป็นค่าคงที่ คำนวณครั้งเดียวตอนโหลดโมดูล → เปิดแท็บค้างข้ามคืน วันที่ค้างเป็นเมื่อวาน) */
+const emptyValues = (): RecordFormValues => ({
   record_date: today(),
   shift: "",
   work_period: "",
@@ -42,7 +45,7 @@ const EMPTY: RecordFormValues = {
   note: "",
   machine_id: "",
   headcount: "",
-};
+});
 
 type FieldErrors = Partial<Record<keyof RecordFormValues, string>>;
 
@@ -127,6 +130,7 @@ function QtyField({
  * เครื่องจักรเลือกจาก "เครื่องของขั้นตอนนี้" ที่ผูกไว้ (0061) ไม่ใช่ทะเบียนเครื่องทั้งหมด
  */
 export function RecordForm({
+  profileId,
   jobId,
   jobNo,
   jobRouteId,
@@ -134,6 +138,8 @@ export function RecordForm({
   machines,
   blockedReason,
 }: {
+  /** ผู้ใช้ที่ล็อกอิน — ใช้แยกคิวบันทึกค้างตามคน (lib/offline-queue.ts) */
+  profileId: string;
   jobId: string;
   jobNo: string;
   jobRouteId: string;
@@ -144,7 +150,7 @@ export function RecordForm({
   blockedReason?: string | null;
 }) {
   const [open, setOpen] = useState(false);
-  const [v, setV] = useState<RecordFormValues>(EMPTY);
+  const [v, setV] = useState<RecordFormValues>(emptyValues);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>("idle");
@@ -161,8 +167,8 @@ export function RecordForm({
   }, []);
 
   const refreshPending = useCallback(() => {
-    setPending(pendingForJob(jobId));
-  }, [jobId]);
+    setPending(pendingForJob(profileId, jobId));
+  }, [profileId, jobId]);
 
   function set<K extends keyof RecordFormValues>(k: K, val: string) {
     setV((cur) => ({ ...cur, [k]: val }));
@@ -204,12 +210,12 @@ export function RecordForm({
             rec.clientId,
           );
           if (res?.ok) {
-            removePending(rec.clientId);
+            removePending(profileId, rec.clientId);
             refreshPending();
             return true;
           }
           // ผิดแบบถาวร (validation/สิทธิ์/สถานะงาน) — retry ไม่ช่วย
-          removePending(rec.clientId);
+          removePending(profileId, rec.clientId);
           refreshPending();
           if (res?.fieldErrors) setFieldErrors(res.fieldErrors);
           setFormError(res?.error ?? "บันทึกไม่สำเร็จ");
@@ -224,7 +230,7 @@ export function RecordForm({
       }
       return false; // ครบรอบแล้วยังไม่สำเร็จ → ค้างไว้ในคิว
     },
-    [refreshPending],
+    [profileId, refreshPending],
   );
 
   async function submit() {
@@ -236,6 +242,7 @@ export function RecordForm({
 
     const rec: PendingRecord = {
       clientId: newClientId(),
+      profileId,
       jobId,
       jobNo,
       jobRouteId,
@@ -248,7 +255,7 @@ export function RecordForm({
 
     // คงค่าที่มักซ้ำกันทุกรอบไว้ (วันที่/กะ/ช่วงเวลา/เครื่อง/หน่วย) ให้กรอกรอบต่อไปเร็วขึ้น
     const keep: RecordFormValues = {
-      ...EMPTY,
+      ...emptyValues(),
       record_date: v.record_date,
       shift: v.shift,
       work_period: v.work_period,
@@ -275,7 +282,7 @@ export function RecordForm({
 
   // ลองบันทึกรายการที่ค้างทั้งหมดของงานนี้ (เรียกตอนเน็ตกลับมา/กดเอง/เปิดหน้า)
   const retryQueued = useCallback(async () => {
-    const list = pendingForJob(jobId);
+    const list = pendingForJob(profileId, jobId);
     if (list.length === 0) return;
     let anyOk = false;
     for (const rec of list) {
@@ -289,11 +296,11 @@ export function RecordForm({
           rec.clientId,
         );
         if (res?.ok) {
-          removePending(rec.clientId);
+          removePending(profileId, rec.clientId);
           anyOk = true;
         } else if (res?.error) {
           // ผิดถาวร — เอาออกจากคิว (เก็บไว้ก็ไม่สำเร็จ) แล้วแจ้ง
-          removePending(rec.clientId);
+          removePending(profileId, rec.clientId);
           setFormError(`รายการค้างบันทึกไม่ได้: ${res.error}`);
           anyOk = true;
         }
@@ -303,10 +310,10 @@ export function RecordForm({
     }
     refreshPending();
     if (anyOk && !cancelled.current) {
-      if (pendingForJob(jobId).length === 0) setSaveState("idle");
+      if (pendingForJob(profileId, jobId).length === 0) setSaveState("idle");
       router.refresh();
     }
-  }, [jobId, refreshPending, router]);
+  }, [profileId, jobId, refreshPending, router]);
 
   // เปิดหน้า: โหลดคิวค้าง + ลองบันทึกถ้าออนไลน์ · ฟัง event เน็ตกลับมา
   useEffect(() => {
@@ -323,7 +330,7 @@ export function RecordForm({
 
   function discardPending(clientId: string) {
     if (!window.confirm("ทิ้งรายการที่ค้างนี้? (ข้อมูลที่กรอกจะหายถาวร)")) return;
-    removePending(clientId);
+    removePending(profileId, clientId);
     refreshPending();
   }
 
@@ -585,7 +592,7 @@ export function RecordForm({
             disabled={busy}
             onClick={() => {
               setOpen(false);
-              setV(EMPTY);
+              setV(emptyValues());
               setFieldErrors({});
               setFormError(null);
               setSaveState("idle");

@@ -6,7 +6,7 @@ import { deleteJob } from "../actions";
 import { displayJobNo } from "@/lib/format";
 
 /**
- * ปุ่มลบงาน — เห็นเฉพาะหัวหน้าทุกแผนก/ผู้บริหาร/ผู้ดูแล (Part G · canDeleteJob)
+ * ปุ่มลบงาน — ผู้บริหาร/ผู้ดูแลทุกสถานะ · หัวหน้าแผนกเฉพาะก่อนเริ่มผลิต (0105 · canDeleteJob)
  * กด "ลบงาน" → ถามยืนยันซ้ำ + ต้องกรอกรหัสผ่าน (กันลบผิดงาน)
  */
 export function DeleteJobButton({

@@ -137,17 +137,20 @@ export function SampleReviewButtons({ jobNo, id }: { jobNo: string; id: string }
 /**
  * ลงนาม QC / QA ทั้งงาน — อนุมัติ (ส่งต่อ) / ไม่อนุมัติ (ตีกลับไปผลิต)
  * blocked = ยังมีสิ่งขวางการปล่อยผ่าน → ปิดปุ่มอนุมัติไว้ (ตีกลับยังทำได้)
+ * canApprove = false → ไม่แสดงปุ่มอนุมัติเลย (พนักงาน QA: ปล่อยผ่าน FG ได้เฉพาะหัวหน้า QA)
  */
 export function SignButtons({
   jobId,
   jobNo,
   stage,
   blocked,
+  canApprove = true,
 }: {
   jobId: string;
   jobNo: string;
   stage: "qc" | "qa";
   blocked: boolean;
+  canApprove?: boolean;
 }) {
   const [mode, setMode] = useState<"approve" | "reject" | null>(null);
   const [reason, setReason] = useState("");
@@ -179,15 +182,17 @@ export function SignButtons({
     <div className="space-y-2">
       {mode === null ? (
         <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            disabled={pending || blocked}
-            onClick={() => setMode("approve")}
-            className={approveBtn}
-            title={blocked ? "ยังมีสิ่งที่ต้องเคลียร์ก่อน (ดูรายการด้านบน)" : undefined}
-          >
-            🖊️ อนุมัติ ({approveLabel})
-          </button>
+          {canApprove && (
+            <button
+              type="button"
+              disabled={pending || blocked}
+              onClick={() => setMode("approve")}
+              className={approveBtn}
+              title={blocked ? "ยังมีสิ่งที่ต้องเคลียร์ก่อน (ดูรายการด้านบน)" : undefined}
+            >
+              🖊️ อนุมัติ ({approveLabel})
+            </button>
+          )}
           <button
             type="button"
             disabled={pending}

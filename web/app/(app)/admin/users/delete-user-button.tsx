@@ -13,11 +13,9 @@ import { deleteUser } from "./actions";
  */
 export function DeleteUserButton({
   profileId,
-  authUserId,
   fullName,
 }: {
   profileId: string;
-  authUserId: string | null;
   fullName: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -35,7 +33,7 @@ export function DeleteUserButton({
   function confirmDelete() {
     setError(null);
     start(async () => {
-      const res = await deleteUser(profileId, authUserId, password);
+      const res = await deleteUser(profileId, password);
       if (!res.ok) return setError(res.error ?? "ลบบัญชีไม่สำเร็จ");
       // ลบสำเร็จแต่มีคำเตือน (ลบบัญชีล็อกอินไม่ผ่าน) → ค้างข้อความไว้ให้อ่านก่อน
       if (res.error) return setError(res.error);

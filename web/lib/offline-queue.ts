@@ -8,6 +8,8 @@ import type { RecordFormValues } from "@/lib/data/production-constants";
 
 export type PendingRecord = {
   clientId: string;
+  /** ผู้บันทึก (profiles.id) — คิวแยกตามคน ส่งใหม่ได้เฉพาะในนามเจ้าของรายการ */
+  profileId: string;
   jobId: string;
   jobNo: string;
   /** ขั้นตอนการผลิตของบันทึกนี้ (job_routes.id) — Part C.3 ก้อน 5 */
@@ -18,7 +20,14 @@ export type PendingRecord = {
 
 // ⚠️ ขึ้นเลข version เมื่อโครง values เปลี่ยน — คิวเก่าที่ค้างในเครื่องมีรูปคนละแบบ
 //    ถ้าใช้ key เดิม จะดึงของเก่าขึ้นมาแล้วยิงเข้า RPC ใหม่ไม่ผ่านแบบงง ๆ
-const KEY = "pd_pending_records_v2";
+// 🚨 v3 (รีวิว 1 ต.ค. 69): แยก key ตามผู้ใช้ — เดิม key เดียวทั้งเครื่อง
+//    แท็บเล็ตที่ใช้ร่วมกัน: A บันทึกค้างแล้วออกจากระบบ → B เปิดงานเดียวกัน
+//    ระบบส่งรายการของ A ขึ้นไป "ในนามของ B" (ผู้บันทึกผิดคน = ผิด ALCOA)
+const KEY_PREFIX = "pd_pending_records_v3:";
+
+function keyOf(profileId: string): string {
+  return KEY_PREFIX + profileId;
+}
 
 /** UUID จากฝั่ง client (crypto ถ้ามี ไม่งั้น fallback) */
 export function newClientId(): string {
@@ -33,38 +42,43 @@ export function newClientId(): string {
   });
 }
 
-function readAll(): PendingRecord[] {
-  if (typeof window === "undefined") return [];
+function readAll(profileId: string): PendingRecord[] {
+  if (typeof window === "undefined" || !profileId) return [];
   try {
-    const raw = window.localStorage.getItem(KEY);
-    return raw ? (JSON.parse(raw) as PendingRecord[]) : [];
+    const raw = window.localStorage.getItem(keyOf(profileId));
+    const list = raw ? (JSON.parse(raw) as PendingRecord[]) : [];
+    // กันข้อมูลที่ถูกแก้มือ/ปนกัน — ส่งเฉพาะรายการที่เป็นของผู้ใช้คนนี้จริง
+    return list.filter((r) => r.profileId === profileId);
   } catch {
     return [];
   }
 }
 
-function writeAll(list: PendingRecord[]): void {
-  if (typeof window === "undefined") return;
+function writeAll(profileId: string, list: PendingRecord[]): void {
+  if (typeof window === "undefined" || !profileId) return;
   try {
-    window.localStorage.setItem(KEY, JSON.stringify(list));
+    window.localStorage.setItem(keyOf(profileId), JSON.stringify(list));
   } catch {
     // เต็ม/โดนปิด — ยอมพลาดเงียบ ๆ (ดีกว่าทำแอปพัง)
   }
 }
 
-/** เพิ่ม/อัปเดตรายการในคิว (อิง clientId) */
+/** เพิ่ม/อัปเดตรายการในคิวของเจ้าของรายการ (อิง clientId) */
 export function upsertPending(rec: PendingRecord): void {
-  const list = readAll().filter((r) => r.clientId !== rec.clientId);
+  const list = readAll(rec.profileId).filter((r) => r.clientId !== rec.clientId);
   list.push(rec);
-  writeAll(list);
+  writeAll(rec.profileId, list);
 }
 
 /** เอารายการออกจากคิว (บันทึกสำเร็จ หรือยกเลิก) */
-export function removePending(clientId: string): void {
-  writeAll(readAll().filter((r) => r.clientId !== clientId));
+export function removePending(profileId: string, clientId: string): void {
+  writeAll(
+    profileId,
+    readAll(profileId).filter((r) => r.clientId !== clientId),
+  );
 }
 
-/** รายการที่ค้างของงานนี้ */
-export function pendingForJob(jobId: string): PendingRecord[] {
-  return readAll().filter((r) => r.jobId === jobId);
+/** รายการที่ค้างของงานนี้ — เฉพาะของผู้ใช้คนนี้ */
+export function pendingForJob(profileId: string, jobId: string): PendingRecord[] {
+  return readAll(profileId).filter((r) => r.jobId === jobId);
 }

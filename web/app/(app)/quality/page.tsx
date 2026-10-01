@@ -438,6 +438,7 @@ export default async function QualityPage({
                         jobNo={s.job.job_no}
                         stage="qa"
                         blocked={s.blockers.length > 0}
+                        canApprove={can.releaseQa}
                       />
                     )}
                   </TaskCard>

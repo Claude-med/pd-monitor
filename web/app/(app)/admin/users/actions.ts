@@ -45,6 +45,24 @@ async function rolesOfProfile(profileId: string): Promise<AppRole[]> {
 }
 
 /**
+ * บัญชีล็อกอิน (auth user id) ของโปรไฟล์เป้าหมาย — อ่านฝั่ง server เสมอ
+ *
+ * 🚨 ห้ามรับ auth user id มาจากหน้าจอ (บั๊กที่ปิดในรีวิว 1 ต.ค. 69):
+ *    ด่านขอบเขตตรวจจาก profileId · ถ้า auth id มาจาก client หัวหน้าแผนกจะส่ง profileId ของลูกน้อง
+ *    คู่กับ auth id ของผู้บริหารได้ แล้วรีเซ็ตรหัส แบน หรือลบบัญชีล็อกอินของผู้บริหาร
+ *    (ทุกคนอ่าน profiles.auth_user_id ได้ผ่าน RLS)
+ */
+async function authUserIdOf(profileId: string): Promise<string | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("profiles")
+    .select("auth_user_id")
+    .eq("id", profileId)
+    .maybeSingle();
+  return (data?.auth_user_id as string | null | undefined) ?? null;
+}
+
+/**
  * ผู้ใช้ปัจจุบันจัดการโปรไฟล์เป้าหมายนี้ได้ไหม — คืนข้อความ error ถ้าไม่ได้
  * สะท้อนกติกา head_may_manage() ใน DB (0079) ซึ่งเป็นด่านบังคับจริง
  */
@@ -234,13 +252,13 @@ export async function updateProfile(
  */
 export async function resetPassword(
   profileId: string,
-  authUserId: string,
   newPassword: string,
 ): Promise<ActionResult> {
   const actor = await requireUserAdmin();
   if (!actor) return { error: "ไม่มีสิทธิ์ (เฉพาะผู้บริหาร/หัวหน้าแผนก)" };
   const scopeErr = await denyIfOutOfScope(actor, profileId);
   if (scopeErr) return { error: scopeErr };
+  const authUserId = await authUserIdOf(profileId);
   if (!authUserId) return { error: "ผู้ใช้นี้ยังไม่มีบัญชีล็อกอิน" };
   if (!newPassword || newPassword.length < 6)
     return { error: "รหัสผ่านต้องยาวอย่างน้อย 6 ตัวอักษร" };
@@ -263,13 +281,13 @@ export async function resetPassword(
 /** เปิด/ระงับบัญชี — ธง is_active (RPC) + บล็อกล็อกอินจริง (ban/unban auth) */
 export async function setActive(
   profileId: string,
-  authUserId: string | null,
   active: boolean,
 ): Promise<ActionResult> {
   const actor = await requireUserAdmin();
   if (!actor) return { error: "ไม่มีสิทธิ์ (เฉพาะผู้บริหาร/หัวหน้าแผนก)" };
   const scopeErr = await denyIfOutOfScope(actor, profileId);
   if (scopeErr) return { error: scopeErr };
+  const authUserId = await authUserIdOf(profileId);
 
   const supabase = await createClient();
   const { error } = await supabase.rpc("admin_set_active", {
@@ -303,7 +321,6 @@ export async function setActive(
  */
 export async function deleteUser(
   profileId: string,
-  authUserId: string | null,
   password: string,
 ): Promise<ActionResult & { action?: "deleted" | "archived" }> {
   const actor = await requireUserAdmin();
@@ -327,6 +344,9 @@ export async function deleteUser(
     password,
   });
   if (authError) return { error: "รหัสผ่านไม่ถูกต้อง — ลบบัญชีไม่สำเร็จ" };
+
+  // ⚠️ ต้องอ่านก่อนเรียก RPC — admin_delete_user ปลดการผูกบัญชีล็อกอินออกจากโปรไฟล์
+  const authUserId = await authUserIdOf(profileId);
 
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("admin_delete_user", {

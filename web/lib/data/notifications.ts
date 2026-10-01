@@ -3,7 +3,7 @@ import { STATUS_LABEL } from "@/lib/data/job-constants";
 import { hasAnyRole } from "@/lib/auth/roles";
 import type { Profile } from "@/lib/auth/dal";
 import { STUCK_DAYS, type InboxItem } from "@/lib/data/notification-constants";
-import { fmtDate, displayJobNo, stripJobNo } from "@/lib/format";
+import { fmtDate, displayJobNo, stripJobNo, todayTH } from "@/lib/format";
 
 // B4 + Part Notification — Notification (in-app inbox)
 //   stored  = แจ้งเตือนถาวรจาก event ใน DB — อ่านผ่าน RPC get_inbox() (0087)
@@ -26,7 +26,7 @@ export async function getUnreadCount(): Promise<number> {
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 function todayISO(): string {
-  return new Date().toISOString().slice(0, 10);
+  return todayTH(); // เวลาไทย ไม่ใช่ UTC
 }
 
 /** คำนวณงานเกินกำหนด/ค้างนาน (เฉพาะคนที่เกี่ยว = ฝ่ายผลิต/ผู้บริหาร) */

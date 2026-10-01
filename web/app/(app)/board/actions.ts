@@ -22,9 +22,15 @@ function toUiMessage(message: string): string {
 export async function changeStatus(
   jobId: string,
   jobNo: string,
+  fromStatus: string,
   toStatus: string,
   reason: string | null,
 ): Promise<ActionResult> {
+  // ขั้นตัดสินคุณภาพ QC/QA ต้องผ่าน signDecision (ยืนยันรหัสผ่าน + บันทึกลายเซ็น) เท่านั้น
+  // DB บังคับซ้ำใน advance_job_status (0105) — ที่นี่แค่ให้ข้อความที่อ่านรู้เรื่อง
+  if (["qc", "qa"].includes(fromStatus))
+    return { error: "ขั้น QC/QA ต้องลงนามด้วยรหัสผ่าน — ใช้ปุ่มลงนามแทน" };
+
   const supabase = await createClient();
   const { error } = await supabase.rpc("advance_job_status", {
     p_job_id: jobId,
