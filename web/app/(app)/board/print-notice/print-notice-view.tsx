@@ -29,6 +29,7 @@ import {
   type Margins,
   type Side,
 } from "@/lib/print/paper-margins";
+import { printPdfBlob, sheetsToPdf } from "@/lib/print/sheets-to-pdf";
 import { NoticePrintStyle, NoticeSheets } from "./notice-sheet";
 
 const inputCls =
@@ -42,6 +43,16 @@ type CpoMode = "" | "year" | "month" | "day";
 
 /** ย่อได้ต่ำสุด — ต่ำกว่านี้ตัวหนังสือเล็กจนอ่านไม่ออก ยอมให้ถูกตัดแล้วขึ้นเตือนแทน */
 const MIN_FIT_SCALE = 0.6;
+
+/** วันนี้ (เวลาไทย) เป็น YYYY-MM-DD — ใช้ตั้งชื่อไฟล์ PDF */
+function todayStamp(): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Bangkok",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
 
 export function PrintNoticeView({
   jobs,
@@ -57,6 +68,8 @@ export function PrintNoticeView({
   const [cpoMode, setCpoMode] = useState<CpoMode>("");
   const [cpoValue, setCpoValue] = useState("");
   const [showPreview, setShowPreview] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
 
   /** ขอบกระดาษ 4 ด้าน (นิ้ว) — ไม่จำข้ามครั้ง เปิดหน้าใหม่เริ่มที่ 0.32" เสมอ */
   const [margins, setMargins] = useState<Margins>(DEFAULT_MARGINS);
@@ -237,6 +250,32 @@ export function PrintNoticeView({
     setMargins((prev) => ({ ...prev, [side]: raw }));
   }
 
+  /**
+   * ปริ้น = สร้าง PDF จากแผ่นตัวอย่าง แล้วสั่งพิมพ์ไฟล์ PDF นั้น (ดู lib/print/sheets-to-pdf.ts)
+   * เหตุผล: สั่งเครื่องพิมพ์จริงตรงจากหน้าเว็บ Chrome จะบังคับขอบตามเครื่องพิมพ์
+   * แล้วพิมพ์วันที่/ชื่อแท็บ/URL ติดมา · พิมพ์จากไฟล์ PDF ไม่มีปัญหานี้ทุกเครื่อง
+   * แผ่น .pn-sheet เป็น A4 ตายตัว + ขอบกระดาษเป็น padding ในแผ่นอยู่แล้ว → ขอบที่ผู้ใช้ตั้งติดไปในไฟล์ครบ
+   */
+  async function printPdf() {
+    if (pickedJobs.length === 0) return;
+    setPdfBusy(true);
+    setPdfError(null);
+    try {
+      // ฟอนต์ Angsana ต้องโหลดเสร็จ + ย่อฟอร์มรอบล่าสุดก่อนจับภาพ ไม่งั้นได้ฟอร์มที่ล้นกล่อง
+      await document.fonts?.ready;
+      fitSheets();
+      const sheets = Array.from(
+        previewRef.current?.querySelectorAll<HTMLElement>(".pn-sheet") ?? [],
+      );
+      const blob = await sheetsToPdf(sheets, "portrait");
+      printPdfBlob(blob, `ใบแจ้งผลิต-${company?.code ?? ""}-${todayStamp()}.pdf`);
+    } catch (err) {
+      setPdfError(err instanceof Error ? err.message : "สร้าง PDF ไม่สำเร็จ");
+    } finally {
+      setPdfBusy(false);
+    }
+  }
+
   function changeCpoMode(mode: CpoMode) {
     setCpoMode(mode);
     setCpoValue(""); // เปลี่ยนระดับความละเอียด = เริ่มเลือกค่าใหม่
@@ -267,7 +306,9 @@ export function PrintNoticeView({
 
           🚨 margin: 0 เสมอ ห้ามเอาขอบของผู้ใช้มาใส่ตรงนี้ — Chrome พิมพ์ชื่อเรื่อง/เวลา/URL
              ของตัวเองลงใน "พื้นที่ขอบของ @page" ไม่เหลือขอบให้ = ไม่มีที่พิมพ์ = หายไปเอง
-             ขอบจริงไปอยู่ที่ padding ของ .pn-sheet แทน (ดู notice-sheet.tsx) */}
+             ขอบจริงไปอยู่ที่ padding ของ .pn-sheet แทน (ดู notice-sheet.tsx)
+          ⚠️ ได้ผลแค่ตอน "บันทึกเป็น PDF" — เลือกเครื่องพิมพ์จริง Chrome บังคับขอบตามเครื่องพิมพ์
+             แล้วหัว/ท้ายกลับมา ⇒ ปุ่มปริ้นหลักจึงสร้าง PDF เอง (printPdf) · ตัวนี้เหลือไว้ให้ปุ่ม "ปริ้นผ่านเบราว์เซอร์" */}
       <style>{`@page { size: A4; margin: 0; }`}</style>
 
       {/* ---------- ตัวกรอง ---------- */}
@@ -424,16 +465,30 @@ export function PrintNoticeView({
             >
               {showPreview ? "🙈 ซ่อนตัวอย่าง" : "👁 ดูตัวอย่าง"}
             </button>
+            {/* ปุ่มรอง: พิมพ์ตรงจากเบราว์เซอร์ (แบบเดิม) — ถ้าใช้เครื่องพิมพ์จริง ต้องปิดหัว/ท้ายกระดาษเอง */}
             <button
               type="button"
               onClick={() => window.print()}
               disabled={pickedJobs.length === 0}
+              title="ถ้าเห็นวันที่/URL ติดมา: หน้าต่างพิมพ์ → การตั้งค่าเพิ่มเติม → เอาติ๊ก “หัวกระดาษและท้ายกระดาษ” ออก"
+              className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-accent disabled:opacity-40"
+            >
+              ปริ้นผ่านเบราว์เซอร์
+            </button>
+            <button
+              type="button"
+              onClick={printPdf}
+              disabled={pickedJobs.length === 0 || pdfBusy}
               className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-40"
             >
-              🖨️ ปริ้นใบแจ้งผลิต / PDF
+              {pdfBusy ? "กำลังสร้าง PDF…" : "🖨️ ปริ้นใบแจ้งผลิต / PDF"}
             </button>
           </div>
         </div>
+
+        {pdfError && (
+          <p className="text-sm text-destructive">⚠️ {pdfError}</p>
+        )}
 
         {hiddenPicked.length > 0 && (
           <div className="flex flex-wrap items-center gap-1.5 border-t pt-3 text-xs">
@@ -558,7 +613,11 @@ export function PrintNoticeView({
             )}
           </p>
           <p>
-            💡 ตอนกด Ctrl+P ให้ตั้ง “ระยะขอบ / Margins” เป็น{" "}
+            💡 ปุ่มปริ้นหลักสร้างไฟล์ PDF ก่อน → ไม่มีวันที่/ชื่อแท็บ/URL ติดมา · ในหน้าต่างพิมพ์ให้ตั้ง
+            “ขนาด / Scale” เป็น <b className="text-foreground">100% (ขนาดจริง)</b>
+          </p>
+          <p>
+            ถ้าใช้ปุ่ม “ปริ้นผ่านเบราว์เซอร์” หรือกด Ctrl+P ให้ตั้ง “ระยะขอบ / Margins” เป็น{" "}
             <b className="text-foreground">ค่าเริ่มต้น (Default)</b> และ “ขนาด / Scale”
             เป็น <b className="text-foreground">100%</b> — ขอบกระดาษถูกฝังมากับแผ่นแล้ว
             เลขที่ตั้งตรงนี้จึงเป็นระยะขาวจริงบนกระดาษ
