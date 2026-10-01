@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   JOB_STATUS,
@@ -88,6 +88,7 @@ export function BoardView({
   initialStatus = "",
   initialCompany = "",
   initialProblem = false,
+  initialSearch = "",
 }: {
   jobs: JobRow[];
   companies?: CompanyOption[];
@@ -98,11 +99,28 @@ export function BoardView({
   initialCompany?: string;
   /** เปิดตัวกรอง "เฉพาะงานมีปัญหา" จาก ?problem=1 (Part I) */
   initialProblem?: boolean;
+  /** คำค้นจาก ?q= (คงตัวกรองไว้เมื่อกดกลับจากหน้างาน) */
+  initialSearch?: string;
 }) {
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(initialSearch);
   const [status, setStatus] = useState(initialStatus);
   const [company, setCompany] = useState(initialCompany);
   const [problemOnly, setProblemOnly] = useState(initialProblem);
+
+  // เขียนตัวกรองลง URL (replaceState = ไม่เพิ่มประวัติ ไม่โหลดหน้าใหม่)
+  // → เข้าหน้างานแล้วกด "ย้อนกลับ" ตัวกรองเดิมยังอยู่ · ส่งลิงก์ให้คนอื่นก็เห็นชุดเดียวกัน
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (search.trim()) params.set("q", search.trim());
+    if (status) params.set("status", status);
+    if (company) params.set("company", company);
+    if (problemOnly) params.set("problem", "1");
+    const qs = params.toString();
+    const next = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
+    if (next !== `${window.location.pathname}${window.location.search}`) {
+      window.history.replaceState(null, "", next); // Next 16 ผนวก state ของ router ให้เอง (ตามเอกสาร Next)
+    }
+  }, [search, status, company, problemOnly]);
 
   // งานที่รับเข้าคลัง FG แล้ว = ถือว่าจบหน้าที่ ย้ายไปดูที่หน้า "คลัง / FG" → ซ่อนจากบอร์ด
   const boardJobs = useMemo(

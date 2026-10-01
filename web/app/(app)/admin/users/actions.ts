@@ -127,8 +127,8 @@ export async function createUser(v: {
   if (!email) return { error: "กรุณาระบุอีเมล" };
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
     return { error: "รูปแบบอีเมลไม่ถูกต้อง" };
-  if (!v.password || v.password.length < 6)
-    return { error: "รหัสผ่านต้องยาวอย่างน้อย 6 ตัวอักษร" };
+  if (!v.password || v.password.length < 8)
+    return { error: "รหัสผ่านต้องยาวอย่างน้อย 8 ตัวอักษร" };
   if (!full_name) return { error: "กรุณาระบุชื่อ-สกุล" };
 
   const roles = cleanRoles(v.roles);
@@ -260,8 +260,8 @@ export async function resetPassword(
   if (scopeErr) return { error: scopeErr };
   const authUserId = await authUserIdOf(profileId);
   if (!authUserId) return { error: "ผู้ใช้นี้ยังไม่มีบัญชีล็อกอิน" };
-  if (!newPassword || newPassword.length < 6)
-    return { error: "รหัสผ่านต้องยาวอย่างน้อย 6 ตัวอักษร" };
+  if (!newPassword || newPassword.length < 8)
+    return { error: "รหัสผ่านต้องยาวอย่างน้อย 8 ตัวอักษร" };
 
   const supabase = await createClient();
   const { error: mErr } = await supabase.rpc("admin_mark_password_reset", {

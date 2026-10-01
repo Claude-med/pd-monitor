@@ -126,16 +126,17 @@ export default async function JobDetailPage({
 }) {
   const { jobNo } = await params;
   const sp = await searchParams;
-  const job = await getJobByNo(decodeURIComponent(jobNo));
+  // งาน + ผู้ใช้ ไม่ขึ้นต่อกัน → ดึงพร้อมกัน
+  const [job, profile] = await Promise.all([
+    getJobByNo(decodeURIComponent(jobNo)),
+    getProfile(),
+  ]);
   if (!job) notFound();
 
-  const profile = await getProfile();
   const roles = profile?.roles ?? [];
   const curIdx = STATUS_INDEX[job.status] ?? 0;
   const flag = job.problem ? PROBLEM_FLAGS[job.problem] : null;
 
-  const records = await getRecordsForJob(job.id);
-  const approvals = await getApprovalsForJob(job.id);
   const canRecord =
     hasAnyRole(roles, ["production", "production_lead", "manager"]) &&
     RECORDABLE_STATUSES.has(job.status);
@@ -143,25 +144,58 @@ export default async function JobDetailPage({
   const canEditStationMachine = hasAnyRole(roles, ["manager", "admin"]);
   // Part C.3: การ์ด "เครื่องจักรของขั้นตอนนี้" ต้องมีรายการเครื่องไว้ทำ dropdown ด้วย
   const canEditRouteMachines = canEditJobRouteMachines(roles);
-  const machines =
-    canRecord || canEditStationMachine || canEditRouteMachines
-      ? await listMachines()
-      : [];
+  const needMachines = canRecord || canEditStationMachine || canEditRouteMachines;
+
+  // ── ข้อมูลทั้งหมดของหน้านี้ ดึงพร้อมกันรอบเดียว ─────────────────────
+  // (รีวิว 1 ต.ค. 69: เดิม await ต่อกันทีละตัว ~15 รอบ → หน้าช้าตามจำนวน query
+  //  ทุกตัวขึ้นกับ job.id อย่างเดียว ไม่มีตัวไหนรอผลของตัวอื่น)
+  const [
+    records,
+    approvals,
+    machines,
+    jobRoute,
+    allStations,
+    jobMaterials,
+    [subStatuses, customers],
+    lineClearances,
+    inprocessChecks,
+    qaSamples,
+    qcGateIssues,
+    steps,
+    deviations,
+    editRequests,
+    pendingTargets,
+  ] = await Promise.all([
+    getRecordsForJob(job.id),
+    getApprovalsForJob(job.id),
+    needMachines ? listMachines() : Promise.resolve([]),
+    getJobRoute(job.id),
+    listStations(),
+    getJobMaterials(job.id),
+    // Part C — การ์ดข้อมูลงานแก้ไขได้: ต้องมีทะเบียนสถานะ + ทะเบียนลูกค้าไว้ทำ dropdown
+    Promise.all([listJobSubStatuses(), listCustomers()]),
+    // Part C.3 ก้อน 4: LC เป็นหลายใบต่องาน (1 ใบต่อ ขั้นตอน × เครื่อง)
+    getLineClearances(job.id),
+    getInprocessChecks(job.id),
+    getQaSamples(job.id),
+    // Part F (0093) — เช็กลิสต์ "ก่อนส่ง QC" ถามเฉพาะตอนงานอยู่ขั้นกำลังผลิต
+    job.status === "in_production" ? getQcGateIssues(job.id) : Promise.resolve([]),
+    // Part C.3 ก้อน 3: แท็บตามขั้นตอนการผลิต (job_routes + เครื่องจักร + ตัวนับ)
+    getJobRouteSteps(job.id),
+    getDeviationsByJob(job.id),
+    // F1 — คำขอแก้ไขย้อนหลัง (ประวัติ + badge บนแถวที่มีคำขอค้าง)
+    getEditRequestsForJob(job.id),
+    getPendingTargetIds(job.id),
+  ]);
+
   // สถานีย่อยทั้งหมด (active) + route ของงาน → ใช้ทำตัวเลือกสถานีในฟอร์มต่างๆ
-  const jobRoute = await getJobRoute(job.id);
-  const activeStations = (await listStations()).filter((s) => s.is_active);
+  const activeStations = allStations.filter((s) => s.is_active);
   // ตัวเลือกฟอร์มขอแก้ไข: สถานีย่อย (station_id) = ทุกสถานี active · เครื่องจักร = รายการเครื่อง
   const stationIdEditOptions = activeStations.map((s) => ({ value: s.id, label: s.name }));
   const machineEditOptions = [
     { value: "", label: "— ไม่ระบุเครื่อง —" },
     ...machines.map((m) => ({ value: m.id, label: `${m.code} · ${m.name}` })),
   ];
-  const jobMaterials = await getJobMaterials(job.id);
-  // Part C — การ์ดข้อมูลงานแก้ไขได้: ต้องมีทะเบียนสถานะ + ทะเบียนลูกค้าไว้ทำ dropdown
-  const [subStatuses, customers] = await Promise.all([
-    listJobSubStatuses(),
-    listCustomers(),
-  ]);
   // จำนวนรายการเบิก — ใช้เตือนตอนแก้ Batch Size (โหลดอยู่แล้ว ไม่ต้อง query เพิ่ม)
   const materialCount = jobMaterials.length;
   // Part F (0092) — ด่านความพร้อมวัตถุดิบ: บอกเหตุผลบนหน้าจอก่อนผู้ใช้เจอ error จาก server
@@ -178,16 +212,8 @@ export default async function JobDetailPage({
   // Part C.2: ฝ่ายผลิตลงรายการ · ฝ่ายคลังกดสถานะ — คนละสิทธิ์กันคนละ helper
   const canEditMat = canEditJobMaterials(roles);
   const canSetMatStatus = canSetJobMaterialStatus(roles);
-  // Part C.3 ก้อน 4: LC เป็นหลายใบต่องาน (1 ใบต่อ ขั้นตอน × เครื่อง)
-  const lineClearances = await getLineClearances(job.id);
   const canPerformLc = canPerformLineClearance(roles);
   const canCheckLc = canCheckLineClearance(roles);
-  const inprocessChecks = await getInprocessChecks(job.id);
-  const qaSamples = await getQaSamples(job.id);
-  // Part F (0093) — เช็กลิสต์ "ก่อนส่ง QC ต้องมีอะไรครบบ้าง"
-  //   ถามเฉพาะตอนงานอยู่ขั้นกำลังผลิต (ขั้นอื่นไม่เกี่ยว ไม่ต้องยิง RPC ทิ้ง)
-  const qcGateIssues =
-    job.status === "in_production" ? await getQcGateIssues(job.id) : [];
   const canInprocess = canRecordInprocess(roles);
   // Part C.3 ก้อน 6: หัวหน้า QC เป็นคนอนุมัติผลตรวจ (คนละคนกับผู้ลงผล)
   const canApproveQc = canApproveInprocess(roles);
@@ -195,9 +221,6 @@ export default async function JobDetailPage({
   const canSample = canRecordQaSample(roles);
   // Part E: หัวหน้าฝ่ายผลิตอนุมัติบันทึกผลผลิต (ลายเซ็นที่สอง · คนละคนกับผู้บันทึก)
   const canApproveRecord = canApproveProductionRecord(roles);
-  // ── Part C.3 ก้อน 3: แท็บตามขั้นตอนการผลิต ──────────────────────────
-  // steps มาจาก job_routes (snapshot ตอนสร้างงาน) พร้อมเครื่องจักรที่ผูกไว้ + ตัวนับ
-  const steps = await getJobRouteSteps(job.id);
   // ── Part H: รายการที่ "ผู้ดูคนนี้อนุมัติได้" แยกตามขั้นตอน ──────────────
   //   ใช้ทำป้าย "⏳ รออนุมัติ" บนแท็บ + เลือกแท็บให้เองเมื่อมาจากแจ้งเตือน (?pending=)
   //   กติกาเดียวกับปุ่มอนุมัติ: ยัง pending และไม่ใช่รายการของตัวเอง (สองลายเซ็น)
@@ -282,10 +305,6 @@ export default async function JobDetailPage({
   }));
 
 
-  const deviations = await getDeviationsByJob(job.id);
-  // F1 — คำขอแก้ไขย้อนหลัง (ประวัติ + badge บนแถวที่มีคำขอค้าง)
-  const editRequests = await getEditRequestsForJob(job.id);
-  const pendingTargets = await getPendingTargetIds(job.id);
   const canAmend = roles.length > 0;
   // Part H (0100): ผู้บันทึก + รายการที่ยังไม่อนุมัติ/ถูกตีกลับ → แก้ตรง · นอกนั้น → ขอแก้ไข (Amendment)
   const recordEditButton = (r: ProductionRecordRow) => {

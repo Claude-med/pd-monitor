@@ -442,7 +442,7 @@ function CreateForm({
             type="text"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="อย่างน้อย 6 ตัวอักษร"
+            placeholder="อย่างน้อย 8 ตัวอักษร"
             className={inputClass}
           />
         </div>
@@ -700,7 +700,7 @@ function UserEditPanel({
                 type="text"
                 value={newPw}
                 onChange={(e) => setNewPw(e.target.value)}
-                placeholder="รหัสผ่านใหม่ (อย่างน้อย 6 ตัว)"
+                placeholder="รหัสผ่านใหม่ (อย่างน้อย 8 ตัว)"
                 className={inputClass}
               />
               <button

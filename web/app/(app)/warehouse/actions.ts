@@ -25,8 +25,9 @@ export async function receiveFg(v: {
     return { error: "ไม่มีสิทธิ์ (เฉพาะฝ่ายคลัง/ผู้บริหาร)" };
   if (!v.job_id) return { error: "ไม่พบงาน" };
   const qty = Number(v.qty);
-  if (!Number.isFinite(qty) || qty < 0)
-    return { error: "จำนวนไม่ถูกต้อง (ห้ามว่างหรือติดลบ)" };
+  // ⚠️ Number("") = 0 → ช่องว่างเดิมหลุดผ่านเป็น "รับเข้า 0" ได้ · DB บังคับซ้ำ (0106)
+  if (!v.qty.trim() || !Number.isFinite(qty) || qty <= 0)
+    return { error: "จำนวนรับเข้าต้องมากกว่า 0" };
 
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("receive_fg", {

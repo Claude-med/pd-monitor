@@ -11,7 +11,7 @@ export const metadata = { title: "บอร์ดงาน — PD Monitor" };
 export default async function BoardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; company?: string; problem?: string }>;
+  searchParams: Promise<{ status?: string; company?: string; problem?: string; q?: string }>;
 }) {
   // companies = ตัวเลือกของ dropdown กรองบริษัท (แพทเทิร์นเดียวกับหน้า /board/new)
   const [jobs, profile, companies, sp] = await Promise.all([
@@ -30,6 +30,8 @@ export default async function BoardPage({
     ? (sp.company as string)
     : "";
   const initialProblem = sp.problem === "1";
+  // ?q= = คำค้นที่พิมพ์ไว้ — board-view เขียนตัวกรองทั้งหมดลง URL ให้เอง เพื่อให้กดกลับจากหน้างานแล้วไม่หาย
+  const initialSearch = typeof sp.q === "string" ? sp.q.slice(0, 100) : "";
   return (
     <>
       <RealtimeRefresh tables={["jobs", "fg_inventory", "deviations"]} />
@@ -40,6 +42,7 @@ export default async function BoardPage({
         initialStatus={initialStatus}
         initialCompany={initialCompany}
         initialProblem={initialProblem}
+        initialSearch={initialSearch}
       />
     </>
   );
