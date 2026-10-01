@@ -1054,13 +1054,9 @@ export function PrintTableView({
           </p>
           <p>
             💡 กดปุ่มปริ้นแล้ว ในหน้าต่างพิมพ์ เปิด “การตั้งค่าเพิ่มเติม / More settings” แล้วตั้ง{" "}
-            <b className="text-foreground">“ขนาดกระดาษ / Paper size” = A4</b> (ถ้าเป็น Letter
-            ขอบขวาจะถูกตัด) และ “ขนาด / Scale” เป็น{" "}
-            <b className="text-foreground">ขนาดจริง (Actual size)</b> — ถ้าเป็น
-            “พอดีกับพื้นที่ที่พิมพ์ได้ (Fit to printable area)” ทั้งแผ่นจะถูกย่อลง
-            ขอบขาวบนกระดาษจะกว้างกว่าที่ตั้งไว้ตรงนี้ · แนวกระดาษเป็น{" "}
-            <b className="text-foreground">{ORIENTATION_LABEL[orientation]}</b>{" "}
-            ให้อัตโนมัติ
+            <b className="text-foreground">“ขนาดกระดาษ / Paper size” = A4</b> — ถ้าเป็น Letter
+            (ค่าเริ่มต้นของเครื่องพิมพ์หลายรุ่น) ขอบขวาจะถูกตัด · “ขนาด / Scale” ปล่อยเป็น{" "}
+            <b className="text-foreground">ค่าเริ่มต้น (Default)</b> ได้เลย
           </p>
           <p>
             🖨️ เครื่องพิมพ์ส่วนใหญ่พิมพ์ชิดขอบกระดาษได้ไม่เกิน ~4 มม. — ตั้งขอบต่ำกว่านั้น

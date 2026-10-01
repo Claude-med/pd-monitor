@@ -34,6 +34,10 @@ export function PrintButton({ fileName }: { fileName: string }) {
   return (
     <div className="flex flex-wrap items-center justify-end gap-2">
       {error && <span className="text-sm text-destructive">⚠️ {error}</span>}
+      {/* กระดาษ Letter (ค่าเริ่มต้นของเครื่องพิมพ์หลายรุ่น) แคบกว่า A4 → ขอบขวาถูกตัด (เจอจริง 1 ต.ค. 69) */}
+      <span className="text-xs text-muted-foreground">
+        ในหน้าต่างพิมพ์ ตั้ง “ขนาดกระดาษ / Paper size” เป็น A4
+      </span>
       <button
         type="button"
         onClick={printPdf}
