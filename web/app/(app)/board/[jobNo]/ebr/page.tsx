@@ -318,6 +318,16 @@ export default async function EbrPage({
                     <Field label="วันผลิต (MFG)" value={job.mfg_date} />
                     <Field label="วันหมดอายุ (EXP)" value={job.exp_date} />
                     <Field label="สถานะงาน" value={STATUS_LABEL[job.status] ?? job.status} />
+                    {/* 0109: งานที่ยกเลิก — แฟ้มต้องบอกได้ว่าใครยกเลิก เมื่อไร เพราะอะไร */}
+                    {job.status === "cancelled" && (
+                      <Field
+                        label="ยกเลิกโดย / เหตุผล"
+                        value={`${job.cancelled_by_name ?? "—"} · ${
+                          job.cancelled_at ? fmtDateTime(job.cancelled_at) : "—"
+                        } · ${job.cancel_reason ?? "—"}`}
+                        wide
+                      />
+                    )}
                     <Field label="ลูกค้า" value={job.customer} wide />
                     <Field label="ใบคำขอ" value={job.request_no} />
                     <Field label="พิมพ์เมื่อ" value={printedAt} />

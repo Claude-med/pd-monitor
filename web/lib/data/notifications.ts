@@ -40,7 +40,7 @@ async function getDerivedAlerts(profile: Profile): Promise<InboxItem[]> {
       supabase
         .from("jobs")
         .select("id, job_no, status, planned_end, updated_at")
-        .neq("status", "finished_goods")
+        .not("status", "in", "(finished_goods,cancelled)") // 0109: งานที่ยกเลิกไม่ต้องเตือนเกินกำหนด/ค้าง
         .order("id")
         .range(from, to),
     "getDerivedAlerts",

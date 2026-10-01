@@ -47,27 +47,52 @@ export async function changeStatus(
 }
 
 /**
- * ลบงาน — หัวหน้าทุกแผนก/ผู้บริหาร/ผู้ดูแล (Part G · 0095) + ยืนยันรหัสผ่านซ้ำ (กันลบผิดงาน)
- * DB (delete_job) เป็นด่านบังคับสิทธิ์จริง + ลบตารางลูก cascade + audit
- * การยืนยันรหัส = พิสูจน์ว่า "คนหน้าจอ = เจ้าของบัญชี" (แพตเทิร์นเดียวกับ signDecision)
+ * ยกเลิกงาน (แทนการลบ · 0109) — งานและข้อมูลทั้งหมดยังอยู่ครบ แค่ถูกล็อก + ซ่อนจากบอร์ด
+ * DB (cancel_job) เป็นด่านบังคับสิทธิ์จริง: หัวหน้าแผนก = ก่อนเริ่มผลิต · ผู้บริหาร/admin = ทุกสถานะยกเว้น FG
+ * ต้องมีเหตุผล + ยืนยันรหัสผ่านซ้ำ (พิสูจน์ว่า "คนหน้าจอ = เจ้าของบัญชี" แพตเทิร์นเดียวกับ signDecision)
  */
-export async function deleteJob(
+export async function cancelJob(
   jobId: string,
   jobNo: string,
+  reason: string,
   password: string,
 ): Promise<ActionResult> {
+  return jobCancelOp("cancel_job", "ยกเลิกงาน", jobId, jobNo, reason, password);
+}
+
+/** คืนงานที่ยกเลิกผิดกลับสถานะเดิม — ผู้บริหาร/admin (restore_job · 0109) */
+export async function restoreJob(
+  jobId: string,
+  jobNo: string,
+  reason: string,
+  password: string,
+): Promise<ActionResult> {
+  return jobCancelOp("restore_job", "คืนงาน", jobId, jobNo, reason, password);
+}
+
+async function jobCancelOp(
+  rpc: "cancel_job" | "restore_job",
+  what: string,
+  jobId: string,
+  jobNo: string,
+  reason: string,
+  password: string,
+): Promise<ActionResult> {
+  if (!reason || reason.trim().length < 5) {
+    return { error: "กรุณาระบุเหตุผล (อย่างน้อย 5 ตัวอักษร)" };
+  }
   if (!password || !password.trim()) {
-    return { error: "กรุณากรอกรหัสผ่านเพื่อยืนยันการลบ" };
+    return { error: `กรุณากรอกรหัสผ่านเพื่อยืนยันการ${what}` };
   }
 
   // ยืนยันรหัสผ่านซ้ำ (แยกข้อความ "รหัสผิด" กับ "ลองถี่เกิน" — lib/auth/verify-password.ts)
-  const pwErr = await verifyPassword(password, "ลบงาน");
+  const pwErr = await verifyPassword(password, what);
   if (pwErr) return { error: pwErr };
 
   const supabase = await createClient();
-  const { error } = await supabase.rpc("delete_job", { p_job_id: jobId });
+  const { error } = await supabase.rpc(rpc, { p_job_id: jobId, p_reason: reason.trim() });
   if (error) {
-    return { error: error.message || "ลบงานไม่สำเร็จ" };
+    return { error: error.message || `${what}ไม่สำเร็จ` };
   }
 
   revalidatePath("/board");

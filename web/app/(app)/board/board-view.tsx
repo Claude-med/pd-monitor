@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
+  CANCELLED_STATUS,
   JOB_STATUS,
   PROBLEM_FLAGS,
   isProblemJob,
@@ -72,6 +73,9 @@ function JobCard({ job }: { job: JobRow }) {
         )}
       </div>
       <div className="mt-1 text-sm">{job.product_name ?? "—"}</div>
+      {job.status === CANCELLED_STATUS.key && job.cancel_reason && (
+        <div className="mt-1 text-xs text-muted-foreground">🚫 {job.cancel_reason}</div>
+      )}
       <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
         <span>👥 {job.customer ?? "—"}</span>
         <span>📦 {fmtQty(job.quantity, job.unit)}</span>
@@ -123,9 +127,20 @@ export function BoardView({
   }, [search, status, company, problemOnly]);
 
   // งานที่รับเข้าคลัง FG แล้ว = ถือว่าจบหน้าที่ ย้ายไปดูที่หน้า "คลัง / FG" → ซ่อนจากบอร์ด
-  const boardJobs = useMemo(
-    () => jobs.filter((j) => !(j.status === "finished_goods" && j.fg_received)),
+  // งานที่ยกเลิก (0109) ซ่อนเหมือนกัน — ยกเว้นตอนเลือกตัวกรอง "ยกเลิก" เพื่อดูย้อนหลัง
+  const showCancelled = status === CANCELLED_STATUS.key;
+  const activeJobs = useMemo(
+    () =>
+      jobs.filter(
+        (j) =>
+          j.status !== CANCELLED_STATUS.key &&
+          !(j.status === "finished_goods" && j.fg_received),
+      ),
     [jobs],
+  );
+  const boardJobs = useMemo(
+    () => (showCancelled ? jobs.filter((j) => j.status === CANCELLED_STATUS.key) : activeJobs),
+    [jobs, activeJobs, showCancelled],
   );
 
   // บริษัทเป็น "ขอบเขตการดู" ไม่ใช่ตัวกรองธรรมดา → คั่นไว้เหนือ filtered
@@ -150,8 +165,10 @@ export function BoardView({
     });
   }, [companyJobs, search, status, problemOnly]);
 
-  const total = companyJobs.length;
-  const producing = companyJobs.filter(
+  // KPI นับเฉพาะงานที่ยังเดินอยู่เสมอ — เลือกดูงานที่ยกเลิกแล้วตัวเลขต้องไม่เปลี่ยน
+  const kpiJobs = company ? activeJobs.filter((j) => j.company_id === company) : activeJobs;
+  const total = kpiJobs.length;
+  const producing = kpiJobs.filter(
     (j) => j.status === "in_production",
   ).length;
   // "เข้าคลังแล้ว" = งานที่รับเข้าคลัง FG จริง (มีใน fg_inventory)
@@ -163,7 +180,7 @@ export function BoardView({
       (!company || j.company_id === company),
   ).length;
   // นิยามเดียวกับแดชบอร์ด (0104): ธงปัญหา หรือ Incident ยังไม่ปิด
-  const problem = companyJobs.filter(isProblemJob).length;
+  const problem = kpiJobs.filter(isProblemJob).length;
 
   return (
     <div className="space-y-5">
@@ -231,6 +248,7 @@ export function BoardView({
               {s.label}
             </option>
           ))}
+          <option value={CANCELLED_STATUS.key}>🚫 งานที่ยกเลิก</option>
         </select>
         {companies.length > 0 && (
           <select
@@ -267,7 +285,7 @@ export function BoardView({
 
       {/* Kanban: คอลัมน์ตามสถานะ — เดสก์ท็อปเรียงแนวนอน / มือถือซ้อนลงมา */}
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:gap-3 md:overflow-x-auto md:pb-2">
-        {JOB_STATUS.map((s) => {
+        {(showCancelled ? [CANCELLED_STATUS] : JOB_STATUS).map((s) => {
           const list = filtered.filter((j) => j.status === s.key);
           return (
             <div

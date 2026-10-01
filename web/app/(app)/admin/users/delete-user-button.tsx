@@ -8,7 +8,7 @@ import { deleteUser } from "./actions";
  * ปุ่มลบบัญชีผู้ใช้ (ทีละบัญชี) — อยู่ท้ายแผงแก้ไขของแต่ละคนในส่วน "ผู้ใช้ทั้งหมด"
  * กด "ลบบัญชี" → ถามยืนยันซ้ำ + ต้องกรอกรหัสผ่านของผู้กด (กันลบผิดคน)
  *
- * โครงเดียวกับ DeleteJobButton (board/[jobNo]/delete-job-button.tsx) — inline confirm panel
+ * โครงเดียวกับ CancelJobButton (board/[jobNo]/cancel-job-button.tsx) — inline confirm panel
  * ⚠️ ใครลบใครได้ ตัดสินที่ admin_delete_user() ใน DB (0082) ที่นี่แค่หน้าจอ
  */
 export function DeleteUserButton({

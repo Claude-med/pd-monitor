@@ -31,19 +31,24 @@ export function isAnyLead(roles: AppRole[]): boolean {
   return roles.some((r) => r.endsWith(LEAD_SUFFIX));
 }
 
-/** สถานะที่ "ยังไม่เริ่มผลิต" — หัวหน้าแผนกลบงานได้เฉพาะช่วงนี้ (ตรงกับ delete_job() · 0105) */
+/** สถานะที่ "ยังไม่เริ่มผลิต" — หัวหน้าแผนกยกเลิกงานได้เฉพาะช่วงนี้ (ตรงกับ cancel_job() · 0109) */
 const PRE_PRODUCTION_STATUSES = new Set(["pending_announce", "planned"]);
 
 /**
- * ลบงาน — ตรงกับด่านใน delete_job() (0105)
- *   · ผู้บริหาร + admin ลบได้ทุกสถานะ
- *   · หัวหน้าทุกแผนก ลบได้เฉพาะงานที่ยังไม่เริ่มผลิต (รีวิว 1 ต.ค. 69 — เดิม Part G ลบได้ทุกสถานะ)
- *     งานที่เริ่มผลิตแล้วมีบันทึกผลผลิต/ผลตรวจ/ลายเซ็น ซึ่งจะถูกลบตามไปด้วยแบบ cascade
- * ต้องกรอกรหัสผ่านยืนยันเสมอ
+ * ยกเลิกงาน (แทนการลบ · 0109) — ตรงกับด่านใน cancel_job()
+ *   · ผู้บริหาร + admin ยกเลิกได้ทุกสถานะ ยกเว้น FG (QA ปล่อยผ่านแล้ว)
+ *   · หัวหน้าทุกแผนก ยกเลิกได้เฉพาะงานที่ยังไม่เริ่มผลิต
+ * ต้องกรอกเหตุผล + รหัสผ่านยืนยันเสมอ
  */
-export function canDeleteJob(roles: AppRole[], status: string): boolean {
+export function canCancelJob(roles: AppRole[], status: string): boolean {
+  if (status === "cancelled" || status === "finished_goods") return false;
   if (hasAnyRole(roles, ["manager", "admin"])) return true;
   return isAnyLead(roles) && PRE_PRODUCTION_STATUSES.has(status);
+}
+
+/** คืนงานที่ยกเลิกผิดกลับสถานะเดิม — ผู้บริหาร/admin (ตรงกับ restore_job() · 0109) */
+export function canRestoreJob(roles: AppRole[], status: string): boolean {
+  return status === "cancelled" && hasAnyRole(roles, ["manager", "admin"]);
 }
 
 /** ผู้ใช้มีสิทธิ์ role นี้ไหม (admin ผ่านเสมอ · หัวหน้าฝ่ายผ่านสิทธิ์ของฝ่ายตัวเอง) */

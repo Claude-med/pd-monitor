@@ -39,7 +39,11 @@ export default async function PrintNoticePage() {
       </div>
 
       {canPrint ? (
-        <PrintNoticeView jobs={jobs} companies={companies} />
+        <PrintNoticeView
+          // 0109: งานที่ยกเลิกไม่ต้องออกใบแจ้งผลิต
+          jobs={jobs.filter((j) => j.status !== "cancelled")}
+          companies={companies}
+        />
       ) : (
         <p className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
           เฉพาะฝ่ายวางแผน/ผู้บริหารปริ้นใบแจ้งผลิตได้ — บัญชีของคุณไม่มีสิทธิ์นี้

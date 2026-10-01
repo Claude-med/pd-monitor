@@ -35,13 +35,18 @@ const notMine = (col: string, me: string) => `${col}.is.null,${col}.neq.${me}`;
 
 // ── เงื่อนไข "รออนุมัติของฉัน" แต่ละกลุ่ม — ใช้ร่วมกันทั้งรายการ (getMyApprovals) และตัวนับ (countMyApprovals)
 //    แยกออกมาเพื่อไม่ให้สองที่เพี้ยนจากกัน (ตัวเลขบนเมนูต้องเท่ากับรายการในหน้า /approvals เสมอ)
+//    0109: ตัดรายการของงานที่ยกเลิกออก (อนุมัติไม่ได้แล้ว — DB ล็อก) · ทุก select ต้องมี `jobs!inner ( status )`
+const notCancelled = (q: any) => q.neq("jobs.status", "cancelled");
 const filterRecords = (q: any, me: string) =>
-  q.eq("status", "pending").neq("created_by", me).or(notMine("operator_id", me));
+  notCancelled(q.eq("status", "pending").neq("created_by", me).or(notMine("operator_id", me)));
 const filterLc = (q: any, me: string) =>
-  q.not("performed_at", "is", null).is("checked_at", null).or(notMine("performed_by", me));
+  notCancelled(
+    q.not("performed_at", "is", null).is("checked_at", null).or(notMine("performed_by", me)),
+  );
 const filterInprocess = (q: any, me: string) =>
-  q.eq("status", "pending").or(notMine("checked_by", me));
-const filterQaSample = (q: any) => q.eq("review_status", "pending").is("deleted_at", null);
+  notCancelled(q.eq("status", "pending").or(notMine("checked_by", me)));
+const filterQaSample = (q: any) =>
+  notCancelled(q.eq("review_status", "pending").is("deleted_at", null));
 
 /**
  * จำนวนรายการรออนุมัติของผู้ใช้ — สำหรับ badge เมนู (layout)
@@ -56,13 +61,13 @@ export async function countMyApprovals(profile: Profile): Promise<number> {
   const tasks: PromiseLike<{ count: number | null }>[] = [];
 
   if (canApproveProductionRecord(roles))
-    tasks.push(filterRecords(supabase.from("production_records").select("id", head), me));
+    tasks.push(filterRecords(supabase.from("production_records").select("id, jobs!inner ( status )", head), me));
   if (canCheckLineClearance(roles))
-    tasks.push(filterLc(supabase.from("line_clearances").select("id", head), me));
+    tasks.push(filterLc(supabase.from("line_clearances").select("id, jobs!inner ( status )", head), me));
   if (canApproveInprocess(roles))
-    tasks.push(filterInprocess(supabase.from("inprocess_checks").select("id", head), me));
+    tasks.push(filterInprocess(supabase.from("inprocess_checks").select("id, jobs!inner ( status )", head), me));
   if (hasAnyRole(roles, ["qa_lead"]))
-    tasks.push(filterQaSample(supabase.from("qa_samples").select("id", head)));
+    tasks.push(filterQaSample(supabase.from("qa_samples").select("id, jobs!inner ( status )", head)));
 
   const results = await Promise.all(tasks);
   return results.reduce((sum, r) => sum + (r.count ?? 0), 0);
@@ -83,7 +88,7 @@ export async function getMyApprovals(profile: Profile): Promise<ApprovalItem[]> 
             `id, job_route_id, record_date, output_qty, output_unit,
              operator:profiles!operator_id ( full_name ),
              station:stations!station_id ( name ),
-             jobs ( job_no )`,
+             jobs!inner ( job_no, status )`,
           ), me)
           .order("record_date", { ascending: true });
         return ((data ?? []) as any[]).flatMap((r) => {
@@ -117,7 +122,8 @@ export async function getMyApprovals(profile: Profile): Promise<ApprovalItem[]> 
             `id, job_route_id, performed_at,
              performer:profiles!performed_by ( full_name ),
              machine:machines!machine_id ( code ),
-             route:job_routes!job_route_id ( station:stations!station_id ( name ), jobs ( job_no ) )`,
+             route:job_routes!job_route_id ( station:stations!station_id ( name ), jobs ( job_no ) ),
+             jobs!inner ( status )`,
           ), me)
           .order("performed_at", { ascending: true });
         return ((data ?? []) as any[]).flatMap((r) => {
@@ -150,7 +156,7 @@ export async function getMyApprovals(profile: Profile): Promise<ApprovalItem[]> 
             `id, job_route_id, param, value, unit, result, checked_at,
              checker:profiles!checked_by ( full_name ),
              station:stations!station_id ( name ),
-             jobs ( job_no )`,
+             jobs!inner ( job_no, status )`,
           ), me)
           .order("checked_at", { ascending: true });
         return ((data ?? []) as any[]).flatMap((r) => {
@@ -184,7 +190,7 @@ export async function getMyApprovals(profile: Profile): Promise<ApprovalItem[]> 
           .select(
             `id, result, collected_at,
              collector:profiles!collected_by ( full_name ),
-             jobs ( job_no )`,
+             jobs!inner ( job_no, status )`,
           ))
           .order("collected_at", { ascending: true });
         return ((data ?? []) as any[]).flatMap((r) => {

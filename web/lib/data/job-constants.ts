@@ -13,13 +13,19 @@ export const JOB_STATUS = [
   { key: "finished_goods", label: "FG (เข้าคลัง)", color: "#16a34a" },
 ] as const;
 
-export type JobStatus = (typeof JOB_STATUS)[number]["key"];
+/**
+ * งานที่ถูกยกเลิก (0109 · แทนการลบงาน) — อยู่นอก flow จึงไม่อยู่ใน JOB_STATUS
+ * (ไม่มีคอลัมน์บนบอร์ด/stepper) แต่มีป้ายชื่อ/สีให้แสดงได้ทุกที่
+ */
+export const CANCELLED_STATUS = { key: "cancelled", label: "ยกเลิก", color: "#94a3b8" } as const;
+
+export type JobStatus = (typeof JOB_STATUS)[number]["key"] | typeof CANCELLED_STATUS.key;
 
 export const STATUS_LABEL: Record<string, string> = Object.fromEntries(
-  JOB_STATUS.map((s) => [s.key, s.label]),
+  [...JOB_STATUS, CANCELLED_STATUS].map((s) => [s.key, s.label]),
 );
 export const STATUS_COLOR: Record<string, string> = Object.fromEntries(
-  JOB_STATUS.map((s) => [s.key, s.color]),
+  [...JOB_STATUS, CANCELLED_STATUS].map((s) => [s.key, s.color]),
 );
 export const STATUS_INDEX: Record<string, number> = Object.fromEntries(
   JOB_STATUS.map((s, i) => [s.key, i]),
@@ -133,6 +139,10 @@ export type JobRow = {
   fg_received?: boolean;
   /** จำนวน Incident Case ที่ยังไม่ปิดของงานนี้ (Part I — getJobs() เติมให้) */
   open_incidents?: number;
+  /** ข้อมูลการยกเลิก (0109) — มีค่าเฉพาะงานที่ status = 'cancelled' */
+  cancelled_at: string | null;
+  cancel_reason: string | null;
+  cancelled_by_name: string | null;
 };
 
 /**

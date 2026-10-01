@@ -10,6 +10,7 @@ const SELECT = `
   id, job_no, status, problem, problem_note, planned_start, planned_end,
   request_no, cpo_date, sub_status, plan_month, company_id, company, note,
   pack_type, pack_pattern_1, pack_pattern_2, pack_pattern_3,
+  cancelled_at, cancel_reason, canceller:profiles!cancelled_by ( full_name ),
   batches ( lot_no, manufacture_date, expiry_date ),
   orders ( order_no, customer, customer_id, quantity, unit, due_date, products ( code, name, dosage_form, reg_no, appearance ) )
 `;
@@ -58,6 +59,9 @@ function shape(r: any): JobRow {
     pack_patterns: [r.pack_pattern_1, r.pack_pattern_2, r.pack_pattern_3].filter(
       (p): p is string => !!p,
     ),
+    cancelled_at: r.cancelled_at ?? null,
+    cancel_reason: r.cancel_reason ?? null,
+    cancelled_by_name: one<any>(r.canceller)?.full_name ?? null,
   };
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */

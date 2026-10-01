@@ -151,7 +151,7 @@ export async function previewDeleteProduct(
 /**
  * ลบผลิตภัณฑ์ถาวร — ผู้บริหารเท่านั้น + ยืนยันรหัสผ่านซ้ำ (กันลบผิดตัว)
  * DB (force_delete_product) เป็นด่านจริง: สิทธิ์ · ต้องปิดใช้งานอยู่ก่อน · นับ blocker ใหม่ตอนกด
- * การยืนยันรหัส = พิสูจน์ว่า "คนหน้าจอ = เจ้าของบัญชี" (แพตเทิร์นเดียวกับ deleteJob)
+ * การยืนยันรหัส = พิสูจน์ว่า "คนหน้าจอ = เจ้าของบัญชี" (แพตเทิร์นเดียวกับ cancelJob)
  */
 export async function forceDeleteProduct(
   productId: string,

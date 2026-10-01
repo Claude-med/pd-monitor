@@ -43,7 +43,8 @@ export default async function PrintTablePage() {
       </div>
 
       <PrintTableView
-        jobs={jobs}
+        // 0109: งานที่ยกเลิกไม่อยู่บนบอร์ด → ไม่อยู่ในตารางที่ปริ้นด้วย
+        jobs={jobs.filter((j) => j.status !== "cancelled")}
         companies={companies}
         subStatuses={subStatuses}
       />

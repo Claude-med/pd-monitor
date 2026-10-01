@@ -44,7 +44,7 @@ import {
   fieldLabel,
 } from "@/lib/data/edit-request-constants";
 import { getProfile } from "@/lib/auth/dal";
-import { canDeleteJob, hasAnyRole } from "@/lib/auth/roles";
+import { canCancelJob, canRestoreJob, hasAnyRole } from "@/lib/auth/roles";
 import {
   canPlanJobs,
   canEditJobMaterials,
@@ -62,7 +62,7 @@ import { listCustomers } from "@/lib/data/customers";
 import { fmtDateTime, displayJobNo } from "@/lib/format";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
 import { JobActions } from "./job-actions";
-import { DeleteJobButton } from "./delete-job-button";
+import { CancelJobButton } from "./cancel-job-button";
 import { LotNotice } from "./lot-notice";
 import { JobInfoCard } from "./job-info-card";
 import { RecordForm } from "./record-form";
@@ -133,7 +133,11 @@ export default async function JobDetailPage({
   ]);
   if (!job) notFound();
 
-  const roles = profile?.roles ?? [];
+  const userRoles = profile?.roles ?? [];
+  // 0109: งานที่ยกเลิก = อ่านอย่างเดียว → ทำเหมือนผู้ใช้ไม่มีสิทธิ์อะไรเลย ปุ่ม/ฟอร์มทุกอันในหน้าจะหายเอง
+  //   (DB ล็อกซ้ำอีกชั้นด้วย trigger guard_cancelled_job*) · ปุ่มยกเลิก/คืนงานใช้ userRoles
+  const cancelled = job.status === "cancelled";
+  const roles = cancelled ? [] : userRoles;
   const curIdx = STATUS_INDEX[job.status] ?? 0;
   const flag = job.problem ? PROBLEM_FLAGS[job.problem] : null;
 
@@ -398,7 +402,7 @@ export default async function JobDetailPage({
       </div>
 
       {/* Part 2.1 — งานที่ไม่มีขั้นตอนการผลิต (job_routes ว่าง) ต้องซ่อมก่อนถึงจะบันทึกผลได้ */}
-      {jobRoute.length === 0 && (
+      {jobRoute.length === 0 && !cancelled && (
         <MissingRouteBanner
           jobNo={job.job_no}
           jobId={job.id}
@@ -406,7 +410,27 @@ export default async function JobDetailPage({
         />
       )}
 
-      {/* แถบสถานะ (stepper) */}
+      {/* 0109 — งานที่ยกเลิก: บอกว่าใคร/เมื่อไร/เพราะอะไร · ทั้งหน้าเป็นอ่านอย่างเดียว */}
+      {cancelled && (
+        <div className="rounded-xl border border-l-4 border-l-slate-400 bg-card p-4">
+          <p className="font-semibold">🚫 งานนี้ถูกยกเลิกแล้ว — ดูข้อมูลย้อนหลังได้อย่างเดียว แก้ไขไม่ได้</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            โดย {job.cancelled_by_name ?? "—"}
+            {job.cancelled_at && <> · {fmtDateTime(job.cancelled_at)}</>}
+          </p>
+          {job.cancel_reason && (
+            <p className="mt-1 text-sm">เหตุผล: {job.cancel_reason}</p>
+          )}
+          {canRestoreJob(userRoles, job.status) && (
+            <div className="mt-3 border-t pt-3">
+              <CancelJobButton jobId={job.id} jobNo={job.job_no} mode="restore" />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* แถบสถานะ (stepper) — งานที่ยกเลิกไม่มีตำแหน่งใน flow จึงไม่แสดง */}
+      {!cancelled && (
       <div className="flex flex-wrap gap-2">
         {JOB_STATUS.map((s, i) => {
           const done = i < curIdx;
@@ -435,6 +459,7 @@ export default async function JobDetailPage({
           );
         })}
       </div>
+      )}
 
       {/* ข้อมูลงาน — อ่าน/แก้ไขในการ์ดเดียว สิทธิ์รายช่องตามฝ่าย (Part C) */}
       <JobInfoCard
@@ -456,7 +481,8 @@ export default async function JobDetailPage({
         </div>
       )}
 
-      {/* การดำเนินการตามสถานะ + สิทธิ์ */}
+      {/* การดำเนินการตามสถานะ + สิทธิ์ — งานที่ยกเลิกไม่มีอะไรให้ทำ (ปุ่มคืนงานอยู่ในแถบยกเลิกด้านบน) */}
+      {!cancelled && (
       <div className="rounded-xl border bg-card p-5">
         <h2 className="mb-3 font-semibold">ดำเนินการ</h2>
 
@@ -491,13 +517,14 @@ export default async function JobDetailPage({
           roles={roles}
         />
 
-        {/* ลบงาน — หัวหน้าทุกแผนก/ผู้บริหาร/ผู้ดูแล (Part G · 0095) */}
-        {canDeleteJob(roles, job.status) && (
+        {/* ยกเลิกงาน (แทนการลบ · 0109) — หัวหน้าแผนกก่อนเริ่มผลิต · ผู้บริหาร/ผู้ดูแลทุกสถานะยกเว้น FG */}
+        {canCancelJob(userRoles, job.status) && (
           <div className="mt-4 border-t pt-4">
-            <DeleteJobButton jobId={job.id} jobNo={job.job_no} />
+            <CancelJobButton jobId={job.id} jobNo={job.job_no} />
           </div>
         )}
       </div>
+      )}
 
       {/* เบิกวัตถุดิบ/บรรจุภัณฑ์ (Part C.2) */}
       <JobMaterials
@@ -776,12 +803,14 @@ export default async function JobDetailPage({
         jobId={job.id}
         jobNo={job.job_no}
         deviations={deviations}
-        canOpen={canOpenDeviation(roles)}
-        canClose={canCloseDeviation(roles)}
-        canReview={canReviewIncident(roles)}
+        // 0109: Incident ของงานที่ยกเลิกยังต้องสอบสวน/ปิดได้ (DB ไม่ล็อกตาราง deviations)
+        //   → ใช้ userRoles · แต่เปิด Incident ใหม่ไม่ได้แล้ว
+        canOpen={!cancelled && canOpenDeviation(userRoles)}
+        canClose={canCloseDeviation(userRoles)}
+        canReview={canReviewIncident(userRoles)}
         // ⚠️ ต้องใช้ roleGroupOf() เท่านั้น — ตรงกับ current_role_group() ใน DB
         //    (hasAnyRole ให้ admin ผ่านทุกฝ่าย จะทำให้ปุ่มโผล่ทั้งที่ DB ปฏิเสธ)
-        currentRoleGroup={roleGroupOf(roles)}
+        currentRoleGroup={roleGroupOf(userRoles)}
       />
 
       {/* ประวัติการแก้ไขย้อนหลัง (F1) */}
