@@ -65,6 +65,11 @@ export async function sheetsToPdf(
     : undefined;
 
   const pdf = new jsPDF({ unit: "mm", format: "a4", orientation, compress: true });
+  /* บอกหน้าต่างพิมพ์ว่า "ไม่ต้องย่อ/ขยาย" + "เลือกถาดกระดาษตามขนาดหน้า PDF (A4)"
+     🚨 ถ้ากระดาษในหน้าต่างพิมพ์เป็น Letter (ค่าเริ่มต้นของเครื่องพิมพ์หลายรุ่น เช่น EPSON L405)
+        แผ่น A4 กว้างกว่า ~18 มม. → ขอบขวาถูกตัด (เจอจริง 1 ต.ค. 69) · ค่านี้เป็นแค่คำแนะนำ
+        เบราว์เซอร์/ไดรเวอร์บางตัวไม่สนใจ ⇒ หน้าเว็บต้องบอกผู้ใช้ให้ตั้ง "ขนาดกระดาษ A4" ด้วย */
+  pdf.viewerPreferences({ PrintScaling: "None", PickTrayByPDFSize: true });
   for (let i = 0; i < sheets.length; i++) {
     const el = sheets[i];
     const w = el.offsetWidth;

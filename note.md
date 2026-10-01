@@ -3655,6 +3655,12 @@ tsc + eslint ผ่าน · รันเว็บในเครื่อง + 
 `board/[jobNo]/ebr/page.tsx` · `ebr/print-button.tsx` · `ebr/paginate.ts` (ใหม่)
 สคริปต์ทดสอบ (ไม่ขึ้น git): `docs/build/.cache/test-{notice,ebr,ebr-long,table}-pdf.mjs`
 
+### 🐛 รอบแก้ท้ายวัน — ปริ้นแล้วขอบขวาหาย (คอลัมน์ STATUS ถูกตัด)
+- ภาพหน้าต่างพิมพ์ที่ผู้ใช้ส่งมา: แผ่นตัวอย่างสัดส่วน 1.30 = **กระดาษ Letter** (A4 = 1.41) → ตั้ง "ขนาดจริง" แล้ว A4 กว้างกว่า ~18 มม. ล้นขวา
+- แก้: PDF ใส่ `viewerPreferences({ PrintScaling: "None", PickTrayByPDFSize: true })` (คำแนะนำให้หน้าต่างพิมพ์ ไม่บังคับ) ·
+  คำแนะนำบนหน้า: More settings → **ขนาดกระดาษ A4** + Scale ขนาดจริง
+- ⏳ ให้ผู้ใช้ตั้ง Paper size = A4 แล้วลองใหม่ · ถ้าอยากไม่ต้องตั้งทุกครั้ง: ตั้งค่าเริ่มต้นของเครื่อง EPSON L405 ใน Windows เป็น A4
+
 ### 📢 Notion
 หน้า **"🖨️ ปริ้นผ่าน PDF ครบ 3 หน้า · eBR มีเลขหน้า · ตารางบอร์ดงานเต็มแผ่น (1 ต.ค. 69) claude"**
 (https://app.notion.com/p/3ec92ef2c18f8100a500dbbb9c5b86bd) — สรุป + วิธีปริ้นให้ขนาดตรง + เช็กลิสต์ทดสอบ 5 ข้อ · ใต้หน้าหลักโปรเจค
