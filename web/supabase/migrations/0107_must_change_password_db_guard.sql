@@ -161,8 +161,10 @@ grant  execute on function public.clear_must_change_password() to authenticated;
 --   ✅ 5 แถว ok = true ทุกแถว   ❌ มีแถว false = ไฟล์รันไม่ครบ → paste ใหม่ทั้งไฟล์
 --
 -- ข้อ 2 · ผู้ใช้ยังปลดธงตัวเองได้ (ไม่พึ่ง current_profile_id แล้ว)
---   select prosrc not like '%current_profile_id%' and prosrc like '%auth.uid()%'
+--   select prosrc not like '%public.current_profile_id()%' and prosrc like '%auth.uid()%'
 --     from pg_proc where proname = 'clear_must_change_password';
+--   ⚠️ ต้องค้น "public.current_profile_id()" เต็ม ๆ — ฟังก์ชันมีบรรทัด set_config('app.current_profile_id', …)
+--      (ชื่อตัวแปร audit) ถ้าค้นแค่ current_profile_id จะได้ false ทั้งที่ฟังก์ชันถูก (พลาดมาแล้ว 1 ต.ค. 69)
 --   ✅ true   ❌ false = ไฟล์ยังไม่ได้รัน → ผู้ใช้ใหม่จะติดอยู่หน้าตั้งรหัส แจ้ง Claude ทันที
 --
 -- ข้อ 3 · (ดูเฉย ๆ) ตอนนี้มีกี่บัญชีที่ยังต้องตั้งรหัสใหม่ — บัญชีพวกนี้จะใช้งานได้หลังตั้งรหัสเอง
