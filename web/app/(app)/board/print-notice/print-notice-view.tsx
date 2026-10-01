@@ -308,7 +308,7 @@ export function PrintNoticeView({
              ของตัวเองลงใน "พื้นที่ขอบของ @page" ไม่เหลือขอบให้ = ไม่มีที่พิมพ์ = หายไปเอง
              ขอบจริงไปอยู่ที่ padding ของ .pn-sheet แทน (ดู notice-sheet.tsx)
           ⚠️ ได้ผลแค่ตอน "บันทึกเป็น PDF" — เลือกเครื่องพิมพ์จริง Chrome บังคับขอบตามเครื่องพิมพ์
-             แล้วหัว/ท้ายกลับมา ⇒ ปุ่มปริ้นหลักจึงสร้าง PDF เอง (printPdf) · ตัวนี้เหลือไว้ให้ปุ่ม "ปริ้นผ่านเบราว์เซอร์" */}
+             แล้วหัว/ท้ายกลับมา ⇒ ปุ่มปริ้นหลักจึงสร้าง PDF เอง (printPdf) · ตัวนี้เหลือไว้ให้คนที่กด Ctrl+P เอง */}
       <style>{`@page { size: A4; margin: 0; }`}</style>
 
       {/* ---------- ตัวกรอง ---------- */}
@@ -465,16 +465,6 @@ export function PrintNoticeView({
             >
               {showPreview ? "🙈 ซ่อนตัวอย่าง" : "👁 ดูตัวอย่าง"}
             </button>
-            {/* ปุ่มรอง: พิมพ์ตรงจากเบราว์เซอร์ (แบบเดิม) — ถ้าใช้เครื่องพิมพ์จริง ต้องปิดหัว/ท้ายกระดาษเอง */}
-            <button
-              type="button"
-              onClick={() => window.print()}
-              disabled={pickedJobs.length === 0}
-              title="ถ้าเห็นวันที่/URL ติดมา: หน้าต่างพิมพ์ → การตั้งค่าเพิ่มเติม → เอาติ๊ก “หัวกระดาษและท้ายกระดาษ” ออก"
-              className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-accent disabled:opacity-40"
-            >
-              ปริ้นผ่านเบราว์เซอร์
-            </button>
             <button
               type="button"
               onClick={printPdf}
@@ -617,7 +607,7 @@ export function PrintNoticeView({
             “ขนาด / Scale” เป็น <b className="text-foreground">100% (ขนาดจริง)</b>
           </p>
           <p>
-            ถ้าใช้ปุ่ม “ปริ้นผ่านเบราว์เซอร์” หรือกด Ctrl+P ให้ตั้ง “ระยะขอบ / Margins” เป็น{" "}
+            ถ้ากด Ctrl+P เอง ให้ตั้ง “ระยะขอบ / Margins” เป็น{" "}
             <b className="text-foreground">ค่าเริ่มต้น (Default)</b> และ “ขนาด / Scale”
             เป็น <b className="text-foreground">100%</b> — ขอบกระดาษถูกฝังมากับแผ่นแล้ว
             เลขที่ตั้งตรงนี้จึงเป็นระยะขาวจริงบนกระดาษ

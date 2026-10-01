@@ -42,17 +42,27 @@ const STYLE_PROPS = [
   "grid-template-columns", "grid-template-rows", "grid-column-start", "grid-column-end",
   "border-top-left-radius", "border-top-right-radius", "border-bottom-left-radius",
   "border-bottom-right-radius", "transform", "transform-origin",
+  "list-style-type", "list-style-position",
 ];
 
+/**
+ * @param opts.embedFonts ฝังเว็บฟอนต์ของหน้า (เช่น Noto Sans Thai ของแอป) — ใช้กับแผ่นที่ไม่ได้ใช้ฟอนต์ในเครื่อง
+ *   ไม่งั้นภาพจะตกไปใช้ฟอนต์สำรอง · ดึง CSS ฟอนต์ครั้งเดียวจากแผ่นแรกแล้วใช้ซ้ำทุกแผ่น
+ */
 export async function sheetsToPdf(
   sheets: HTMLElement[],
   orientation: "portrait" | "landscape",
+  opts: { embedFonts?: boolean } = {},
 ): Promise<Blob> {
   if (sheets.length === 0) throw new Error("ไม่มีแผ่นให้สร้าง PDF");
-  const [{ toPng }, { jsPDF }] = await Promise.all([
+  const [{ toPng, getFontEmbedCSS }, { jsPDF }] = await Promise.all([
     import("html-to-image"),
     import("jspdf"),
   ]);
+
+  const fontEmbedCSS = opts.embedFonts
+    ? await getFontEmbedCSS(sheets[0], { includeStyleProperties: STYLE_PROPS })
+    : undefined;
 
   const pdf = new jsPDF({ unit: "mm", format: "a4", orientation, compress: true });
   for (let i = 0; i < sheets.length; i++) {
@@ -64,8 +74,9 @@ export async function sheetsToPdf(
       backgroundColor: "#ffffff",
       width: w,
       height: h,
-      // ฟอนต์ของแผ่นเป็นฟอนต์ในเครื่อง (Angsana/Cordia/Sarabun) ไม่ต้องฝังเว็บฟอนต์ — เร็วขึ้นมาก
-      skipFonts: true,
+      // ค่าเริ่มต้น: แผ่นใช้ฟอนต์ในเครื่อง (Angsana/Cordia/Sarabun) ไม่ต้องฝังเว็บฟอนต์ — เร็วขึ้นมาก
+      skipFonts: !opts.embedFonts,
+      fontEmbedCSS,
       includeStyleProperties: STYLE_PROPS,
       // เงา/เส้นประดับบนจอไม่ต้องติดไปในไฟล์
       style: { margin: "0", boxShadow: "none", outline: "0" },

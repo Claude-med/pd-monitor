@@ -116,14 +116,14 @@ const EBR_CSS = `
 .ebr-frame { width: 100%; border-collapse: collapse; }
 .ebr-frame > thead > tr > td, .ebr-frame > tfoot > tr > td, .ebr-frame > tbody > tr > td { padding: 0; }
 
-/* หัว/ท้ายกระดาษซ้ำทุกหน้า */
+/* หัว/ท้ายกระดาษซ้ำทุกหน้า (.ebr-pg-* = ตัวเดียวกันบนแผ่นที่จัดหน้าแล้วสำหรับ PDF) */
 .ebr-run-head { padding-top: 10mm !important; }
-.ebr-run-head > div {
+.ebr-run-head > div, .ebr-pg-head {
   display: flex; justify-content: space-between; gap: 4mm;
   font-size: 7.5pt; color: #555; border-bottom: 0.4mm solid #111; padding-bottom: 1.2mm; margin-bottom: 4mm;
 }
 .ebr-run-foot { padding-bottom: 10mm !important; }
-.ebr-run-foot > div {
+.ebr-run-foot > div, .ebr-pg-foot {
   display: flex; justify-content: space-between; gap: 4mm;
   font-size: 7.5pt; color: #666; border-top: 0.2mm solid #999; padding-top: 1.2mm; margin-top: 4mm;
 }
@@ -193,6 +193,17 @@ const EBR_CSS = `
 .ebr-sign .ebr-line { height: 13mm; border-bottom: 0.25mm solid #111; margin: 0 2mm 1.2mm; display: flex; align-items: flex-end; justify-content: center; font-style: italic; color: #333; }
 .ebr-sign .ebr-meta { font-size: 7.5pt; color: #444; }
 
+/* แผ่น A4 ตายตัวที่ paginate.ts สร้างนอกจอ → sheetsToPdf จับภาพทีละแผ่น (ขอบ 10/14mm เท่าตอน window.print) */
+.ebr-paged { position: absolute; left: -20000px; top: 0; }
+.ebr-pg {
+  width: 210mm; height: 297mm; box-sizing: border-box; padding: 10mm 14mm;
+  display: flex; flex-direction: column; overflow: hidden;
+  background: #fff; color: #111; font-size: 9.5pt; line-height: 1.45;
+}
+.ebr-pg-body { flex: 1 1 auto; min-height: 0; overflow: hidden; }
+.ebr-pg-body > :first-child { margin-top: 0; }
+.ebr-pg-foot { margin-top: auto; }
+
 @media screen and (max-width: 640px) { .ebr-preview { padding: 3mm; } }
 
 @media print {
@@ -245,7 +256,7 @@ export default async function EbrPage({
         >
           ← กลับหน้างาน
         </Link>
-        <PrintButton />
+        <PrintButton fileName={`eBR-${jobLabel}.pdf`} />
       </div>
 
       {/* แผ่นเอกสาร — บนจอแสดงเป็นกระดาษ A4 · ตอนพิมพ์ใช้ตัวเดียวกัน */}

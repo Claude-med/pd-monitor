@@ -610,7 +610,7 @@ export function PrintTableView({
              ของตัวเองลงใน "พื้นที่ขอบของ @page" ไม่เหลือขอบให้ = ไม่มีที่พิมพ์ = หายไปเอง
              ขอบจริงไปอยู่ที่ padding ของ .pt-sheet แทน (ดู table-sheet.tsx)
           ⚠️ ได้ผลแค่ตอน "บันทึกเป็น PDF" — เลือกเครื่องพิมพ์จริง Chrome บังคับขอบตามเครื่องพิมพ์
-             แล้วหัว/ท้ายกลับมา ⇒ ปุ่มปริ้นหลักจึงสร้าง PDF เอง (printPdf) · ตัวนี้เหลือไว้ให้ปุ่ม "ปริ้นผ่านเบราว์เซอร์" */}
+             แล้วหัว/ท้ายกลับมา ⇒ ปุ่มปริ้นหลักจึงสร้าง PDF เอง (printPdf) · ตัวนี้เหลือไว้ให้คนที่กด Ctrl+P เอง */}
       <style>{`@page { size: A4 ${orientation}; margin: 0; }`}</style>
 
       {/* ---------- รูปแบบตาราง ---------- */}
@@ -844,16 +844,6 @@ export function PrintTableView({
               className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-accent disabled:opacity-40"
             >
               {busy ? "กำลังสร้างไฟล์…" : "📊 Excel (.xlsx)"}
-            </button>
-            {/* ปุ่มรอง: พิมพ์ตรงจากเบราว์เซอร์ (แบบเดิม) — ถ้าใช้เครื่องพิมพ์จริง ต้องปิดหัว/ท้ายกระดาษเอง */}
-            <button
-              type="button"
-              onClick={() => window.print()}
-              disabled={pickedJobs.length === 0}
-              title="ถ้าเห็นวันที่/URL ติดมา: หน้าต่างพิมพ์ → การตั้งค่าเพิ่มเติม → เอาติ๊ก “หัวกระดาษและท้ายกระดาษ” ออก"
-              className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-accent disabled:opacity-40"
-            >
-              ปริ้นผ่านเบราว์เซอร์
             </button>
             <button
               type="button"

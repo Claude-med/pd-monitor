@@ -1,18 +1,46 @@
 "use client";
 
-export function PrintButton() {
+import { useState } from "react";
+import { printPdfBlob, sheetsToPdf } from "@/lib/print/sheets-to-pdf";
+import { paginateEbr } from "./paginate";
+
+/**
+ * ปุ่มหลัก = จัดหน้าเป็นแผ่น A4 (paginate.ts) → สร้าง PDF → สั่งพิมพ์ไฟล์ PDF
+ * เหตุผล: สั่งเครื่องพิมพ์จริงตรงจากหน้าเว็บ Chrome บังคับขอบตามเครื่องพิมพ์ แล้วพิมพ์วันที่/ชื่อแท็บ/URL ติดมา
+ *         (@page margin: 0 ได้ผลแค่ตอน "บันทึกเป็น PDF") · พิมพ์จากไฟล์ PDF ไม่มีปัญหานี้ทุกเครื่อง
+ */
+export function PrintButton({ fileName }: { fileName: string }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function printPdf() {
+    setBusy(true);
+    setError(null);
+    let cleanup: (() => void) | undefined;
+    try {
+      await document.fonts?.ready;
+      const paged = paginateEbr();
+      cleanup = paged.cleanup;
+      const blob = await sheetsToPdf(paged.sheets, "portrait", { embedFonts: true });
+      printPdfBlob(blob, fileName);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "สร้าง PDF ไม่สำเร็จ");
+    } finally {
+      cleanup?.();
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="flex flex-wrap items-center justify-end gap-2">
-      {/* Chrome/Edge ซ่อนหัว/ท้ายของเบราว์เซอร์ให้เองแล้ว (@page margin: 0) — ข้อความนี้เผื่อ Firefox */}
-      <span className="text-xs text-muted-foreground">
-        ถ้ายังเห็นวันที่/ลิงก์ติดมา ให้ปิด “หัวกระดาษและท้ายกระดาษ” ในหน้าต่างพิมพ์
-      </span>
+      {error && <span className="text-sm text-destructive">⚠️ {error}</span>}
       <button
         type="button"
-        onClick={() => window.print()}
-        className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+        onClick={printPdf}
+        disabled={busy}
+        className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-40"
       >
-        🖨️ พิมพ์ / บันทึก PDF
+        {busy ? "กำลังสร้าง PDF…" : "🖨️ พิมพ์ / บันทึก PDF"}
       </button>
     </div>
   );
