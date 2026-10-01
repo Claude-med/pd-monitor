@@ -1,9 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
-import { getUser } from "@/lib/auth/dal";
+import { verifyPassword } from "@/lib/auth/verify-password";
 
 export type ActionResult = { ok?: boolean; error?: string };
 
@@ -61,24 +60,9 @@ export async function deleteJob(
     return { error: "กรุณากรอกรหัสผ่านเพื่อยืนยันการลบ" };
   }
 
-  const user = await getUser();
-  if (!user?.email) {
-    return { error: "ยังไม่ได้เข้าสู่ระบบ" };
-  }
-
-  // ยืนยันรหัสผ่านซ้ำด้วย client แยก (ไม่แตะ cookie/session ปัจจุบัน)
-  const verifier = createServiceClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } },
-  );
-  const { error: authError } = await verifier.auth.signInWithPassword({
-    email: user.email,
-    password,
-  });
-  if (authError) {
-    return { error: "รหัสผ่านไม่ถูกต้อง — ลบงานไม่สำเร็จ" };
-  }
+  // ยืนยันรหัสผ่านซ้ำ (แยกข้อความ "รหัสผิด" กับ "ลองถี่เกิน" — lib/auth/verify-password.ts)
+  const pwErr = await verifyPassword(password, "ลบงาน");
+  if (pwErr) return { error: pwErr };
 
   const supabase = await createClient();
   const { error } = await supabase.rpc("delete_job", { p_job_id: jobId });
@@ -96,7 +80,7 @@ export async function deleteJob(
  * + ขยับสถานะผ่าน rpc sign_job_decision() (atomic ใน DB)
  *
  * การยืนยันรหัส = พิสูจน์ว่า "คนหน้าจอ = เจ้าของบัญชี" ตอนตัดสินใจสำคัญ (A3)
- * ทำด้วย verifier client แยก (publishable key, ไม่เก็บ session) → ไม่กระทบ session ที่ล็อกอินอยู่
+ * ทำด้วย verifyPassword() (lib/auth/verify-password.ts) — client แยก ไม่กระทบ session ที่ล็อกอินอยู่
  */
 export async function signDecision(
   jobId: string,
@@ -110,24 +94,9 @@ export async function signDecision(
     return { error: "กรุณากรอกรหัสผ่านเพื่อลงนาม" };
   }
 
-  const user = await getUser();
-  if (!user?.email) {
-    return { error: "ยังไม่ได้เข้าสู่ระบบ" };
-  }
-
-  // ยืนยันรหัสผ่านซ้ำด้วย client แยก (ไม่แตะ cookie/session ปัจจุบัน)
-  const verifier = createServiceClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } },
-  );
-  const { error: authError } = await verifier.auth.signInWithPassword({
-    email: user.email,
-    password,
-  });
-  if (authError) {
-    return { error: "รหัสผ่านไม่ถูกต้อง — ลงนามไม่สำเร็จ" };
-  }
+  // ยืนยันรหัสผ่านซ้ำ (แยกข้อความ "รหัสผิด" กับ "ลองถี่เกิน" — lib/auth/verify-password.ts)
+  const pwErr = await verifyPassword(password, "ลงนาม");
+  if (pwErr) return { error: pwErr };
 
   // บันทึกลายเซ็น + ขยับสถานะ (session client เดิม → auth.uid() ทำงาน)
   const supabase = await createClient();

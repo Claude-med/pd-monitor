@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { isRateLimited, RATE_LIMIT_MESSAGE } from "@/lib/auth/verify-password";
 
 export type LoginState = { error?: string; email?: string } | undefined;
 
@@ -25,6 +26,8 @@ export async function login(
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
+    // ลองถี่เกิน (429) ≠ รหัสผิด — แยกข้อความ ไม่งั้นผู้ใช้กดซ้ำจนโดนล็อกนานขึ้น
+    if (isRateLimited(error)) return { error: RATE_LIMIT_MESSAGE, email };
     return { error: "อีเมลหรือรหัสผ่านไม่ถูกต้อง", email };
   }
 

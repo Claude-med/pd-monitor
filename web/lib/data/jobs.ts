@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { fetchAll } from "@/lib/data/fetch-all";
 import type { JobRow } from "@/lib/data/job-constants";
 import { DEVIATION_DONE_STATUSES } from "@/lib/data/deviation-constants";
 
@@ -67,10 +68,18 @@ function shape(r: any): JobRow {
  */
 export async function getJobs(): Promise<JobRow[]> {
   const supabase = await createClient();
-  const [{ data }, { data: fgRows }, { data: incRows }] = await Promise.all([
-    supabase.from("jobs").select(SELECT).order("job_no"),
+  // ⚠️ jobs / fg_inventory โตไม่หยุด → ดึงทีละหน้าด้วย fetchAll (เลี่ยงเพดาน 1,000 แถว)
+  const [data, fgRows, { data: incRows }] = await Promise.all([
+    fetchAll(
+      (from, to) => supabase.from("jobs").select(SELECT).order("job_no").range(from, to),
+      "getJobs",
+    ),
     // fg_inventory อ่านได้ทุก role (RLS using(true)) — ใช้บอกว่างานเข้าคลังแล้ว
-    supabase.from("fg_inventory").select("job_id"),
+    fetchAll<{ job_id: string }>(
+      (from, to) =>
+        supabase.from("fg_inventory").select("job_id").order("job_id").range(from, to),
+      "getJobs/fg",
+    ),
     // deviations อ่านได้ทุก role (0025 using(true)) · ดึงเฉพาะที่ยังเปิด = แถวน้อย ไม่ชนเพดาน 1,000
     // "เปิด" ต้องตรงกับ DEVIATION_DONE_STATUSES / has_open_deviation()
     supabase
@@ -78,14 +87,12 @@ export async function getJobs(): Promise<JobRow[]> {
       .select("job_id")
       .not("status", "in", `(${DEVIATION_DONE_STATUSES.join(",")})`),
   ]);
-  const receivedJobIds = new Set(
-    (fgRows ?? []).map((r: { job_id: string }) => r.job_id),
-  );
+  const receivedJobIds = new Set(fgRows.map((r) => r.job_id));
   const openIncidents = new Map<string, number>();
   for (const r of (incRows ?? []) as { job_id: string }[]) {
     openIncidents.set(r.job_id, (openIncidents.get(r.job_id) ?? 0) + 1);
   }
-  return (data ?? []).map((r) => {
+  return data.map((r) => {
     const job = shape(r);
     job.fg_received = receivedJobIds.has(job.id);
     job.open_incidents = openIncidents.get(job.id) ?? 0;

@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { fetchAll } from "@/lib/data/fetch-all";
 
 export type FgRecord = {
   id: string;
@@ -46,18 +47,23 @@ function one<T>(v: T | T[] | null | undefined): T | null {
 /** งานที่ถึงสถานะ FG แล้ว + รายการคลัง (ถ้ารับเข้าแล้ว) + ใบจ่ายออก */
 export async function listFgJobs(): Promise<FgJob[]> {
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("jobs")
-    .select(
-      `id, job_no,
-       batches ( lot_no ),
-       orders ( customer, quantity, unit, products ( name ) ),
-       fg:fg_inventory ( id, qty, unit, lot_no, location, received_date, note ),
-       dispatches:fg_dispatches ( id, qty, dispatched_date, doc_no, customer, note, deleted_at )`,
-    )
-    .eq("status", "finished_goods")
-    .order("job_no", { ascending: false });
-  if (error || !data) return [];
+  // งาน FG สะสมไม่หยุด → fetchAll กันเพดาน 1,000 แถว (เดิมงานเก่าเกินเพดานหายจากหน้าคลัง)
+  const data = await fetchAll(
+    (from, to) =>
+      supabase
+        .from("jobs")
+        .select(
+          `id, job_no,
+           batches ( lot_no ),
+           orders ( customer, quantity, unit, products ( name ) ),
+           fg:fg_inventory ( id, qty, unit, lot_no, location, received_date, note ),
+           dispatches:fg_dispatches ( id, qty, dispatched_date, doc_no, customer, note, deleted_at )`,
+        )
+        .eq("status", "finished_goods")
+        .order("job_no", { ascending: false })
+        .range(from, to),
+    "listFgJobs",
+  );
 
   return (data as any[]).map((r) => {
     const order = one<any>(r.orders);

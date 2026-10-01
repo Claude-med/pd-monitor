@@ -1,10 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
+import { verifyPassword } from "@/lib/auth/verify-password";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getProfile, getUser, type AppRole } from "@/lib/auth/dal";
+import { getProfile, type AppRole } from "@/lib/auth/dal";
 import { hasRole } from "@/lib/auth/roles";
 import { ALL_ROLES } from "@/lib/nav";
 import {
@@ -330,20 +330,9 @@ export async function deleteUser(
   if (scopeErr) return { error: scopeErr };
   if (!password.trim()) return { error: "กรุณากรอกรหัสผ่านเพื่อยืนยันการลบ" };
 
-  const user = await getUser();
-  if (!user?.email) return { error: "ยังไม่ได้เข้าสู่ระบบ" };
-
-  // ยืนยันรหัสผ่านด้วย client แยก (publishable key, ไม่เก็บ session) → ไม่กระทบ session ปัจจุบัน
-  const verifier = createServiceClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } },
-  );
-  const { error: authError } = await verifier.auth.signInWithPassword({
-    email: user.email,
-    password,
-  });
-  if (authError) return { error: "รหัสผ่านไม่ถูกต้อง — ลบบัญชีไม่สำเร็จ" };
+  // ยืนยันรหัสผ่านซ้ำ (แยกข้อความ "รหัสผิด" กับ "ลองถี่เกิน" — lib/auth/verify-password.ts)
+  const pwErr = await verifyPassword(password, "ลบบัญชี");
+  if (pwErr) return { error: pwErr };
 
   // ⚠️ ต้องอ่านก่อนเรียก RPC — admin_delete_user ปลดการผูกบัญชีล็อกอินออกจากโปรไฟล์
   const authUserId = await authUserIdOf(profileId);

@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { fetchAll } from "@/lib/data/fetch-all";
 import { STATUS_LABEL } from "@/lib/data/job-constants";
 import { hasAnyRole } from "@/lib/auth/roles";
 import type { Profile } from "@/lib/auth/dal";
@@ -34,10 +35,16 @@ async function getDerivedAlerts(profile: Profile): Promise<InboxItem[]> {
   if (!hasAnyRole(profile.roles, ["production", "manager"])) return [];
 
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("jobs")
-    .select("id, job_no, status, planned_end, updated_at")
-    .neq("status", "finished_goods");
+  const data = await fetchAll(
+    (from, to) =>
+      supabase
+        .from("jobs")
+        .select("id, job_no, status, planned_end, updated_at")
+        .neq("status", "finished_goods")
+        .order("id")
+        .range(from, to),
+    "getDerivedAlerts",
+  );
 
   const today = todayISO();
   const stuckBefore = new Date(
@@ -45,7 +52,7 @@ async function getDerivedAlerts(profile: Profile): Promise<InboxItem[]> {
   ).toISOString();
 
   const out: InboxItem[] = [];
-  for (const j of (data ?? []) as any[]) {
+  for (const j of data as any[]) {
     if (j.planned_end && j.planned_end < today) {
       out.push({
         id: `overdue-${j.id}`,

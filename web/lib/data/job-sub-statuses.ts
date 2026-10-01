@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { fetchAll } from "@/lib/data/fetch-all";
 
 export type JobSubStatusOption = {
   id: string;
@@ -20,17 +21,22 @@ export type JobSubStatusOption = {
  */
 export async function listJobSubStatuses(): Promise<JobSubStatusOption[]> {
   const supabase = await createClient();
-  const [{ data: rows }, { data: jobs }] = await Promise.all([
+  const [{ data: rows }, jobs] = await Promise.all([
     supabase
       .from("job_sub_statuses")
       .select("id, name, description, sort_order, requires_plan_month, is_system")
       .eq("is_active", true)
       .order("sort_order", { ascending: true }),
-    supabase.from("jobs").select("sub_status"),
+    // jobs โตไม่หยุด → fetchAll กันเพดาน 1,000 แถว (ไม่งั้นตัวนับการใช้งานเพี้ยน)
+    fetchAll<{ sub_status: string | null }>(
+      (from, to) =>
+        supabase.from("jobs").select("sub_status").order("id").range(from, to),
+      "listJobSubStatuses/jobs",
+    ),
   ]);
 
   const used = new Map<string, number>();
-  for (const j of (jobs ?? []) as { sub_status: string | null }[]) {
+  for (const j of jobs) {
     const key = (j.sub_status ?? "").trim().toLowerCase();
     if (!key) continue;
     used.set(key, (used.get(key) ?? 0) + 1);

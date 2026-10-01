@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { fetchAll } from "@/lib/data/fetch-all";
 
 export type CustomerOption = {
   id: string;
@@ -13,16 +14,21 @@ export type CustomerOption = {
  */
 export async function listCustomers(): Promise<CustomerOption[]> {
   const supabase = await createClient();
-  const [{ data: rows }, { data: orders }] = await Promise.all([
+  const [{ data: rows }, orders] = await Promise.all([
     supabase
       .from("customers")
       .select("id, name")
       .order("name", { ascending: true }),
-    supabase.from("orders").select("customer_id"),
+    // orders โตไม่หยุด → fetchAll กันเพดาน 1,000 แถว (ไม่งั้นตัวนับการใช้งานเพี้ยน)
+    fetchAll<{ customer_id: string | null }>(
+      (from, to) =>
+        supabase.from("orders").select("customer_id").order("id").range(from, to),
+      "listCustomers/orders",
+    ),
   ]);
 
   const used = new Map<string, number>();
-  for (const o of (orders ?? []) as { customer_id: string | null }[]) {
+  for (const o of orders) {
     if (!o.customer_id) continue;
     used.set(o.customer_id, (used.get(o.customer_id) ?? 0) + 1);
   }

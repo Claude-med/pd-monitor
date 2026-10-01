@@ -1,9 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
-import { getProfile, getUser } from "@/lib/auth/dal";
+import { verifyPassword } from "@/lib/auth/verify-password";
+import { getProfile } from "@/lib/auth/dal";
 import { hasAnyRole } from "@/lib/auth/roles";
 import {
   canManageProducts,
@@ -163,20 +163,9 @@ export async function forceDeleteProduct(
   if (!productId) return { error: "ไม่พบผลิตภัณฑ์" };
   if (!password.trim()) return { error: "กรุณากรอกรหัสผ่านเพื่อยืนยันการลบถาวร" };
 
-  const user = await getUser();
-  if (!user?.email) return { error: "ยังไม่ได้เข้าสู่ระบบ" };
-
-  // ยืนยันรหัสผ่านด้วย client แยก (ไม่แตะ cookie/session ปัจจุบัน)
-  const verifier = createServiceClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } },
-  );
-  const { error: authError } = await verifier.auth.signInWithPassword({
-    email: user.email,
-    password,
-  });
-  if (authError) return { error: "รหัสผ่านไม่ถูกต้อง — ลบถาวรไม่สำเร็จ" };
+  // ยืนยันรหัสผ่านซ้ำ (แยกข้อความ "รหัสผิด" กับ "ลองถี่เกิน" — lib/auth/verify-password.ts)
+  const pwErr = await verifyPassword(password, "ลบถาวร");
+  if (pwErr) return { error: pwErr };
 
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("force_delete_product", {

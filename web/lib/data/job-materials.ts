@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { fetchAll } from "@/lib/data/fetch-all";
 import type {
   MaterialItemType,
   MaterialReadyStatus,
@@ -107,27 +108,26 @@ export async function listJobMaterialsAcrossJobs(opts?: {
   const scope = opts?.scope ?? "all";
 
   const supabase = await createClient();
-  let q = supabase
-    .from("job_materials")
-    .select(
-      `${SELECT_COLS},
-       job:jobs!inner ( id, job_no, status, orders ( products ( name ) ) )`,
-    )
-    .order("created_at", { ascending: true })
-    .limit(1000);
+  // เดิม .limit(1000) + เรียงจากเก่า → รายการเบิกเกิน 1,000 แถว "ของใหม่ล่าสุดหาย"
+  // ตอนนี้ดึงทีละหน้าด้วย fetchAll · order รอง id กันแถวซ้ำ/หล่นระหว่างหน้า
+  const data = await fetchAll((from, to) => {
+    let q = supabase
+      .from("job_materials")
+      .select(
+        `${SELECT_COLS},
+         job:jobs!inner ( id, job_no, status, orders ( products ( name ) ) )`,
+      )
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true });
 
-  if (status !== "all") q = q.eq("status", status);
-  // งานที่เข้าคลัง FG แล้วถือว่าจบ ไม่ต้องรกหน้าคลัง
-  if (scope === "active") q = q.neq("job.status", "finished_goods");
-
-  const { data, error } = await q;
-  if (error) {
-    console.error("[job-materials] listJobMaterialsAcrossJobs", error.message);
-    return [];
-  }
+    if (status !== "all") q = q.eq("status", status);
+    // งานที่เข้าคลัง FG แล้วถือว่าจบ ไม่ต้องรกหน้าคลัง
+    if (scope === "active") q = q.neq("job.status", "finished_goods");
+    return q.range(from, to);
+  }, "job-materials/listJobMaterialsAcrossJobs");
 
   const groups = new Map<string, JobMaterialGroup>();
-  for (const r of (data ?? []) as any[]) {
+  for (const r of data as any[]) {
     const job = first(r.job);
     if (!job) continue;
     let g = groups.get(job.id);

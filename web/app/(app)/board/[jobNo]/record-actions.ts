@@ -11,6 +11,8 @@ export type RecordResult = {
   ok?: boolean;
   error?: string;
   fieldErrors?: Partial<Record<keyof RecordFormValues, string>>;
+  /** true = session หลุด/หมดอายุ (ไม่ใช่ข้อมูลผิด) → หน้าจอต้องเก็บรายการไว้ในคิว ห้ามทิ้ง */
+  authExpired?: boolean;
 };
 
 /**
@@ -27,10 +29,14 @@ export async function addRecord(
   // ตรวจสิทธิ์ฝั่ง server ด้วย — เดิมไม่มีเลย พึ่ง guard ใน add_production_record อย่างเดียว
   // (ผู้ใช้จะได้ข้อความไทยที่อ่านรู้เรื่องแทน error ดิบจาก DB)
   const profile = await getProfile();
-  if (
-    !profile ||
-    !hasAnyRole(profile.roles, ["production", "production_lead", "manager"])
-  )
+  // แยก "session หลุด" ออกจาก "ไม่มีสิทธิ์" (รีวิว 1 ต.ค. 69)
+  //   เดิมตอบ "ไม่มีสิทธิ์" ทั้งคู่ → คิวออฟไลน์เข้าใจว่าผิดถาวร แล้วทิ้งรายการที่ค้างไว้ทั้งที่ข้อมูลถูก
+  if (!profile)
+    return {
+      error: "เซสชันหมดอายุ — เข้าสู่ระบบใหม่ แล้วรายการที่ค้างจะส่งให้เอง",
+      authExpired: true,
+    };
+  if (!hasAnyRole(profile.roles, ["production", "production_lead", "manager"]))
     return { error: "ไม่มีสิทธิ์บันทึกผลผลิต (เฉพาะฝ่ายผลิต)" };
 
   if (!jobRouteId) return { error: "ไม่พบขั้นตอนการผลิตที่เลือก" };

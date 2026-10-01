@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { getProfile } from "@/lib/auth/dal";
+import { hasAnyRole } from "@/lib/auth/roles";
 import { searchTrace, type JobTrace } from "@/lib/data/genealogy";
 import { STATUS_LABEL, STATUS_COLOR } from "@/lib/data/job-constants";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
@@ -130,6 +132,19 @@ export default async function TracePage({
 }: {
   searchParams: Promise<{ q?: string }>;
 }) {
+  // ด่านสิทธิ์ให้ตรงกับเมนู (lib/nav.ts) — เดิมเมนูซ่อนไว้แต่เปิดลิงก์ตรงได้ (รีวิว 1 ต.ค. 69)
+  const profile = await getProfile();
+  if (!hasAnyRole(profile?.roles ?? [], ["qa", "warehouse", "manager"])) {
+    return (
+      <div className="mx-auto max-w-3xl">
+        <h1 className="mb-2 text-2xl font-bold tracking-tight">ไล่ย้อนล็อต (Trace)</h1>
+        <p className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
+          เฉพาะ QA / ฝ่ายคลัง / ผู้บริหาร เข้าหน้านี้ได้ — บัญชีของคุณไม่มีสิทธิ์
+        </p>
+      </div>
+    );
+  }
+
   const sp = await searchParams;
   const q = (sp.q ?? "").trim();
   const result = q ? await searchTrace(q) : null;

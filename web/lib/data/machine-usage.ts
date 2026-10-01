@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { fetchAll } from "@/lib/data/fetch-all";
 
 export type MachineUsageRow = {
   machine_id: string;
@@ -25,19 +26,26 @@ export async function getMachineUsage(
   to: string,
 ): Promise<MachineUsageRow[]> {
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("production_records")
-    .select("machine_id, minutes, job_id, machine:machines!machine_id ( code, name )")
-    .not("machine_id", "is", null)
-    .gte("record_date", from)
-    .lte("record_date", to);
+  // ช่วงวันที่กว้าง ๆ เกิน 1,000 บันทึกได้ง่าย → fetchAll กันตัวเลขขาดเงียบ ๆ
+  const data = await fetchAll(
+    (rFrom, rTo) =>
+      supabase
+        .from("production_records")
+        .select("machine_id, minutes, job_id, machine:machines!machine_id ( code, name )")
+        .not("machine_id", "is", null)
+        .gte("record_date", from)
+        .lte("record_date", to)
+        .order("id")
+        .range(rFrom, rTo),
+    "getMachineUsage",
+  );
 
   const map = new Map<
     string,
     { code: string; name: string; hours: number; records: number; jobs: Set<string> }
   >();
 
-  for (const r of data ?? []) {
+  for (const r of data) {
     const id = r.machine_id as string;
     const mc = pickMachine(r);
     const cur =

@@ -214,6 +214,11 @@ export function RecordForm({
             refreshPending();
             return true;
           }
+          // session หลุด — ข้อมูลไม่ได้ผิด เก็บไว้ในคิว รอล็อกอินใหม่แล้วส่งเอง
+          if (res?.authExpired) {
+            setFormError(res.error ?? "เซสชันหมดอายุ — เข้าสู่ระบบใหม่");
+            return false;
+          }
           // ผิดแบบถาวร (validation/สิทธิ์/สถานะงาน) — retry ไม่ช่วย
           removePending(profileId, rec.clientId);
           refreshPending();
@@ -298,6 +303,10 @@ export function RecordForm({
         if (res?.ok) {
           removePending(profileId, rec.clientId);
           anyOk = true;
+        } else if (res?.authExpired) {
+          // session หลุด — ปล่อยค้างไว้ทั้งคิว (ส่งรายการถัดไปก็ไม่ผ่านเหมือนกัน)
+          setFormError(res.error ?? "เซสชันหมดอายุ — เข้าสู่ระบบใหม่");
+          break;
         } else if (res?.error) {
           // ผิดถาวร — เอาออกจากคิว (เก็บไว้ก็ไม่สำเร็จ) แล้วแจ้ง
           removePending(profileId, rec.clientId);
