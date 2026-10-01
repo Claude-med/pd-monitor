@@ -5,7 +5,7 @@ import { getPendingEditCount } from "@/lib/data/edit-requests";
 import { hasAnyRole } from "@/lib/auth/roles";
 import { AppShell } from "@/components/app-shell";
 import { EDIT_REVIEWER_ROLES } from "@/lib/data/edit-request-constants";
-import { APPROVER_ROLES, getMyApprovals } from "@/lib/data/pending-approvals";
+import { APPROVER_ROLES, countMyApprovals } from "@/lib/data/pending-approvals";
 
 export default async function AppLayout({
   children,
@@ -54,13 +54,16 @@ export default async function AppLayout({
   // /change-password อยู่นอก route group (app) จึงไม่วนกลับมาที่ layout นี้
   if (profile.must_change_password) redirect("/change-password");
 
-  const unreadCount = await getUnreadCount();
-  const pendingEditCount = hasAnyRole(profile.roles, EDIT_REVIEWER_ROLES)
-    ? await getPendingEditCount(profile.roles)
-    : 0;
-  const pendingApprovalCount = hasAnyRole(profile.roles, APPROVER_ROLES)
-    ? (await getMyApprovals(profile)).length
-    : 0;
+  // ตัวนับบนเมนู 3 ตัว ไม่ขึ้นต่อกัน → ดึงพร้อมกัน · รออนุมัตินับแบบ head ไม่โหลดแถว (รีวิว 1 ต.ค. 69)
+  const [unreadCount, pendingEditCount, pendingApprovalCount] = await Promise.all([
+    getUnreadCount(),
+    hasAnyRole(profile.roles, EDIT_REVIEWER_ROLES)
+      ? getPendingEditCount(profile.roles)
+      : Promise.resolve(0),
+    hasAnyRole(profile.roles, APPROVER_ROLES)
+      ? countMyApprovals(profile)
+      : Promise.resolve(0),
+  ]);
 
   return (
     <AppShell

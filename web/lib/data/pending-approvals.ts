@@ -33,6 +33,41 @@ function hrefOf(jobNo: string, focus: PendingFocus, stepId: string | null): stri
 
 const notMine = (col: string, me: string) => `${col}.is.null,${col}.neq.${me}`;
 
+// ── เงื่อนไข "รออนุมัติของฉัน" แต่ละกลุ่ม — ใช้ร่วมกันทั้งรายการ (getMyApprovals) และตัวนับ (countMyApprovals)
+//    แยกออกมาเพื่อไม่ให้สองที่เพี้ยนจากกัน (ตัวเลขบนเมนูต้องเท่ากับรายการในหน้า /approvals เสมอ)
+const filterRecords = (q: any, me: string) =>
+  q.eq("status", "pending").neq("created_by", me).or(notMine("operator_id", me));
+const filterLc = (q: any, me: string) =>
+  q.not("performed_at", "is", null).is("checked_at", null).or(notMine("performed_by", me));
+const filterInprocess = (q: any, me: string) =>
+  q.eq("status", "pending").or(notMine("checked_by", me));
+const filterQaSample = (q: any) => q.eq("review_status", "pending").is("deleted_at", null);
+
+/**
+ * จำนวนรายการรออนุมัติของผู้ใช้ — สำหรับ badge เมนู (layout)
+ * ใช้ count แบบ head (ไม่โหลดแถวจริง) แทน getMyApprovals().length ที่ดึงทุกแถวพร้อม join มานับ
+ * (รีวิว 1 ต.ค. 69 · layout รันใหม่ทุกครั้งที่หน้า refresh รวมถึงตอนข้อมูลเปลี่ยนแบบ realtime)
+ */
+export async function countMyApprovals(profile: Profile): Promise<number> {
+  const roles = profile.roles;
+  const me = profile.id;
+  const supabase = await createClient();
+  const head = { count: "exact" as const, head: true };
+  const tasks: PromiseLike<{ count: number | null }>[] = [];
+
+  if (canApproveProductionRecord(roles))
+    tasks.push(filterRecords(supabase.from("production_records").select("id", head), me));
+  if (canCheckLineClearance(roles))
+    tasks.push(filterLc(supabase.from("line_clearances").select("id", head), me));
+  if (canApproveInprocess(roles))
+    tasks.push(filterInprocess(supabase.from("inprocess_checks").select("id", head), me));
+  if (hasAnyRole(roles, ["qa_lead"]))
+    tasks.push(filterQaSample(supabase.from("qa_samples").select("id", head)));
+
+  const results = await Promise.all(tasks);
+  return results.reduce((sum, r) => sum + (r.count ?? 0), 0);
+}
+
 export async function getMyApprovals(profile: Profile): Promise<ApprovalItem[]> {
   const roles = profile.roles;
   const me = profile.id;
@@ -42,17 +77,14 @@ export async function getMyApprovals(profile: Profile): Promise<ApprovalItem[]> 
   if (canApproveProductionRecord(roles)) {
     tasks.push(
       (async () => {
-        const { data } = await supabase
+        const { data } = await filterRecords(supabase
           .from("production_records")
           .select(
             `id, job_route_id, record_date, output_qty, output_unit,
              operator:profiles!operator_id ( full_name ),
              station:stations!station_id ( name ),
              jobs ( job_no )`,
-          )
-          .eq("status", "pending")
-          .neq("created_by", me)
-          .or(notMine("operator_id", me))
+          ), me)
           .order("record_date", { ascending: true });
         return ((data ?? []) as any[]).flatMap((r) => {
           const jobNo = one<any>(r.jobs)?.job_no;
@@ -79,17 +111,14 @@ export async function getMyApprovals(profile: Profile): Promise<ApprovalItem[]> 
   if (canCheckLineClearance(roles)) {
     tasks.push(
       (async () => {
-        const { data } = await supabase
+        const { data } = await filterLc(supabase
           .from("line_clearances")
           .select(
             `id, job_route_id, performed_at,
              performer:profiles!performed_by ( full_name ),
              machine:machines!machine_id ( code ),
              route:job_routes!job_route_id ( station:stations!station_id ( name ), jobs ( job_no ) )`,
-          )
-          .not("performed_at", "is", null)
-          .is("checked_at", null)
-          .or(notMine("performed_by", me))
+          ), me)
           .order("performed_at", { ascending: true });
         return ((data ?? []) as any[]).flatMap((r) => {
           const route = one<any>(r.route);
@@ -115,16 +144,14 @@ export async function getMyApprovals(profile: Profile): Promise<ApprovalItem[]> 
   if (canApproveInprocess(roles)) {
     tasks.push(
       (async () => {
-        const { data } = await supabase
+        const { data } = await filterInprocess(supabase
           .from("inprocess_checks")
           .select(
             `id, job_route_id, param, value, unit, result, checked_at,
              checker:profiles!checked_by ( full_name ),
              station:stations!station_id ( name ),
              jobs ( job_no )`,
-          )
-          .eq("status", "pending")
-          .or(notMine("checked_by", me))
+          ), me)
           .order("checked_at", { ascending: true });
         return ((data ?? []) as any[]).flatMap((r) => {
           const jobNo = one<any>(r.jobs)?.job_no;
@@ -152,15 +179,13 @@ export async function getMyApprovals(profile: Profile): Promise<ApprovalItem[]> 
   if (hasAnyRole(roles, ["qa_lead"])) {
     tasks.push(
       (async () => {
-        const { data } = await supabase
+        const { data } = await filterQaSample(supabase
           .from("qa_samples")
           .select(
             `id, result, collected_at,
              collector:profiles!collected_by ( full_name ),
              jobs ( job_no )`,
-          )
-          .eq("review_status", "pending")
-          .is("deleted_at", null)
+          ))
           .order("collected_at", { ascending: true });
         return ((data ?? []) as any[]).flatMap((r) => {
           const jobNo = one<any>(r.jobs)?.job_no;

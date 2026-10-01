@@ -3754,3 +3754,10 @@ tsc + eslint ผ่าน · รันเว็บในเครื่อง + 
 ค้น `%current_profile_id%` แล้วไปเจอ `set_config('app.current_profile_id', …)` · แก้คำสั่งในไฟล์ + Notion แล้ว · ✅ รันฉบับแก้ได้ true = **0107 ผ่านครบ** ·
 ข้อ 3 มี 6 บัญชีทดสอบที่ยังต้องตั้งรหัสเอง (รวม CEO `ceo2@test.com`) — ล็อกอินแล้วจะถูกพาไปหน้าตั้งรหัสก่อน (เป็นแบบนี้อยู่แล้วตั้งแต่ 0079) · ⚠️ ทดสอบปุ่มปริ้นทั้ง 3 หน้าอีกครั้ง (เพิ่ม security headers) ·
 ที่ยังเหลือ: แถบเมนูนับรายการรออนุมัติทุกหน้า (ข้อ 5) · ตั้งค่า dashboard Vercel/Supabase · งานใหญ่ (reauthentication · soft delete) · ล้างข้อมูล (ทำสุดท้าย)
+
+### ✅ ก้อน 4 — ตัวนับบนเมนูเบาลง (ไม่มี SQL)
+- `countMyApprovals()` ใน `lib/data/pending-approvals.ts` นับแบบ head (ไม่โหลดแถว) แทน `getMyApprovals().length`
+  เงื่อนไขแต่ละกลุ่มแยกเป็น `filterRecords/filterLc/filterInprocess/filterQaSample` ใช้ร่วมกับหน้า /approvals → ตัวเลขเมนูเท่ากับรายการเสมอ
+- `(app)/layout.tsx` ดึงตัวนับ 3 ตัว (แจ้งเตือน · คำขอแก้ไข · รออนุมัติ) พร้อมกัน
+- ℹ️ แก้ความเข้าใจจากรีวิว: layout ของ App Router **ไม่ได้** รันใหม่ทุกครั้งที่กดเปลี่ยนหน้า (คงไว้ระหว่าง navigation)
+  แต่รันใหม่ทุกครั้งที่ `router.refresh()` — ซึ่ง RealtimeRefresh เรียกทุกครั้งที่ข้อมูลเปลี่ยน ⇒ ยังคุ้มที่จะทำให้เบา
