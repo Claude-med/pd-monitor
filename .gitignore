@@ -39,3 +39,6 @@ Thumbs.db
 docs/build/.accounts.json
 docs/build/node_modules/
 docs/build/.cache/
+
+# สำรองข้อมูลจาก web/scripts/backup-data.mjs — มีข้อมูลจริง ห้ามขึ้น GitHub เด็ดขาด
+backups/
