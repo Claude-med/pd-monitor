@@ -1,4 +1,4 @@
-import { Fragment } from "react";
+import { Fragment, type CSSProperties } from "react";
 import type { JobRow } from "@/lib/data/job-constants";
 import { FIT_REF_PT } from "./fit-table";
 import type { Orientation, TableCol } from "./table-columns";
@@ -86,6 +86,12 @@ const TABLE_PRINT_CSS = `
   overflow: hidden;
 }
 .pt-table th { font-weight: 700; }
+/* ยืดแถวให้ตารางเต็มแผ่น — --pt-row-add (px ต่อแถว) คำนวณใน print-table-view.tsx ตอนตัดหน้า
+   ใส่เฉพาะแผ่นจริง (.pt-sheet) · ตัวชั่งวัดไม่มีตัวแปรนี้ = 0 → ความสูงแถวที่วัดยังเป็นค่าธรรมชาติ */
+.pt-sheet .pt-table td {
+  padding-top: calc(0.7mm + var(--pt-row-add, 0px) / 2);
+  padding-bottom: calc(0.7mm + var(--pt-row-add, 0px) / 2);
+}
 .pt-table td.pt-left { text-align: left; padding-left: 1.2mm; }
 
 /* ตัวห่อข้อความในช่อง — 2 หน้าที่: ให้ JS วัดความกว้างข้อความจริง และเป็นตัวรับ scaleX ตอนบีบ */
@@ -299,6 +305,7 @@ export function MeasureTable({
    ============================================================ */
 export function TableSheets({
   pages,
+  rowAdds,
   cols,
   footer,
   orientation,
@@ -306,6 +313,8 @@ export function TableSheets({
 }: {
   /** งานที่ตัดหน้าไว้แล้ว — pages[i] = แถวของแผ่นที่ i */
   pages: JobRow[][];
+  /** px ที่บวกเพิ่มต่อแถวของแผ่นที่ i เพื่อให้ตารางสูงเต็มแผ่น */
+  rowAdds: number[];
   cols: TableCol[];
   footer: PageFooter;
   orientation: Orientation;
@@ -319,7 +328,11 @@ export function TableSheets({
           <div className="pt-pagelabel">
             หน้า {i + 1} / {pages.length}
           </div>
-          <div className="pt-sheet" data-o={orientation}>
+          <div
+            className="pt-sheet"
+            data-o={orientation}
+            style={{ "--pt-row-add": `${rowAdds[i] ?? 0}px` } as CSSProperties}
+          >
             <TableBlock cols={cols} rows={rows} fit={fit} />
             <Foot footer={footer} />
           </div>

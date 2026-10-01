@@ -62,6 +62,7 @@ const ORIENTATION_LABEL = { portrait: "แนวตั้ง", landscape: "แ�
 
 /** identity คงที่ — ใช้เป็นค่าว่างของ pages โดยไม่สร้าง array ใหม่ทุก render */
 const NO_PAGES: JobRow[][] = [];
+const NO_ADDS: number[] = [];
 
 /** ขนาดฟอนต์ก่อนวัดเสร็จ (เฟรมแรก) — แค่กันตารางกระพริบตัวจิ๋ว ไม่ใช่ค่าที่พิมพ์จริง */
 const INITIAL_FONT_PT = 9;
@@ -147,9 +148,10 @@ export function PrintTableView({
    * ผลการตัดหน้า + ลายเซ็นของสิ่งที่ใช้ตัด (ดู layout.sig)
    * 🔑 ผูก sig ไว้ด้วยเพื่อให้ "ผลเก่าที่ยังไม่ทันคำนวณใหม่" ถูกมองเป็นว่าง แทนที่จะโชว์/พิมพ์ของผิด
    */
-  const [paged, setPaged] = useState<{ sig: string; list: JobRow[][] }>({
+  const [paged, setPaged] = useState<{ sig: string; list: JobRow[][]; adds: number[] }>({
     sig: "",
     list: NO_PAGES,
+    adds: NO_ADDS,
   });
 
   /**
@@ -367,8 +369,8 @@ export function PrintTableView({
      ============================================================ */
 
   /** อ่าน DOM แล้วคืนผลการตัดหน้า · null = ยังวัดไม่ได้ (ให้คงผลรอบก่อนไว้) */
-  const measurePages = useCallback((): JobRow[][] | null => {
-    if (pickedJobs.length === 0) return NO_PAGES;
+  const measurePages = useCallback((): { list: JobRow[][]; adds: number[] } | null => {
+    if (pickedJobs.length === 0) return { list: NO_PAGES, adds: NO_ADDS };
     // ยังไม่รู้ขนาดฟอนต์/ความกว้างคอลัมน์ของรอบนี้ = ความสูงแถวที่วัดได้จะเป็นของรอบก่อน
     if (!fitReady) return null;
     const root = measureRef.current;
@@ -413,20 +415,35 @@ export function PrintTableView({
     if (avail <= 0) return null;
 
     const out: JobRow[][] = [];
+    const usedOf: number[] = [];
     let cur: JobRow[] = [];
     let used = 0;
     for (let i = 0; i < pickedJobs.length; i++) {
       // 🚨 หน้าละอย่างน้อย 1 แถวเสมอ — ไม่งั้นแถวที่สูงกว่าหน้ากระดาษจะทำให้วนไม่จบ
       if (cur.length > 0 && used + rowH[i] > avail) {
         out.push(cur);
+        usedOf.push(used);
         cur = [];
         used = 0;
       }
       cur.push(pickedJobs[i]);
       used += rowH[i];
     }
-    if (cur.length > 0) out.push(cur);
-    return out;
+    if (cur.length > 0) {
+      out.push(cur);
+      usedOf.push(used);
+    }
+
+    /* ยืดแถวให้ตารางสูงเต็มแผ่น (ผู้ใช้ขอ "ขยายเต็มกระดาษ") — ที่ว่างที่เหลือของแผ่นแบ่งเท่า ๆ กันให้ทุกแถว
+       เป็น px ที่บวกเพิ่มต่อแถว (ใส่เป็น padding บน/ล่างของช่อง · ดู --pt-row-add ใน table-sheet.tsx)
+       🔑 แผ่นสุดท้ายของงานหลายแผ่น: ใช้ค่าของแผ่นแรก ไม่ยืดจนเต็ม — ไม่งั้นเหลือ 2 แถวจะสูงแถวละครึ่งหน้า
+       ปัดลงทีละ 0.01px กันเศษปัดดันแถวสุดท้ายล้นกรอบ */
+    const addOf = (i: number) =>
+      Math.max(0, Math.floor(((avail - usedOf[i]) / out[i].length) * 100) / 100);
+    const adds = out.map((_, i) =>
+      out.length > 1 && i === out.length - 1 ? Math.min(addOf(i), addOf(0)) : addOf(i),
+    );
+    return { list: out, adds };
   }, [pickedJobs, fitReady]);
 
   const paginate = useCallback(() => {
@@ -434,9 +451,11 @@ export function PrintTableView({
     if (next === null) return;
     // 🚨 เทียบก่อนเซ็ตเสมอ — setState ใน useLayoutEffect ที่ไม่เทียบจะวนไม่จบ
     setPaged((prev) =>
-      prev.sig === pageSig && samePages(prev.list, next)
+      prev.sig === pageSig &&
+      samePages(prev.list, next.list) &&
+      prev.adds.join() === next.adds.join()
         ? prev
-        : { sig: pageSig, list: next },
+        : { sig: pageSig, ...next },
     );
   }, [measurePages, pageSig]);
 
@@ -454,6 +473,7 @@ export function PrintTableView({
    * — ยอมกระพริบ 1 เฟรม ดีกว่าพิมพ์ตารางของรอบก่อนออกมา
    */
   const pages = paged.sig === pageSig ? paged.list : NO_PAGES;
+  const rowAdds = paged.sig === pageSig ? paged.adds : NO_ADDS;
 
   useEffect(() => {
     /* ฟอนต์ AngsanaUPC โหลดช้ากว่า layout รอบแรก → ทั้งความกว้างข้อความและความสูงแถวเปลี่ยน
@@ -1033,21 +1053,16 @@ export function PrintTableView({
             (A4 {ORIENTATION_LABEL[orientation]}) · ตัวอักษร {fontPt}pt
           </p>
           <p>
-            💡 ตอนกด Ctrl+P ให้ตั้ง “ระยะขอบ / Margins” เป็น{" "}
-            <b className="text-foreground">ค่าเริ่มต้น (Default)</b> และ “ขนาด / Scale”
-            เป็น <b className="text-foreground">100%</b> — ขอบกระดาษถูกฝังมากับแผ่นแล้ว
-            เลขที่ตั้งตรงนี้จึงเป็นระยะขาวจริงบนกระดาษ · อย่าลืมตั้งแนวกระดาษเป็น{" "}
+            💡 กดปุ่มปริ้นแล้ว ในหน้าต่างพิมพ์ให้ตั้ง “ขนาด / Scale” เป็น{" "}
+            <b className="text-foreground">ขนาดจริง (Actual size)</b> — ถ้าเป็น
+            “พอดีกับพื้นที่ที่พิมพ์ได้ (Fit to printable area)” ทั้งแผ่นจะถูกย่อลง
+            ขอบขาวบนกระดาษจะกว้างกว่าที่ตั้งไว้ตรงนี้ · แนวกระดาษเป็น{" "}
             <b className="text-foreground">{ORIENTATION_LABEL[orientation]}</b>{" "}
-            ถ้าเบราว์เซอร์ไม่เปลี่ยนให้เอง
+            ให้อัตโนมัติ
           </p>
           <p>
             🖨️ เครื่องพิมพ์ส่วนใหญ่พิมพ์ชิดขอบกระดาษได้ไม่เกิน ~4 มม. — ตั้งขอบต่ำกว่านั้น
-            เบราว์เซอร์อาจย่อทั้งหน้าลงให้พอดีพื้นที่พิมพ์ ระยะที่ตั้งไว้จะไม่ตรงของจริง
-          </p>
-          <p>
-            ถ้ายังเห็นชื่อเรื่อง / เวลา / URL โผล่บนกระดาษ ให้เอาติ๊ก{" "}
-            <b className="text-foreground">“หัวและท้ายกระดาษ (Headers and footers)”</b>{" "}
-            ออกในหน้าต่างปริ้น
+            ส่วนที่ชิดขอบเกินไปอาจพิมพ์ไม่ติด
           </p>
         </div>
       </div>
@@ -1079,6 +1094,7 @@ export function PrintTableView({
         {pages.length > 0 && (
           <TableSheets
             pages={pages}
+            rowAdds={rowAdds}
             cols={cols}
             footer={footer}
             orientation={orientation}
