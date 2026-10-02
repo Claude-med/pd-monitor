@@ -42,3 +42,6 @@ docs/build/.cache/
 
 # สำรองข้อมูลจาก web/scripts/backup-data.mjs — มีข้อมูลจริง ห้ามขึ้น GitHub เด็ดขาด
 backups/
+
+# รหัสผ่านบัญชีผู้ทดสอบ (ห้ามขึ้น GitHub)
+docs/handoff/.private/
