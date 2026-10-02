@@ -49,6 +49,10 @@ def sheet_pages():
     return found
 
 
+# วัดจากแผ่นที่ช่องโน้ตสั้นสุดก่อนเสมอ — ถ้าวัดตอนที่มีช่องโน้ตเดิมอยู่ แล้วช่องโน้ตยาวจนล้นไปหน้าถัดไป
+# หน้าแผ่นจะดูว่าง สคริปต์จะเติมบรรทัดเพิ่มอีก ยิ่งล้นหนัก (เจอจริง 2 ต.ค. 69: หน้าเปล่า 4 หน้า)
+MIN_LINES = 2
+UG.write_text(re.sub(r"<!--sheet-notes(?::\d+)?-->", f"<!--sheet-notes:{MIN_LINES}-->", UG.read_text(encoding="utf-8")), encoding="utf-8")
 build()
 pages = sheet_pages()
 markers = list(re.finditer(r"<!--sheet-notes(?::(\d+))?-->", UG.read_text(encoding="utf-8")))
@@ -61,9 +65,8 @@ if len(markers) != len(pages):
 s = UG.read_text(encoding="utf-8")
 counts, out, last = [], [], 0
 for (pg, used), m in zip(pages, markers):
-    cur = int(m.group(1) or 5)
     add = int(max(0.0, (TARGET - used) * BODY_MM) // LINE_MM)
-    counts.append(max(2, min(26, cur + add)))
+    counts.append(max(MIN_LINES, min(26, MIN_LINES + add)))
 for m, n in zip(markers, counts):
     out.append(s[last:m.start()])
     out.append(f"<!--sheet-notes:{n}-->")
@@ -73,7 +76,7 @@ UG.write_text("".join(out), encoding="utf-8")
 
 print("ปรับจำนวนบรรทัดช่อง 'บันทึกของแผนก':")
 for (pg, used), n in zip(pages, counts):
-    print(f"   หน้า {pg:>3} · ใช้พื้นที่เดิม {used*100:>3.0f}%  ->  {n} บรรทัด")
+    print(f"   หน้า {pg:>3} · เนื้อหา (ไม่รวมช่องโน้ต) {used*100:>3.0f}%  ->  {n} บรรทัด")
 
 build()
 print("\nbuild ซ้ำเรียบร้อย")

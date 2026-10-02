@@ -152,7 +152,7 @@ try {
       const role = shot.role ?? "manager";
       if (!sessions.has(role)) {
         const a = ACCOUNTS[role];
-        sessions.set(role, role === "-" ? { page: await browser.newPage() } : await loginAs(browser, a.email, a.password));
+        sessions.set(role, role === "-" ? { page: await browser.newPage() } : await loginAs(browser, a.email, a.password, a.skipMfa ? false : null));
         console.log(`  · เข้าสู่ระบบเป็น ${role}`);
       }
       try {
