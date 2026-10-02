@@ -124,6 +124,9 @@ export function AppShell({
             ออกจากระบบ
           </button>
         </form>
+        <p className="mt-2 text-center text-[10px] text-muted-foreground">
+          รุ่น {process.env.NEXT_PUBLIC_APP_VERSION}
+        </p>
       </div>
     </div>
   );

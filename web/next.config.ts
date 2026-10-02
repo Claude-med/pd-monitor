@@ -17,7 +17,21 @@ const securityHeaders = [
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
 ];
 
+/**
+ * ป้ายรุ่นของระบบ (มุมล่างแถบเมนู) — วันที่ build + commit 7 ตัวแรก
+ * ผู้ทดสอบแจ้งปัญหาพร้อมรุ่น และรู้ว่าเว็บที่เปิดอยู่เป็นรุ่นล่าสุดหรือยัง
+ * VERCEL_GIT_COMMIT_SHA = Vercel ใส่ให้เองตอน build · build ในเครื่อง = "local"
+ */
+const commit = (process.env.VERCEL_GIT_COMMIT_SHA ?? "local").slice(0, 7);
+const builtOn = new Date().toLocaleDateString("th-TH", {
+  timeZone: "Asia/Bangkok",
+  day: "numeric",
+  month: "short",
+  year: "2-digit",
+});
+
 const nextConfig: NextConfig = {
+  env: { NEXT_PUBLIC_APP_VERSION: `${builtOn} · ${commit}` },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
