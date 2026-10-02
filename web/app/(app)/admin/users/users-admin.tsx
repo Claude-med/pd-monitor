@@ -16,9 +16,11 @@ import {
   setRoles,
   updateProfile,
   resetPassword,
+  resetMfa,
   setActive,
 } from "./actions";
 import { DeleteUserButton } from "./delete-user-button";
+import { requiresMfa } from "@/lib/auth/mfa";
 
 const inputClass =
   "w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring";
@@ -730,6 +732,24 @@ function UserEditPanel({
           </p>
         )}
       </div>
+
+      {/* MFA — เฉพาะบัญชีผู้บริหาร/ผู้ดูแลระบบ (lib/auth/mfa.ts) */}
+      {user.auth_user_id && requiresMfa(user.roles) && (
+        <div className="space-y-2 border-t pt-4">
+          <p className="text-sm font-semibold">ยืนยันตัวตน 2 ชั้น (MFA)</p>
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => run(() => resetMfa(user.id), "รีเซ็ต MFA แล้ว — ล็อกอินครั้งถัดไปจะต้องสแกน QR ใหม่")}
+            className="rounded-md border px-4 py-2 text-sm hover:bg-accent disabled:opacity-50"
+          >
+            รีเซ็ต MFA
+          </button>
+          <p className="text-xs text-muted-foreground">
+            ใช้เมื่อเจ้าของบัญชีทำมือถือหาย/เปลี่ยนเครื่อง · ยืนยันตัวตนกับเจ้าของบัญชีก่อนกดทุกครั้ง
+          </p>
+        </div>
+      )}
 
       {/* เปิด/ระงับบัญชี */}
       <div className="space-y-2 border-t pt-4">

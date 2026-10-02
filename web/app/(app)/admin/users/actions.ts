@@ -278,6 +278,29 @@ export async function resetPassword(
   return { ok: true };
 }
 
+/**
+ * รีเซ็ต MFA (ยืนยันตัวตน 2 ชั้น) — ใช้เมื่อผู้บริหาร/admin ทำมือถือหายหรือเปลี่ยนเครื่อง
+ * ลบรหัสลับ TOTP ทุกตัวของบัญชีนั้น → ล็อกอินครั้งถัดไปจะถูกพาไปสแกน QR ใหม่ (lib/auth/mfa.ts)
+ * เฉพาะผู้บริหาร/admin (ที่ยืนยัน MFA แล้ว — getProfile ตัดสิทธิ์ให้ถ้ายังไม่ยืนยัน) · Supabase Auth เก็บ log การลบเอง
+ */
+export async function resetMfa(profileId: string): Promise<ActionResult> {
+  const actor = await requireUserAdmin();
+  if (!actor || actor.scope.kind !== "manager")
+    return { error: "ไม่มีสิทธิ์ (เฉพาะผู้บริหาร/ผู้ดูแลระบบ)" };
+  const authUserId = await authUserIdOf(profileId);
+  if (!authUserId) return { error: "ผู้ใช้นี้ยังไม่มีบัญชีล็อกอิน" };
+
+  const admin = createAdminClient();
+  const { data, error } = await admin.auth.admin.mfa.listFactors({ userId: authUserId });
+  if (error) return { error: error.message };
+  for (const f of data?.factors ?? []) {
+    const { error: dErr } = await admin.auth.admin.mfa.deleteFactor({ userId: authUserId, id: f.id });
+    if (dErr) return { error: dErr.message };
+  }
+  revalidatePath("/admin/users");
+  return { ok: true };
+}
+
 /** เปิด/ระงับบัญชี — ธง is_active (RPC) + บล็อกล็อกอินจริง (ban/unban auth) */
 export async function setActive(
   profileId: string,

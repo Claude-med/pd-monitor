@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { requiresMfa, withoutMfaRoles } from "@/lib/auth/mfa";
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -36,7 +37,13 @@ export type Profile = {
   is_active: boolean;
   /** true = ต้องตั้งรหัสผ่านใหม่เองก่อนใช้งาน — layout เด้งไป /change-password (0079) */
   must_change_password: boolean;
+  /**
+   * role ที่ใช้ได้จริงตอนนี้ — ผู้บริหาร/admin ที่ session ยังไม่ยืนยัน MFA จะถูกตัด manager/admin ออก
+   * (ดู lib/auth/mfa.ts) · ทุกด่านสิทธิ์ในแอปอ่านจากตรงนี้
+   */
   roles: AppRole[];
+  /** ผู้บริหาร/admin ที่ต้องยืนยัน MFA ก่อน: setup = ยังไม่เคยตั้ง · verify = ตั้งแล้ว รอกรอกรหัส 6 หลัก */
+  mfa_pending: "setup" | "verify" | null;
 };
 
 /** ผู้ใช้ที่ login อยู่ (จาก Supabase Auth) หรือ null */
@@ -68,6 +75,17 @@ export const getProfile = cache(async (): Promise<Profile | null> => {
     .select("role")
     .eq("profile_id", profile.id);
 
+  const allRoles = (roles ?? []).map((r) => r.role as AppRole);
+
+  // MFA (ผู้บริหาร/admin): ระดับความมั่นใจของ session อ่านจาก JWT ที่ getUser() ตรวจกับ server แล้ว
+  let mfaPending: Profile["mfa_pending"] = null;
+  if (requiresMfa(allRoles)) {
+    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (aal?.currentLevel !== "aal2") {
+      mfaPending = aal?.nextLevel === "aal2" ? "verify" : "setup";
+    }
+  }
+
   return {
     id: profile.id,
     full_name: profile.full_name,
@@ -75,6 +93,7 @@ export const getProfile = cache(async (): Promise<Profile | null> => {
     email: profile.email,
     is_active: profile.is_active ?? true,
     must_change_password: profile.must_change_password ?? false,
-    roles: (roles ?? []).map((r) => r.role as AppRole),
+    roles: mfaPending ? withoutMfaRoles(allRoles) : allRoles,
+    mfa_pending: mfaPending,
   };
 });

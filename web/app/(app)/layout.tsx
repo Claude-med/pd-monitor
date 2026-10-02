@@ -54,6 +54,10 @@ export default async function AppLayout({
   // /change-password อยู่นอก route group (app) จึงไม่วนกลับมาที่ layout นี้
   if (profile.must_change_password) redirect("/change-password");
 
+  // ---- ด่านที่ 3: ผู้บริหาร/admin ต้องยืนยันตัวตน 2 ชั้น (MFA) ทุกครั้งที่ล็อกอิน ----
+  // getProfile() ตัดสิทธิ์ผู้บริหารออกแล้วจนกว่าจะยืนยัน · /mfa อยู่นอก (app) เหมือน /change-password
+  if (profile.mfa_pending) redirect("/mfa");
+
   // ตัวนับบนเมนู 3 ตัว ไม่ขึ้นต่อกัน → ดึงพร้อมกัน · รออนุมัตินับแบบ head ไม่โหลดแถว (รีวิว 1 ต.ค. 69)
   const [unreadCount, pendingEditCount, pendingApprovalCount] = await Promise.all([
     getUnreadCount(),

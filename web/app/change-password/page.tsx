@@ -16,6 +16,9 @@ export default async function ChangePasswordPage() {
   if (!user) redirect("/login");
 
   const profile = await getProfile();
+  // ผู้บริหาร/admin ที่ตั้ง MFA ไว้แล้ว: Supabase ไม่ให้เปลี่ยนรหัสจาก session ที่ยังไม่ยืนยันรหัส 6 หลัก
+  // → ยืนยันก่อน แล้ว layout จะพากลับมาหน้านี้เอง (ถ้ายังติดธงตั้งรหัสใหม่)
+  if (profile?.mfa_pending === "verify") redirect("/mfa");
   const forced = profile?.must_change_password ?? false;
 
   return (
