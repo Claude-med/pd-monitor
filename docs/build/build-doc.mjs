@@ -79,6 +79,7 @@ const css = `
 }
 .doc-head .k{ font-size:9pt; letter-spacing:.2em; text-transform:uppercase; opacity:.85; font-weight:600; }
 .doc-head .t{ font-size:22pt; font-weight:800; line-height:1.2; margin:1.5mm 0 2mm; }
+.doc-head a{ color:#fff; text-decoration:underline; font-weight:700; }
 .doc-head p{ margin:0; font-size:10.5pt; opacity:.92; line-height:1.55; }
 `;
 
