@@ -2,14 +2,17 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   CANCELLED_STATUS,
   JOB_STATUS,
   PROBLEM_FLAGS,
+  STATUS_LABEL,
   isProblemJob,
   type JobRow,
 } from "@/lib/data/job-constants";
 import type { CompanyOption } from "@/lib/data/companies";
+import { saveBoardUrl } from "./back-to-board-link";
 import { displayJobNo } from "@/lib/format";
 
 function fmtQty(n: number | null, unit: string | null) {
@@ -106,10 +109,22 @@ export function BoardView({
   /** คำค้นจาก ?q= (คงตัวกรองไว้เมื่อกดกลับจากหน้างาน) */
   initialSearch?: string;
 }) {
-  const [search, setSearch] = useState(initialSearch);
-  const [status, setStatus] = useState(initialStatus);
-  const [company, setCompany] = useState(initialCompany);
-  const [problemOnly, setProblemOnly] = useState(initialProblem);
+  // อ่านตัวกรองจาก URL ปัจจุบันก่อน (useSearchParams) แล้วค่อย fallback ไปที่ props จาก server
+  // เหตุ: กด "ย้อนกลับ" ของเบราว์เซอร์ Next คืนหน้าจาก cache ที่ render ไว้ตอนยังไม่มีตัวกรองใน URL
+  // → props เป็นค่าเก่า (ว่าง) ตัวกรองเลยรีเซ็ต · ส่วน useSearchParams ตรงกับ URL จริงเสมอ
+  const sp = useSearchParams();
+  const urlStatus = sp.get("status");
+  const urlCompany = sp.get("company");
+  const [search, setSearch] = useState(() => sp.get("q")?.slice(0, 100) ?? initialSearch);
+  const [status, setStatus] = useState(() =>
+    urlStatus && Object.hasOwn(STATUS_LABEL, urlStatus) ? urlStatus : initialStatus,
+  );
+  const [company, setCompany] = useState(() =>
+    urlCompany && companies.some((c) => c.id === urlCompany) ? urlCompany : initialCompany,
+  );
+  const [problemOnly, setProblemOnly] = useState(() =>
+    sp.has("problem") ? sp.get("problem") === "1" : initialProblem,
+  );
 
   // เขียนตัวกรองลง URL (replaceState = ไม่เพิ่มประวัติ ไม่โหลดหน้าใหม่)
   // → เข้าหน้างานแล้วกด "ย้อนกลับ" ตัวกรองเดิมยังอยู่ · ส่งลิงก์ให้คนอื่นก็เห็นชุดเดียวกัน
@@ -124,6 +139,8 @@ export function BoardView({
     if (next !== `${window.location.pathname}${window.location.search}`) {
       window.history.replaceState(null, "", next); // Next 16 ผนวก state ของ router ให้เอง (ตามเอกสาร Next)
     }
+    // จำลิงก์บอร์ดล่าสุด ให้ปุ่ม "← กลับบอร์ดงาน" ในหน้างานพากลับมาที่ตัวกรองเดิม
+    saveBoardUrl(next);
   }, [search, status, company, problemOnly]);
 
   // งานที่รับเข้าคลัง FG แล้ว = ถือว่าจบหน้าที่ ย้ายไปดูที่หน้า "คลัง / FG" → ซ่อนจากบอร์ด

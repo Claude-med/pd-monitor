@@ -1,4 +1,5 @@
 import { Fragment } from "react";
+import { BackToBoardLink } from "../back-to-board-link";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getJobByNo } from "@/lib/data/jobs";
@@ -361,12 +362,7 @@ export default async function JobDetailPage({
         ]}
       />
       <div className="flex items-center justify-between gap-2">
-        <Link
-          href="/board"
-          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
-        >
-          ← กลับบอร์ดงาน
-        </Link>
+        <BackToBoardLink className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground" />
         <Link
           href={`/board/${encodeURIComponent(job.job_no)}/ebr`}
           className="inline-flex items-center rounded-md border px-3 py-1.5 text-sm hover:bg-accent"

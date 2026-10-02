@@ -4,7 +4,10 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isRateLimited, RATE_LIMIT_MESSAGE } from "@/lib/auth/verify-password";
 
-export type LoginState = { error?: string; email?: string } | undefined;
+// invalid = อีเมล/รหัสผิด (ฟอร์มนับครั้งเพื่อล็อกปุ่มฝั่งเบราว์เซอร์) · ok = สำเร็จ (ฟอร์มรีเซ็ตตัวนับแล้วพาเข้าระบบ)
+export type LoginState =
+  | { error?: string; email?: string; invalid?: boolean; ok?: boolean }
+  | undefined;
 
 /**
  * Server Action: เข้าสู่ระบบด้วยอีเมล + รหัสผ่าน (Supabase Auth)
@@ -28,10 +31,11 @@ export async function login(
   if (error) {
     // ลองถี่เกิน (429) ≠ รหัสผิด — แยกข้อความ ไม่งั้นผู้ใช้กดซ้ำจนโดนล็อกนานขึ้น
     if (isRateLimited(error)) return { error: RATE_LIMIT_MESSAGE, email };
-    return { error: "อีเมลหรือรหัสผ่านไม่ถูกต้อง", email };
+    return { error: "อีเมลหรือรหัสผ่านไม่ถูกต้อง", email, invalid: true };
   }
 
-  redirect("/");
+  // ไม่ redirect ที่นี่ — ให้ฟอร์มล้างตัวนับรหัสผิดก่อน แล้วค่อยพาเข้าหน้าแรก (cookie session ตั้งแล้ว)
+  return { ok: true };
 }
 
 /** Server Action: ออกจากระบบ */
