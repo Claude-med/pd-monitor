@@ -64,6 +64,17 @@ body = body.replace(/<blockquote>\s*<p>([\s\S]*?)<\/p>/g, (all, first) => {
   const c = CALLOUTS.find((x) => x.marks.some((mk) => first.trimStart().startsWith(mk)));
   return c ? all.replace("<blockquote>", `<blockquote class="${c.cls}">`) : all;
 });
+// รูปในเอกสาร (path ตาม md) → ฝังเป็น base64 ในไฟล์เดียว (HTML ถูกเขียนไว้ที่ .cache จึงอ้าง path เดิมไม่ได้)
+body = body.replace(/<img([^>]*?)src="([^"]+)"/g, (all, pre, src) => {
+  if (/^(data:|https?:)/.test(src)) return all;
+  const f = path.resolve(path.dirname(inMd), src);
+  if (!fs.existsSync(f)) {
+    console.log(`⚠️  ไม่พบรูป ${src}`);
+    return all;
+  }
+  const ext = path.extname(f).slice(1).toLowerCase().replace("jpg", "jpeg");
+  return `<img${pre}src="data:image/${ext};base64,${fs.readFileSync(f).toString("base64")}"`;
+});
 const leadHtml = lead.map((l) => `<p>${marked.parseInline(l)}</p>`).join("");
 
 const css = `
@@ -73,6 +84,9 @@ const css = `
 .doc h1:first-child{ margin-top:0; }
 .doc table{ font-size:9.8pt; }
 .page-break{ break-before:page; }
+.contact{ display:flex; gap:6mm; align-items:center; margin:3mm 0 4mm; padding:3mm 4mm; border:1px solid var(--line); border-radius:5px; }
+.contact img{ width:30mm; height:30mm; }
+.contact p{ margin:0 0 1mm; }
 .doc-head{
   margin:-2mm 0 7mm; padding:7mm 8mm 6mm; border-radius:5px; color:#fff;
   background:linear-gradient(160deg,#064e3b 0%,#065f46 38%,#16a34a 100%);
