@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { BackToBoardLink } from "../back-to-board-link";
 import { getProfile } from "@/lib/auth/dal";
 import { canPlanJobs } from "@/lib/data/role-access";
 import { getProducts } from "@/lib/data/products";
@@ -18,12 +18,7 @@ export default async function NewJobPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
-        <Link
-          href="/board"
-          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
-        >
-          ← กลับบอร์ดงาน
-        </Link>
+        <BackToBoardLink className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground" />
         <h1 className="mt-2 text-2xl font-bold tracking-tight">สร้างงานผลิตใหม่</h1>
         <p className="text-sm text-muted-foreground">
           ลงออเดอร์ + เปิดงานผลิต (Job) เข้าระบบ — งานจะเริ่มที่สถานะ “รอแจ้งผลิต”

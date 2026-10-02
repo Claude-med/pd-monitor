@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { BackToBoardLink } from "../back-to-board-link";
 import { getJobs } from "@/lib/data/jobs";
 import { listCompanies } from "@/lib/data/companies";
 import { listJobSubStatuses } from "@/lib/data/job-sub-statuses";
@@ -28,12 +28,7 @@ export default async function PrintTablePage() {
   return (
     <div className="pt-page space-y-5">
       <div className="no-print">
-        <Link
-          href="/board"
-          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
-        >
-          ← กลับบอร์ดงาน
-        </Link>
+        <BackToBoardLink className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground" />
         <h1 className="mt-2 text-2xl font-bold tracking-tight">
           ปริ้นตารางบอร์ดงาน
         </h1>

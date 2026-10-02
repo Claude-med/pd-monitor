@@ -31,7 +31,12 @@ export async function login(
   if (error) {
     // ลองถี่เกิน (429) ≠ รหัสผิด — แยกข้อความ ไม่งั้นผู้ใช้กดซ้ำจนโดนล็อกนานขึ้น
     if (isRateLimited(error)) return { error: RATE_LIMIT_MESSAGE, email };
-    return { error: "อีเมลหรือรหัสผ่านไม่ถูกต้อง", email, invalid: true };
+    // นับเป็น "รหัสผิด" (ล็อกปุ่มฝั่งเบราว์เซอร์) เฉพาะเมื่อ Supabase ยืนยันว่าอีเมล/รหัสไม่ถูก
+    // เน็ตหลุด / Supabase ล่ม ไม่นับ — ไม่งั้นคนที่ใส่รหัสถูกโดนล็อกปุ่มไปด้วย
+    if (error.code === "invalid_credentials") {
+      return { error: "อีเมลหรือรหัสผ่านไม่ถูกต้อง", email, invalid: true };
+    }
+    return { error: "เชื่อมต่อระบบไม่ได้ ลองใหม่อีกครั้ง", email };
   }
 
   // ไม่ redirect ที่นี่ — ให้ฟอร์มล้างตัวนับรหัสผิดก่อน แล้วค่อยพาเข้าหน้าแรก (cookie session ตั้งแล้ว)

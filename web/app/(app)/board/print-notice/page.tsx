@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { BackToBoardLink } from "../back-to-board-link";
 import { getProfile } from "@/lib/auth/dal";
 import { canPlanJobs } from "@/lib/data/role-access";
 import { getJobs } from "@/lib/data/jobs";
@@ -26,12 +26,7 @@ export default async function PrintNoticePage() {
   return (
     <div className="pn-page space-y-5">
       <div className="no-print">
-        <Link
-          href="/board"
-          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
-        >
-          ← กลับบอร์ดงาน
-        </Link>
+        <BackToBoardLink className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground" />
         <h1 className="mt-2 text-2xl font-bold tracking-tight">ปริ้นใบแจ้งผลิต</h1>
         <p className="text-sm text-muted-foreground">
           F.PLN.01 — เลือกบริษัท แล้วติ๊กงานที่จะพิมพ์ · กระดาษ A4 ใบละ 2 Job ฉีกครึ่งได้
